@@ -1,7 +1,7 @@
-import uuid
 
 import pytest
 from sqlalchemy import text
+from sqlalchemy.exc import DBAPIError
 
 from kernel.db.session import session
 
@@ -26,6 +26,6 @@ async def test_context_does_not_leak_across_sessions(make_user):
 
     engine = get_engine()
     async with engine.connect() as conn:
-        with pytest.raises(Exception):
+        with pytest.raises(DBAPIError):
             # No set_config → current_setting errors → fail closed.
             await conn.execute(text("SELECT count(*) FROM sources"))

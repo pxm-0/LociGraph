@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from kernel.models import Observation, Source
 
@@ -27,7 +27,7 @@ def test_observation_is_immutable():
             "content": "hello",
             "confidence": 1.0,
             "status": "active",
-            "created_at": datetime.now(timezone.utc),
+            "created_at": datetime.now(UTC),
         }
     )
     try:
