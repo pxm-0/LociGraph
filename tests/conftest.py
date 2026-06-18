@@ -16,8 +16,9 @@ async def reset_engine():
     await dispose_engine()
 
 
+# Depends on reset_engine so its DELETE teardown runs before the engine is disposed.
 @pytest_asyncio.fixture
-async def make_user():
+async def make_user(reset_engine):
     """Insert a user row (as owner-less app role won't pass RLS for users table —
     users has no RLS, app role has INSERT). Returns the new user's id."""
     created: list[uuid.UUID] = []

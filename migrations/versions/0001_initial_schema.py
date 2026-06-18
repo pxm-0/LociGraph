@@ -17,7 +17,7 @@ DATA_TABLES = ["sources", "fragments", "observations", "jobs"]
 
 
 def upgrade() -> None:
-    app_password = os.environ["APP_DB_PASSWORD"]
+    app_password = os.environ["APP_DB_PASSWORD"].replace("'", "''")
 
     op.execute("CREATE EXTENSION IF NOT EXISTS vector")
 
