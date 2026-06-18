@@ -132,7 +132,7 @@ def upgrade() -> None:
         "sources, fragments, observations, jobs TO locigraph_app"
     )
     op.execute("GRANT SELECT, INSERT ON audit_logs TO locigraph_app")
-    op.execute("GRANT SELECT, INSERT, UPDATE ON users TO locigraph_app")
+    op.execute("GRANT SELECT, INSERT, UPDATE, DELETE ON users TO locigraph_app")
     op.execute(
         "GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO locigraph_app"
     )
