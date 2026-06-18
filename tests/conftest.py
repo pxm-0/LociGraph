@@ -40,9 +40,18 @@ async def make_user(reset_engine):
 
     yield _make
 
+    # Delete each user's owned rows before the user itself, or the FK from
+    # sources/jobs -> users blocks the user DELETE. Child rows live behind
+    # FORCE RLS, so they must be removed inside an RLS-scoped session()
+    # (children first: observations -> fragments -> sources; jobs independent).
     engine = get_engine()
-    async with engine.begin() as conn:
-        for uid in created:
+    for uid in created:
+        async with session(uid) as conn:
+            await conn.execute(text("DELETE FROM observations"))
+            await conn.execute(text("DELETE FROM fragments"))
+            await conn.execute(text("DELETE FROM jobs"))
+            await conn.execute(text("DELETE FROM sources"))
+        async with engine.begin() as conn:
             await conn.execute(text("DELETE FROM users WHERE id = :id"), {"id": uid})
 
 
