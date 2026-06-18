@@ -123,9 +123,16 @@ def upgrade() -> None:
         """
     )
 
-    # Non-owner application role.
+    # Non-owner application role. Roles are cluster-global, so guard creation
+    # to keep the migration re-runnable across databases in the same cluster.
     op.execute(
-        f"CREATE ROLE locigraph_app LOGIN PASSWORD '{app_password}'"
+        f"""
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'locigraph_app') THEN
+            CREATE ROLE locigraph_app LOGIN PASSWORD '{app_password}';
+          END IF;
+        END $$
+        """
     )
     op.execute(
         "GRANT SELECT, INSERT, UPDATE, DELETE ON "
