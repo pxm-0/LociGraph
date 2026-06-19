@@ -1,0 +1,8 @@
+{
+  "participants": [{"name": "Alice"}, {"name": "Bob"}],
+  "messages": [
+    {"sender_name": "Bob", "timestamp_ms": 1700000060000, "content": "second"},
+    {"sender_name": "Alice", "timestamp_ms": 1700000000000, "content": "first"},
+    {"sender_name": "Alice", "timestamp_ms": 1700000120000, "photos": [{"uri": "x.jpg"}]}
+  ]
+}
