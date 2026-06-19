@@ -32,9 +32,9 @@ class ObservationRepository(BaseRepository):
                         """
                         INSERT INTO observations
                             (user_id, source_id, fragment_id, observed_at, speaker,
-                             content, context_before, context_after)
+                             content, context_before, context_after, confidence)
                         VALUES (:user_id, :source_id, :fragment_id, :observed_at, :speaker,
-                                :content, :ctx_before, :ctx_after)
+                                :content, :ctx_before, :ctx_after, :confidence)
                         RETURNING id
                         """
                     ),
@@ -47,6 +47,7 @@ class ObservationRepository(BaseRepository):
                         "content": row["content"],
                         "ctx_before": row.get("context_before"),
                         "ctx_after": row.get("context_after"),
+                        "confidence": row.get("confidence", 1.0),
                     },
                 )
             ).scalar_one()

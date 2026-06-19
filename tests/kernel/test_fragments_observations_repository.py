@@ -45,3 +45,15 @@ async def test_bulk_insert_empty_returns_empty(make_user):
         src = await SourceRepository(conn).create(user_id, "json", "c-frag-2")
         result = await FragmentRepository(conn).bulk_insert([], src.id, user_id)
     assert result == []
+
+
+@pytest.mark.asyncio
+async def test_bulk_insert_persists_confidence(make_user):
+    user_id = await make_user()
+    async with session(user_id) as conn:
+        src = await SourceRepository(conn).create(user_id, "json", "c-conf-1")
+        await ObservationRepository(conn).bulk_insert(
+            [{"content": "x", "confidence": 0.5}], src.id, user_id
+        )
+        obs = await ObservationRepository(conn).list_for_source(src.id)
+    assert obs[0].confidence == 0.5
