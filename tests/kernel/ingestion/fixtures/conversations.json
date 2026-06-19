@@ -1,0 +1,10 @@
+[
+  {
+    "title": "demo",
+    "mapping": {
+      "n1": {"message": {"author": {"role": "user"}, "content": {"parts": ["hello there"]}, "create_time": 1700000000}},
+      "n2": {"message": {"author": {"role": "assistant"}, "content": {"parts": ["hi, how can I help?"]}, "create_time": 1700000060}},
+      "n3": {"message": {"author": {"role": "system"}, "content": {"parts": [""]}, "create_time": 1700000030}}
+    }
+  }
+]
