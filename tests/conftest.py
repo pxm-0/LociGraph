@@ -23,6 +23,8 @@ async def make_user(reset_engine):
     users has no RLS, app role has INSERT). Returns the new user's id."""
     created: list[uuid.UUID] = []
 
+    assert "DATABASE_URL" in os.environ, "DATABASE_URL (app role) must be set for DB tests"
+
     async def _make(email: str | None = None) -> uuid.UUID:
         uid = uuid.uuid4()
         email = email or f"{uid}@example.com"
@@ -53,8 +55,3 @@ async def make_user(reset_engine):
             await conn.execute(text("DELETE FROM sources"))
         async with engine.begin() as conn:
             await conn.execute(text("DELETE FROM users WHERE id = :id"), {"id": uid})
-
-
-@pytest_asyncio.fixture(autouse=True)
-def require_app_database_url():
-    assert "DATABASE_URL" in os.environ, "DATABASE_URL (app role) must be set for tests"
