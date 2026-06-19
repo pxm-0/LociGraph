@@ -18,3 +18,4 @@ def test_save_raw_strips_path_traversal(tmp_path):
     p = save_raw(tmp_path, uid, sid, "../../etc/passwd", b"x")
     assert Path(p).name == "passwd"
     assert "/etc/passwd" not in p
+    assert Path(p).resolve().is_relative_to(tmp_path.resolve())
