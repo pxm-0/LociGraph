@@ -84,6 +84,12 @@ class SourceRepository(BaseRepository):
             {"id": str(source_id)},
         )
 
+    async def update_storage_path(self, source_id: str | UUID, path: str) -> None:
+        await self.conn.execute(
+            text("UPDATE sources SET raw_storage_path = :p WHERE id = :id"),
+            {"p": path, "id": str(source_id)},
+        )
+
     async def list(self, limit: int = 50, offset: int = 0) -> list[Source]:
         rows = (
             await self.conn.execute(

@@ -35,6 +35,18 @@ async def test_status_transitions(make_user):
 
 
 @pytest.mark.asyncio
+async def test_update_storage_path(make_user):
+    user_id = await make_user()
+    async with session(user_id) as conn:
+        repo = SourceRepository(conn)
+        src = await repo.create(user_id, "json", "checksum-path-test")
+        await repo.update_storage_path(src.id, "/tmp/test/path.json")
+        fetched = await repo.get(src.id)
+    assert fetched is not None
+    assert fetched.raw_storage_path == "/tmp/test/path.json"
+
+
+@pytest.mark.asyncio
 async def test_duplicate_checksum_rejected(make_user):
     user_id = await make_user()
     async with session(user_id) as conn:

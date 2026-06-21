@@ -1,5 +1,7 @@
-# Production reverse proxy. Frontend + API served from one origin.
-# Fleshed out in Plan 4 once backend/frontend services exist.
 :80 {
-	respond "LociGraph — services not yet wired" 503
+	handle /api/* {
+		uri strip_prefix /api
+		reverse_proxy backend:8000
+	}
+	respond "LociGraph API gateway" 200
 }

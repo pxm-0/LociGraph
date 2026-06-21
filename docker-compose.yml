@@ -4,7 +4,7 @@ services:
     environment:
       POSTGRES_DB: locigraph
       POSTGRES_USER: locigraph
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
     ports:
       - "5432:5432"
     volumes:
@@ -14,6 +14,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+      start_period: 10s
 
   redis:
     image: redis:7-alpine
@@ -21,7 +22,67 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      DATABASE_URL: postgresql+asyncpg://locigraph_app:${APP_DB_PASSWORD:-changeme}@postgres/locigraph
+      MIGRATION_DATABASE_URL: postgresql+asyncpg://locigraph:${POSTGRES_PASSWORD:-changeme}@postgres/locigraph
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-changeme-generate-with-openssl-rand-hex-32}
+      LOCIGRAPH_EMAIL: ${LOCIGRAPH_EMAIL:-you@example.com}
+      LOCIGRAPH_PASSWORD: ${LOCIGRAPH_PASSWORD:-changeme}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:-changeme}
+      RAW_STORAGE_PATH: /data/raw
+      COOKIE_SECURE: "true"
+    volumes:
+      - raw_data:/data/raw
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      dockerfile: worker/Dockerfile
+    environment:
+      DATABASE_URL: postgresql+asyncpg://locigraph_app:${APP_DB_PASSWORD:-changeme}@postgres/locigraph
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-changeme-generate-with-openssl-rand-hex-32}
+      LOCIGRAPH_EMAIL: ${LOCIGRAPH_EMAIL:-you@example.com}
+      LOCIGRAPH_PASSWORD: ${LOCIGRAPH_PASSWORD:-changeme}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:-changeme}
+      RAW_STORAGE_PATH: /data/raw
+      COOKIE_SECURE: "true"
+    volumes:
+      - raw_data:/data/raw
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      - backend
 
 volumes:
   postgres_data:
   redis_data:
+  raw_data:

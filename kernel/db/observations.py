@@ -32,9 +32,9 @@ class ObservationRepository(BaseRepository):
                         """
                         INSERT INTO observations
                             (user_id, source_id, fragment_id, observed_at, speaker,
-                             content, context_before, context_after)
+                             content, context_before, context_after, confidence)
                         VALUES (:user_id, :source_id, :fragment_id, :observed_at, :speaker,
-                                :content, :ctx_before, :ctx_after)
+                                :content, :ctx_before, :ctx_after, :confidence)
                         RETURNING id
                         """
                     ),
@@ -47,6 +47,7 @@ class ObservationRepository(BaseRepository):
                         "content": row["content"],
                         "ctx_before": row.get("context_before"),
                         "ctx_after": row.get("context_after"),
+                        "confidence": row.get("confidence", 1.0),
                     },
                 )
             ).scalar_one()
@@ -73,3 +74,35 @@ class ObservationRepository(BaseRepository):
             )
         ).scalar_one()
         return result
+
+    async def list(
+        self,
+        *,
+        source_id: str | UUID | None = None,
+        speaker: str | None = None,
+        status: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> list[Observation]:
+        clauses = []
+        params: dict[str, Any] = {"limit": limit, "offset": offset}
+        if source_id is not None:
+            clauses.append("source_id = :source_id")
+            params["source_id"] = str(source_id)
+        if speaker is not None:
+            clauses.append("speaker = :speaker")
+            params["speaker"] = speaker
+        if status is not None:
+            clauses.append("status = :status")
+            params["status"] = status
+        where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
+        rows = (
+            await self.conn.execute(
+                text(
+                    f"SELECT {_COLUMNS} FROM observations {where}"
+                    " ORDER BY created_at DESC LIMIT :limit OFFSET :offset"
+                ),
+                params,
+            )
+        ).mappings().all()
+        return [Observation.from_row(_as_mapping(r)) for r in rows]
