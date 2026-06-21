@@ -8,6 +8,30 @@ from worker.tasks.ingest_source import _ingest
 
 
 @pytest.mark.asyncio
+async def test_ingest_failure_marks_source_failed_and_reraises(make_user, tmp_path):
+    user_id = await make_user()
+    missing = tmp_path / "does-not-exist.json"
+    # deliberately NOT created so the parser raises FileNotFoundError
+
+    async with session(user_id) as conn:
+        src = await SourceRepository(conn).create(
+            user_id, "json", "e2e-fail", raw_storage_path=str(missing)
+        )
+        job = await JobRepository(conn).create(user_id, "ingest_source")
+
+    with pytest.raises(FileNotFoundError):
+        await _ingest(str(src.id), str(user_id), str(job.id))
+
+    async with session(user_id) as conn:
+        failed_src = await SourceRepository(conn).get(src.id)
+        failed_job = await JobRepository(conn).get(job.id)
+
+    assert failed_src.import_status == "FAILED"
+    assert failed_job.status == "failed"
+    assert failed_job.attempts >= 1
+
+
+@pytest.mark.asyncio
 async def test_ingest_parses_and_persists_observations(make_user, tmp_path):
     user_id = await make_user()
     raw = tmp_path / "s.json"

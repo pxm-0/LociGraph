@@ -27,13 +27,15 @@ async def _ingest(source_id: str, user_id: str, job_id: str) -> None:
             source = await SourceRepository(conn).get(source_id)
             if source is None:
                 raise ValueError(f"source {source_id} not found")
+            if source.raw_storage_path is None:
+                raise ValueError(f"source {source_id} has no raw_storage_path")
             # Idempotency: skip if observations already exist for this source.
             if await ObservationRepository(conn).count_for_source(source_id) > 0:
                 await SourceRepository(conn).mark_verified(source_id)
                 await JobRepository(conn).mark_completed(job_id, result={"skipped": True})
                 return
 
-            fragments = get_parser(source.source_type).parse(Path(source.raw_storage_path or ""))
+            fragments = get_parser(source.source_type).parse(Path(source.raw_storage_path))
             await FragmentRepository(conn).bulk_insert(
                 [f.to_fragment_row() for f in fragments], source_id, user_id
             )
