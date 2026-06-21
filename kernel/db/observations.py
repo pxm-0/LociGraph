@@ -74,3 +74,35 @@ class ObservationRepository(BaseRepository):
             )
         ).scalar_one()
         return result
+
+    async def list(
+        self,
+        *,
+        source_id: str | UUID | None = None,
+        speaker: str | None = None,
+        status: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> list[Observation]:
+        clauses = []
+        params: dict[str, Any] = {"limit": limit, "offset": offset}
+        if source_id is not None:
+            clauses.append("source_id = :source_id")
+            params["source_id"] = str(source_id)
+        if speaker is not None:
+            clauses.append("speaker = :speaker")
+            params["speaker"] = speaker
+        if status is not None:
+            clauses.append("status = :status")
+            params["status"] = status
+        where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
+        rows = (
+            await self.conn.execute(
+                text(
+                    f"SELECT {_COLUMNS} FROM observations {where}"
+                    " ORDER BY created_at DESC LIMIT :limit OFFSET :offset"
+                ),
+                params,
+            )
+        ).mappings().all()
+        return [Observation.from_row(_as_mapping(r)) for r in rows]
