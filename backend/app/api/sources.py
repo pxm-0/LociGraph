@@ -45,6 +45,9 @@ async def upload_source(
     job_id: UUID
     try:
         async with session(user_id) as conn:
+            # ORDER IS INTENTIONAL: create()'s INSERT enforces UNIQUE(user_id, checksum_sha256)
+            # and raises IntegrityError for duplicates BEFORE save_raw() writes any file,
+            # so a duplicate upload is rejected without orphaning anything on disk. MUST stay first.
             source = await SourceRepository(conn).create(
                 user_id,
                 source_type,
