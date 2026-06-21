@@ -6,17 +6,11 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 
 from kernel.auth.passwords import hash_password
-from kernel.db.engine import dispose_engine, get_engine
-
-
-@pytest_asyncio.fixture(autouse=True)
-async def _reset_engine():
-    yield
-    await dispose_engine()
+from kernel.db.engine import get_engine
 
 
 @pytest_asyncio.fixture
-async def seeded_user(_reset_engine):
+async def seeded_user(reset_engine):
     """Insert the configured login user; clean up after."""
     email = os.environ["LOCIGRAPH_EMAIL"]
     uid = uuid.uuid4()
