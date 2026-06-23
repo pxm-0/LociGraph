@@ -8,6 +8,12 @@ export interface SourceSummary {
   inFlight: number
 }
 
+export function filterByStatus(sources: Source[], status: string): Source[] {
+  if (!status || status.toUpperCase() === "ALL") return sources
+  const upper = status.toUpperCase()
+  return sources.filter((s) => s.importStatus.toUpperCase() === upper)
+}
+
 export function summarize(sources: Source[]): SourceSummary {
   let verified = 0
   let inFlight = 0

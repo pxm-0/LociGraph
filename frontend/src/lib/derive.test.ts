@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { summarize } from "./derive"
+import { summarize, filterByStatus } from "./derive"
 import type { Source } from "./types"
 
 function makeSource(importStatus: string, id = "1"): Source {
@@ -62,5 +62,38 @@ describe("summarize", () => {
   it("correctly totals a single source", () => {
     const result = summarize([makeSource("VERIFIED", "1")])
     expect(result).toEqual({ total: 1, verified: 1, inFlight: 0 })
+  })
+})
+
+describe("filterByStatus", () => {
+  const sources: Source[] = [
+    makeSource("VERIFIED", "1"),
+    makeSource("VERIFIED", "2"),
+    makeSource("PENDING", "3"),
+    makeSource("PURGED", "4"),
+  ]
+
+  it("ALL returns all sources", () => {
+    expect(filterByStatus(sources, "ALL")).toHaveLength(4)
+  })
+
+  it("VERIFIED returns only verified sources", () => {
+    const result = filterByStatus(sources, "VERIFIED")
+    expect(result).toHaveLength(2)
+    expect(result.every((s) => s.importStatus === "VERIFIED")).toBe(true)
+  })
+
+  it("status with no matches returns empty array", () => {
+    expect(filterByStatus(sources, "INGESTING")).toHaveLength(0)
+  })
+
+  it("empty string returns all sources", () => {
+    expect(filterByStatus(sources, "")).toHaveLength(4)
+  })
+
+  it("comparison is case-insensitive", () => {
+    const result = filterByStatus(sources, "verified")
+    expect(result).toHaveLength(2)
+    expect(result.every((s) => s.importStatus === "VERIFIED")).toBe(true)
   })
 })
