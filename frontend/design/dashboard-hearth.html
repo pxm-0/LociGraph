@@ -1,0 +1,409 @@
+<!DOCTYPE html><html class="dark" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>LociGraph | Archivist Deck</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-bright": "#403830",
+                    "dust": "#F5EDE2",
+                    "surface-container": "#251e18",
+                    "primary": "#ffb86e",
+                    "on-primary-fixed-variant": "#693c00",
+                    "primary-container": "#d4882f",
+                    "on-secondary": "#3e2d15",
+                    "on-secondary-container": "#cbb18f",
+                    "archive": "#141210",
+                    "error": "#ffb4ab",
+                    "primary-fixed-dim": "#ffb86e",
+                    "outline-variant": "#534437",
+                    "inverse-on-surface": "#372f28",
+                    "primary-fixed": "#ffdcbd",
+                    "surface-dim": "#19120c",
+                    "surface": "#19120c",
+                    "ledge": "#2A2420",
+                    "on-tertiary-fixed-variant": "#004d63",
+                    "on-secondary-fixed": "#271904",
+                    "surface-container-lowest": "#130d07",
+                    "on-secondary-fixed-variant": "#564429",
+                    "on-primary-container": "#4b2900",
+                    "on-error-container": "#ffdad6",
+                    "surface-container-high": "#302922",
+                    "on-surface": "#eee0d5",
+                    "surface-container-highest": "#3c332c",
+                    "secondary-fixed": "#fbdeba",
+                    "secondary": "#ddc2a0",
+                    "on-surface-variant": "#d8c3b1",
+                    "secondary-container": "#564429",
+                    "on-tertiary-container": "#003646",
+                    "void": "#0F0D0B",
+                    "surface-variant": "#3c332c",
+                    "tertiary": "#64d4fd",
+                    "surface-tint": "#ffb86e",
+                    "inverse-surface": "#eee0d5",
+                    "on-tertiary": "#003545",
+                    "on-primary": "#492900",
+                    "secondary-fixed-dim": "#ddc2a0",
+                    "chamber": "#1E1A17",
+                    "on-primary-fixed": "#2c1600",
+                    "background": "#19120c",
+                    "on-background": "#eee0d5",
+                    "tertiary-container": "#24a5cd",
+                    "signal-amber": "#8C6A2A",
+                    "char": "rgba(245, 237, 226, 0.03)",
+                    "inverse-primary": "#8a5100",
+                    "tertiary-fixed-dim": "#64d4fd",
+                    "surface-container-low": "#211a14",
+                    "signal-green": "#5A8C5A",
+                    "outline": "#a08d7d",
+                    "signal-red": "#8C4A4A",
+                    "tertiary-fixed": "#bbe9ff",
+                    "on-error": "#690005",
+                    "on-tertiary-fixed": "#001f29",
+                    "error-container": "#93000a",
+                    "whisper": "rgba(245, 237, 226, 0.07)"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "sidebar-meridian": "200px",
+                    "margin-mobile": "1rem",
+                    "gutter-hearth": "2rem",
+                    "margin-desktop": "clamp(1.5rem, 4vw, 3rem)",
+                    "max-width": "1400px",
+                    "gutter-meridian": "0.75rem",
+                    "sidebar-hearth": "240px"
+            },
+            "fontFamily": {
+                    "display-meridian": ["Outfit"],
+                    "body-hearth": ["Outfit"],
+                    "label-sm": ["Geist"],
+                    "body-meridian": ["Outfit"],
+                    "headline-lg-hearth": ["Outfit"],
+                    "label-md": ["Geist"],
+                    "table-header": ["Geist"],
+                    "data-mono": ["Geist Mono"],
+                    "headline-lg-meridian": ["Outfit"],
+                    "display-hearth": ["Outfit"]
+            },
+            "fontSize": {
+                    "display-meridian": ["32px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                    "body-hearth": ["16px", {"lineHeight": "1.7", "fontWeight": "400"}],
+                    "label-sm": ["12px", {"lineHeight": "1.4", "fontWeight": "500"}],
+                    "body-meridian": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                    "headline-lg-hearth": ["28px", {"lineHeight": "1.3", "fontWeight": "500"}],
+                    "label-md": ["14px", {"lineHeight": "1.4", "fontWeight": "500"}],
+                    "table-header": ["11px", {"lineHeight": "1.2", "letterSpacing": "0.08em", "fontWeight": "500"}],
+                    "data-mono": ["12px", {"lineHeight": "1.4", "fontWeight": "400"}],
+                    "headline-lg-meridian": ["24px", {"lineHeight": "1.3", "fontWeight": "500"}],
+                    "display-hearth": ["40px", {"lineHeight": "1.2", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #141210; /* Archive color */
+            color: #eee0d5; /* On-surface */
+            overflow-x: hidden;
+        }
+        .hearth-texture {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 50;
+            background-image: url("https://www.transparenttextures.com/patterns/stardust.png");
+            opacity: 0.02;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        /* Custom scrollbar for meridian/hearth modes */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #3c332c; border-radius: 10px; }
+        
+        .status-badge {
+            font-family: 'Geist Mono', monospace;
+            font-size: 11px;
+            letter-spacing: 0.05em;
+            font-variant: all-small-caps;
+        }
+    </style>
+</head>
+<body class="font-body-hearth text-body-hearth">
+<div class="hearth-texture"></div>
+<!-- Sidebar Navigation -->
+<aside class="fixed left-0 top-0 h-screen w-sidebar-hearth bg-archive border-r border-whisper flex flex-col py-gutter-meridian z-40">
+<div class="px-6 mb-12">
+<h1 class="font-display-meridian text-display-meridian text-primary tracking-tight">LociGraph</h1>
+<p class="text-xs text-on-surface-variant opacity-60 uppercase tracking-widest mt-1">Archivist Deck</p>
+</div>
+<nav class="flex-1 space-y-1">
+<!-- Active Navigation Item: Dashboard maps to "Overview" intent -->
+<a class="flex items-center px-6 py-3 text-primary border-l-2 border-primary bg-ledge transition-all duration-200" href="#">
+<span class="material-symbols-outlined mr-3">dashboard</span>
+<span class="font-medium">Dashboard</span>
+</a>
+<a class="flex items-center px-6 py-3 text-on-surface-variant hover:bg-chamber hover:text-on-surface transition-all duration-200 border-l-2 border-transparent" href="#">
+<span class="material-symbols-outlined mr-3">inventory_2</span>
+<span>Vault</span>
+</a>
+<a class="flex items-center px-6 py-3 text-on-surface-variant hover:bg-chamber hover:text-on-surface transition-all duration-200 border-l-2 border-transparent" href="#">
+<span class="material-symbols-outlined mr-3">database</span>
+<span>Sources</span>
+</a>
+<a class="flex items-center px-6 py-3 text-on-surface-variant hover:bg-chamber hover:text-on-surface transition-all duration-200 border-l-2 border-transparent" href="#">
+<span class="material-symbols-outlined mr-3">history</span>
+<span>Timeline</span>
+</a>
+<a class="flex items-center px-6 py-3 text-on-surface-variant hover:bg-chamber hover:text-on-surface transition-all duration-200 border-l-2 border-transparent" href="#">
+<span class="material-symbols-outlined mr-3">settings</span>
+<span>Settings</span>
+</a>
+</nav>
+<div class="px-6 mt-auto space-y-4">
+<button class="w-full bg-primary text-on-primary py-3 px-4 rounded-lg flex items-center justify-center font-medium active:translate-y-px transition-transform">
+<span class="material-symbols-outlined mr-2 text-sm">add_circle</span>
+                Global Import
+            </button>
+<div class="pt-6 border-t border-whisper space-y-3">
+<a class="flex items-center text-xs text-on-surface-variant hover:text-on-surface transition-colors" href="#">
+<span class="material-symbols-outlined text-sm mr-2">analytics</span>
+                    System Status
+                </a>
+<a class="flex items-center text-xs text-on-surface-variant hover:text-on-surface transition-colors" href="#">
+<span class="material-symbols-outlined text-sm mr-2">help</span>
+                    Documentation
+                </a>
+</div>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="ml-sidebar-hearth min-h-screen flex flex-col">
+<!-- Top App Bar -->
+<header class="flex justify-between items-center h-16 px-gutter-hearth bg-archive border-b border-whisper sticky top-0 z-30">
+<div class="flex items-center gap-4">
+<span class="font-headline-lg-meridian text-headline-lg-meridian text-on-surface">Archive Overview</span>
+</div>
+<div class="flex items-center gap-6">
+<div class="relative hidden lg:block">
+<span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-on-surface-variant text-xl">search</span>
+<input class="bg-ledge border border-whisper rounded-full py-1.5 pl-10 pr-4 text-sm focus:outline-none focus:border-primary/50 w-64 placeholder:text-on-surface-variant/40" placeholder="Locate node..." type="text">
+</div>
+<div class="flex items-center gap-4 text-on-surface-variant">
+<button class="material-symbols-outlined hover:text-primary transition-colors">toggle_off</button>
+<button class="material-symbols-outlined hover:text-primary transition-colors">notifications</button>
+<div class="w-8 h-8 rounded-full overflow-hidden border border-whisper">
+<img class="w-full h-full object-cover" data-alt="A portrait of a distinguished older man with a grey beard and spectacles, looking contemplative. He is dressed in a dark wool turtleneck, positioned against a background of dimly lit library shelves. The lighting is warm and cinematic, emphasizing a professional, academic, and focused personality in the Archivist's Cockpit style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBZZRU_N-R-JvRtcYSFklZXK6m1aA-riFXE5AIhHFmzLYsVe0-_h9ViiqzRMdpbYywqQDV8WCB7MBMAAgZ9krZguVW7xUhkdbIE2xHnmqCUdX-VEps082rWgVATa44venYIfSKefBqqjKoNNGjXVHWvFzMBsOCrPQWL_4smtwqQd_4OIvTxz6I33SC_el3OXFUkhqWnonMfRIS4Y_ixQzNtWFEz3VO2rqKSbUcQ_XeEMR-6sCF78oNXMP8sxidKYndR0nSTYCyV1InB">
+</div>
+</div>
+</div>
+</header>
+<!-- Canvas Content -->
+<div class="p-gutter-hearth max-w-max-width mx-auto w-full space-y-10">
+<!-- Summary Stat Cards -->
+<section class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<!-- Card 1 -->
+<div class="bg-chamber p-6 rounded-[10px] border border-whisper transition-all duration-300 hover:bg-ledge group">
+<div class="flex items-center justify-between mb-4">
+<span class="text-on-surface-variant/60 font-medium tracking-tight">Total Sources</span>
+<span class="material-symbols-outlined text-on-surface-variant/30 group-hover:text-primary transition-colors">database</span>
+</div>
+<div class="font-data-mono text-[32px] text-primary leading-none">124</div>
+<div class="mt-2 text-xs text-on-surface-variant flex items-center">
+<span class="text-signal-green mr-1">↑ 4%</span> since last cycle
+                    </div>
+</div>
+<!-- Card 2 -->
+<div class="bg-chamber p-6 rounded-[10px] border border-whisper transition-all duration-300 hover:bg-ledge group">
+<div class="flex items-center justify-between mb-4">
+<span class="text-on-surface-variant/60 font-medium tracking-tight">Total Observations</span>
+<span class="material-symbols-outlined text-on-surface-variant/30 group-hover:text-primary transition-colors">visibility</span>
+</div>
+<div class="font-data-mono text-[32px] text-primary leading-none">2,841</div>
+<div class="mt-2 text-xs text-on-surface-variant flex items-center">
+<span class="text-on-surface-variant/40">Verified metadata active</span>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="bg-chamber p-6 rounded-[10px] border border-whisper transition-all duration-300 hover:bg-ledge group">
+<div class="flex items-center justify-between mb-4">
+<span class="text-on-surface-variant/60 font-medium tracking-tight">Pending Jobs</span>
+<span class="material-symbols-outlined text-on-surface-variant/30 group-hover:text-primary transition-colors">settings_input_component</span>
+</div>
+<div class="font-data-mono text-[32px] text-primary leading-none">03</div>
+<div class="mt-2 text-xs text-on-surface-variant flex items-center">
+<span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse mr-2"></span>
+                        Ingestion pipeline active
+                    </div>
+</div>
+</section>
+<!-- Activity Table -->
+<section class="space-y-6">
+<div class="flex items-center justify-between">
+<h2 class="font-display-meridian text-xl text-on-surface">Recent Ingestions</h2>
+<button class="text-sm text-primary hover:underline transition-all">View All Activity</button>
+</div>
+<div class="bg-chamber rounded-[10px] border border-whisper overflow-hidden">
+<table class="w-full text-left border-collapse">
+<thead class="border-b border-whisper">
+<tr class="bg-char">
+<th class="px-6 py-4 font-table-header text-table-header text-on-surface-variant/50 uppercase">Source Identity</th>
+<th class="px-6 py-4 font-table-header text-table-header text-on-surface-variant/50 uppercase">Process State</th>
+<th class="px-6 py-4 font-table-header text-table-header text-on-surface-variant/50 uppercase">Timestamp</th>
+<th class="px-6 py-4 font-table-header text-table-header text-on-surface-variant/50 uppercase text-right">Reference</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-whisper">
+<!-- Row 1 -->
+<tr class="hover:bg-ledge transition-colors group">
+<td class="px-6 py-5">
+<div class="flex items-center">
+<div class="w-8 h-8 rounded bg-primary-container/10 border border-primary/20 flex items-center justify-center mr-3">
+<span class="material-symbols-outlined text-primary text-sm">article</span>
+</div>
+<span class="font-medium text-on-surface">Global_Manifest_2024.json</span>
+</div>
+</td>
+<td class="px-6 py-5">
+<span class="status-badge px-2.5 py-1 rounded bg-signal-green/10 text-signal-green border border-signal-green/20">VERIFIED</span>
+</td>
+<td class="px-6 py-5 font-data-mono text-xs text-on-surface-variant/70">
+                                    2024-05-12 14:22:01
+                                </td>
+<td class="px-6 py-5 text-right font-data-mono text-xs text-on-surface-variant/40">
+                                    #XF-9902
+                                </td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-ledge transition-colors group">
+<td class="px-6 py-5">
+<div class="flex items-center">
+<div class="w-8 h-8 rounded bg-primary-container/10 border border-primary/20 flex items-center justify-center mr-3">
+<span class="material-symbols-outlined text-primary text-sm">database</span>
+</div>
+<span class="font-medium text-on-surface">Telemetry_Node_A7</span>
+</div>
+</td>
+<td class="px-6 py-5">
+<span class="status-badge px-2.5 py-1 rounded bg-primary/10 text-primary border border-primary/20 flex items-center w-fit">
+<span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse mr-2"></span>
+                                        INGESTING
+                                    </span>
+</td>
+<td class="px-6 py-5 font-data-mono text-xs text-on-surface-variant/70">
+                                    2024-05-12 14:18:45
+                                </td>
+<td class="px-6 py-5 text-right font-data-mono text-xs text-on-surface-variant/40">
+                                    #XF-9899
+                                </td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-ledge transition-colors group">
+<td class="px-6 py-5">
+<div class="flex items-center">
+<div class="w-8 h-8 rounded bg-primary-container/10 border border-primary/20 flex items-center justify-center mr-3">
+<span class="material-symbols-outlined text-primary text-sm">cloud_download</span>
+</div>
+<span class="font-medium text-on-surface">External_API_Sync_Vector</span>
+</div>
+</td>
+<td class="px-6 py-5">
+<span class="status-badge px-2.5 py-1 rounded bg-on-surface-variant/10 text-on-surface-variant/70 border border-whisper">PENDING</span>
+</td>
+<td class="px-6 py-5 font-data-mono text-xs text-on-surface-variant/70">
+                                    2024-05-12 14:05:12
+                                </td>
+<td class="px-6 py-5 text-right font-data-mono text-xs text-on-surface-variant/40">
+                                    #XF-9870
+                                </td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<!-- Bottom Detail Grid (Hearth Style) -->
+<section class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+<div class="bg-chamber p-8 rounded-[10px] border border-whisper relative overflow-hidden group">
+<div class="relative z-10">
+<h3 class="font-display-meridian text-xl text-primary mb-4">Curated Analysis</h3>
+<p class="text-on-surface-variant/80 mb-6 leading-relaxed">
+                            Recent observations indicate a clustering of cross-referenced nodes in the primary archive. The structural integrity of the graph remains at 99.4% stability across all local sources.
+                        </p>
+<button class="flex items-center text-sm font-medium text-on-surface hover:text-primary transition-colors group-hover:translate-x-1 transition-transform">
+                            Run Structural Audit
+                            <span class="material-symbols-outlined ml-2 text-sm">trending_flat</span>
+</button>
+</div>
+<!-- Decorative element -->
+<div class="absolute -bottom-8 -right-8 w-48 h-48 bg-primary/5 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+</div>
+<div class="bg-chamber p-8 rounded-[10px] border border-whisper flex flex-col justify-between">
+<div>
+<h3 class="font-display-meridian text-xl text-on-surface mb-4">System Health</h3>
+<div class="space-y-4">
+<div class="flex justify-between items-center">
+<span class="text-sm text-on-surface-variant">Compute Load</span>
+<span class="font-data-mono text-xs text-signal-green">NORMAL</span>
+</div>
+<div class="w-full bg-ledge h-1.5 rounded-full overflow-hidden">
+<div class="bg-signal-green h-full w-[42%] rounded-full"></div>
+</div>
+<div class="flex justify-between items-center mt-2">
+<span class="text-sm text-on-surface-variant">Storage Capacity</span>
+<span class="font-data-mono text-xs text-primary">78%</span>
+</div>
+<div class="w-full bg-ledge h-1.5 rounded-full overflow-hidden">
+<div class="bg-primary h-full w-[78%] rounded-full"></div>
+</div>
+</div>
+</div>
+<div class="mt-8 pt-6 border-t border-whisper">
+<p class="text-xs text-on-surface-variant/40 font-data-mono">Uptime: 142d 08h 22m 19s</p>
+</div>
+</div>
+</section>
+</div>
+<!-- Hearth Mode Footer -->
+<footer class="mt-auto py-12 px-gutter-hearth border-t border-whisper bg-void/50">
+<div class="max-w-max-width mx-auto flex flex-col md:flex-row justify-between items-center gap-6 opacity-60">
+<div class="flex items-center gap-3">
+<span class="font-display-meridian text-lg text-primary">LociGraph</span>
+<span class="text-xs font-data-mono">v. 4.1.0-alpha</span>
+</div>
+<div class="text-xs font-label-sm">
+                    © 2024 Archive Systems Integration. All connections secured.
+                </div>
+<div class="flex gap-6 text-xs uppercase tracking-widest font-label-sm">
+<a class="hover:text-primary transition-colors" href="#">Privacy</a>
+<a class="hover:text-primary transition-colors" href="#">Manifest</a>
+<a class="hover:text-primary transition-colors" href="#">Contact</a>
+</div>
+</div>
+</footer>
+</main>
+<script>
+        // Simple micro-interaction for cards
+        document.querySelectorAll('.bg-chamber').forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                card.style.transform = 'translateY(-2px)';
+            });
+            card.addEventListener('mouseleave', () => {
+                card.style.transform = 'translateY(0)';
+            });
+        });
+    </script>
+</body></html>
