@@ -73,6 +73,13 @@ services:
       redis:
         condition: service_healthy
 
+  frontend:
+    build: ./frontend
+    environment:
+      BACKEND_ORIGIN: http://backend:8000
+    depends_on:
+      - backend
+
   caddy:
     image: caddy:2-alpine
     ports:
@@ -81,6 +88,7 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
     depends_on:
       - backend
+      - frontend
 
 volumes:
   postgres_data:
