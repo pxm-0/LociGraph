@@ -3,11 +3,13 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useMode } from "@/lib/theme"
+import { NavIcon } from "@/components/layout/NavIcon"
+import type { IconName } from "@/components/layout/NavIcon"
 
 interface NavItem {
   label: string
   href: string
-  icon: string
+  icon: IconName
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -42,13 +44,11 @@ function HearthSidebar({ pathname }: { pathname: string }) {
                   : "text-ash border-transparent hover:bg-chamber hover:text-dust",
               ].join(" ")}
             >
-              <span
-                className="material-symbols-outlined mr-3 text-xl"
+              <NavIcon
+                name={icon}
+                className="mr-3 w-5 h-5 shrink-0"
                 aria-hidden="true"
-                style={{ fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24" }}
-              >
-                {icon}
-              </span>
+              />
               <span className={`font-ui text-sm ${isActive ? "font-medium" : ""}`}>{label}</span>
             </Link>
           )
@@ -64,13 +64,11 @@ function HearthSidebar({ pathname }: { pathname: string }) {
       {/* Footer utility links */}
       <div className="px-6 pb-4 border-t border-whisper pt-4 space-y-3">
         <span className="flex items-center text-xs text-ash hover:text-dust transition-colors cursor-default">
-          <span
-            className="material-symbols-outlined text-sm mr-2"
-            style={{ fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20" }}
+          <NavIcon
+            name="analytics"
+            className="w-4 h-4 mr-2 shrink-0"
             aria-hidden="true"
-          >
-            analytics
-          </span>
+          />
           System Status
         </span>
       </div>
@@ -84,13 +82,11 @@ function MeridianSidebar({ pathname }: { pathname: string }) {
     <aside className="fixed left-0 top-0 h-screen w-16 bg-archive border-r border-whisper flex flex-col items-center py-3 z-40">
       {/* Brand icon */}
       <div className="mb-8 p-2">
-        <span
-          className="material-symbols-outlined text-ember text-2xl font-bold"
-          style={{ fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24" }}
+        <NavIcon
+          name="database"
+          className="text-ember w-6 h-6"
           aria-label="LociGraph"
-        >
-          database
-        </span>
+        />
       </div>
 
       {/* Nav icon buttons */}
@@ -110,13 +106,11 @@ function MeridianSidebar({ pathname }: { pathname: string }) {
                   : "text-ash border-transparent hover:bg-chamber hover:text-dust",
               ].join(" ")}
             >
-              <span
-                className="material-symbols-outlined text-xl"
+              <NavIcon
+                name={icon}
+                className="w-5 h-5"
                 aria-hidden="true"
-                style={{ fontVariationSettings: "'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 20" }}
-              >
-                {icon}
-              </span>
+              />
             </Link>
           )
         })}
@@ -135,13 +129,11 @@ function MeridianSidebar({ pathname }: { pathname: string }) {
           aria-label="System Status"
           title="System Status"
         >
-          <span
-            className="material-symbols-outlined text-xl"
+          <NavIcon
+            name="analytics"
+            className="w-5 h-5"
             aria-hidden="true"
-            style={{ fontVariationSettings: "'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 20" }}
-          >
-            analytics
-          </span>
+          />
         </span>
       </div>
     </aside>

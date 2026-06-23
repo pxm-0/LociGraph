@@ -1,4 +1,5 @@
 "use client"
+import type { ReactNode } from "react"
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react"
 
 export type Mode = "hearth" | "meridian"
@@ -12,7 +13,7 @@ interface ThemeCtx {
 
 const Ctx = createContext<ThemeCtx | null>(null)
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
+export function ThemeProvider({ children }: { children: ReactNode }) {
   const [mode, setMode] = useState<Mode>("hearth")
 
   useEffect(() => {
