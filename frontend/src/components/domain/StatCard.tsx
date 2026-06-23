@@ -12,7 +12,7 @@ export function StatCard({ value, label }: StatCardProps) {
     mode === "hearth" ? "text-hearth-accent" : "text-ember"
 
   return (
-    <div className="rounded-hearth border border-whisper bg-chamber p-6 transition-colors duration-200 hover:bg-[#26211d]">
+    <div className="rounded-hearth border border-whisper bg-chamber p-6 transition-colors duration-200 hover:bg-chamber-hover">
       <p className="mb-3 text-xs font-ui uppercase tracking-widest text-ash">
         {label}
       </p>

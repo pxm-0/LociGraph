@@ -81,14 +81,14 @@ export default function DashboardPage() {
         >
           Could not load sources: {error}
         </div>
-      ) : (
+      ) : stats !== null ? (
         <>
           {/* Stat tiles — asymmetric layout: total takes the dominant slot */}
           <section aria-label="Source statistics">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-[2fr_1fr_1fr]">
-              <StatCard value={stats!.total} label="Total Sources" />
-              <StatCard value={stats!.verified} label="Verified" />
-              <StatCard value={stats!.inFlight} label="In-flight" />
+              <StatCard value={stats.total} label="Total Sources" />
+              <StatCard value={stats.verified} label="Verified" />
+              <StatCard value={stats.inFlight} label="In-flight" />
             </div>
           </section>
 
@@ -109,7 +109,7 @@ export default function DashboardPage() {
               <div className="rounded-hearth border border-whisper overflow-hidden">
                 <table className="w-full border-collapse text-left text-sm">
                   <thead>
-                    <tr className="border-b border-whisper bg-[rgba(245,237,226,0.03)]">
+                    <tr className="border-b border-whisper bg-whisper-faint">
                       <th className="px-5 py-3 font-mono text-[11px] uppercase tracking-widest text-ash">
                         Source
                       </th>
@@ -125,7 +125,7 @@ export default function DashboardPage() {
                     {recent.map((source) => (
                       <tr
                         key={source.id}
-                        className="transition-colors hover:bg-[#26211d]"
+                        className="transition-colors hover:bg-chamber-hover"
                       >
                         <td className="px-5 py-3 font-ui text-dust">
                           {source.originalFilename ?? (
@@ -146,7 +146,7 @@ export default function DashboardPage() {
             )}
           </section>
         </>
-      )}
+      ) : null}
     </div>
   )
 }

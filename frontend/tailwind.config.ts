@@ -17,6 +17,8 @@ const config: Config = {
         "status-ingesting": "#D4882F",
         "status-quarantined": "#8C6A2A",
         whisper: "rgba(245,237,226,0.07)",
+        "whisper-faint": "rgba(245,237,226,0.03)",
+        "chamber-hover": "#26211d",
       },
       borderRadius: { hearth: "10px", meridian: "6px" },
       fontFamily: {
