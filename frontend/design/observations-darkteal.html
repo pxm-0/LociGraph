@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>LociGraph | Observation Browser</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600&family=Geist:wght@400;500&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Outfit:wght@100..900&display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        body {
+            font-family: 'Geist', sans-serif;
+            background-color: #161d1d; /* Fallback */
+        }
+        .observation-card {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .observation-card:hover {
+            transform: translateY(-2px);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(45, 106, 106, 0.2);
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(45, 106, 106, 0.4);
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "surface-bright": "#f4fbfa",
+                      "primary-fixed-dim": "#95d1d1",
+                      "on-surface-variant": "#3f4848",
+                      "primary-fixed": "#b1eeed",
+                      "on-secondary-fixed-variant": "#474744",
+                      "surface-tint": "#2a6767",
+                      "on-surface": "#161d1d",
+                      "inverse-surface": "#2b3232",
+                      "tertiary-fixed-dim": "#c3c7c7",
+                      "tertiary-container": "#5d6262",
+                      "on-tertiary-fixed-variant": "#434848",
+                      "surface-dim": "#d5dbdb",
+                      "on-secondary-fixed": "#1b1c19",
+                      "on-background": "#161d1d",
+                      "secondary": "#5e5e5b",
+                      "on-tertiary-container": "#d9dedd",
+                      "primary": "#0c5252",
+                      "on-tertiary-fixed": "#171c1c",
+                      "on-error-container": "#93000a",
+                      "tertiary-fixed": "#dfe3e3",
+                      "primary-container": "#2d6a6a",
+                      "on-secondary-container": "#63635f",
+                      "surface-container-high": "#e3e9e9",
+                      "inverse-primary": "#95d1d1",
+                      "error-container": "#ffdad6",
+                      "error": "#ba1a1a",
+                      "secondary-fixed": "#e4e2dd",
+                      "outline-variant": "#bfc8c8",
+                      "on-error": "#ffffff",
+                      "on-primary-fixed-variant": "#074f4f",
+                      "background": "#161d1d",
+                      "secondary-container": "#e1dfdb",
+                      "surface-variant": "#3f4848",
+                      "surface-container-lowest": "#0b1010",
+                      "on-primary-fixed": "#002020",
+                      "on-primary": "#ffffff",
+                      "inverse-on-surface": "#ebf2f2",
+                      "secondary-fixed-dim": "#c8c6c2",
+                      "surface-container": "#1d2525",
+                      "surface-container-low": "#222a2a",
+                      "surface": "#161d1d",
+                      "tertiary": "#454a4a",
+                      "on-tertiary": "#ffffff",
+                      "on-primary-container": "#abe8e7",
+                      "outline": "#707978",
+                      "on-secondary": "#ffffff",
+                      "surface-container-highest": "#333d3d"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "12px",
+                      "xl": "16px",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "md": "24px",
+                      "lg": "40px",
+                      "xl": "64px",
+                      "base": "4px",
+                      "xs": "8px",
+                      "sm": "16px",
+                      "gutter": "24px",
+                      "margin-safe": "32px"
+              },
+              "fontFamily": {
+                      "label-sm": ["Geist"],
+                      "headline-lg": ["Outfit"],
+                      "body-lg": ["Geist"],
+                      "label-md": ["Geist"],
+                      "display-lg": ["Outfit"],
+                      "body-md": ["Geist"],
+                      "headline-md": ["Outfit"],
+                      "headline-lg-mobile": ["Outfit"]
+              },
+              "fontSize": {
+                      "label-sm": ["12px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                      "headline-lg": ["32px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                      "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                      "label-md": ["14px", {"lineHeight": "1", "letterSpacing": "0.02em", "fontWeight": "500"}],
+                      "display-lg": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                      "body-md": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                      "headline-md": ["24px", {"lineHeight": "1.3", "fontWeight": "500"}],
+                      "headline-lg-mobile": ["28px", {"lineHeight": "1.2", "fontWeight": "600"}]
+              }
+            },
+          },
+        }
+    </script>
+</head>
+<body class="bg-background text-on-background min-h-screen selection:bg-primary-container selection:text-on-primary-container">
+<!-- Sidebar Component (as defined in JSON) -->
+<nav class="fixed left-0 top-0 h-full w-[240px] bg-surface-container-low dark:bg-surface-dim shadow-sm dark:shadow-none flex flex-col py-md z-50">
+<div class="px-md mb-xl">
+<h1 class="font-headline-md text-headline-md text-primary dark:text-primary-fixed-dim tracking-tight">LociGraph</h1>
+<p class="font-label-sm text-label-sm text-on-surface-variant opacity-70">Archival Intelligence</p>
+</div>
+<div class="flex-1 space-y-1">
+<!-- Active Navigation Logic: "Archives" or "Dashboard" could be active, choosing Dashboard as the entry point but styling specifically for active browser state -->
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant dark:text-on-surface-variant hover:bg-surface-variant/50 transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-label-md text-label-md">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant dark:text-on-surface-variant hover:bg-surface-variant/50 transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="account_tree">account_tree</span>
+<span class="font-label-md text-label-md">Knowledge Graph</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-primary dark:text-primary-fixed-dim border-l-4 border-primary dark:border-primary-fixed-dim bg-secondary-container/30 transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined" data-icon="inventory_2" style="font-variation-settings: 'FILL' 1;">inventory_2</span>
+<span class="font-label-md text-label-md">Archives</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant dark:text-on-surface-variant hover:bg-surface-variant/50 transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="auto_stories">auto_stories</span>
+<span class="font-label-md text-label-md">Collections</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant dark:text-on-surface-variant hover:bg-surface-variant/50 transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-label-md text-label-md">Settings</span>
+</a>
+</div>
+<div class="px-md mt-auto">
+<button class="w-full bg-primary-container text-on-primary-container py-3 rounded-lg font-label-md text-label-md flex items-center justify-center gap-2 hover:brightness-110 transition-all">
+<span class="material-symbols-outlined text-[20px]" data-icon="add">add</span>
+                New Entry
+            </button>
+</div>
+</nav>
+<!-- Top App Bar Component -->
+<header class="fixed top-0 right-0 w-[calc(100%-240px)] z-40 bg-surface/80 backdrop-blur-md">
+<div class="flex justify-between items-center h-16 px-gutter max-w-[1440px] mx-auto">
+<div class="flex items-center gap-sm flex-1">
+<div class="relative w-full max-w-md group focus-within:ring-2 focus-within:ring-primary/20 rounded-lg transition-all">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" data-icon="search">search</span>
+<input class="w-full bg-surface-container-highest/30 border-none pl-10 pr-4 py-2 rounded-lg font-label-md text-label-md focus:ring-0 placeholder:text-on-surface-variant/50" placeholder="Search archives..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-md ml-md">
+<div class="flex items-center gap-xs">
+<button class="p-2 text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</button>
+</div>
+<div class="h-8 w-8 rounded-full overflow-hidden border border-primary/20">
+<img class="w-full h-full object-cover" data-alt="A professional close-up portrait of a scholarly researcher in a dimly lit, cozy library setting with soft, warm teal lighting. The individual has a focused and thoughtful expression, wearing classic horn-rimmed glasses. The background shows blurred book-filled shelves, contributing to the intellectual and archival atmosphere of the LociGraph platform." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAf9Ak3XplyF2hYPQa6EQynZrN8xjHmH36DQBpV7E6Cu7b0B4OI3Fhp_8NEwx_GDaXzyBsLmaIp8ZDu7dS3ERf7wW6ls24S-plbJd7023KVaigYtI7NoMQ7nRdTn35jyxot5lsqAxzm9HsGjIoAtpBTVtAxdak6P0FAJSNYXoRd40dmvV4txW2p8vfoW3ftrlqeWZNKUvagWEDj915z6ANlI7Ole1mjJph9vFgHagGL-mz_8qODcsGoakBYhCBo-aFL0tprv6dk3JDC"/>
+</div>
+</div>
+</div>
+</header>
+<!-- Main Canvas -->
+<main class="ml-[240px] pt-16 min-h-screen flex flex-col">
+<!-- Header Section -->
+<section class="px-margin-safe py-lg max-w-[1200px]">
+<div class="flex items-end justify-between mb-lg">
+<div>
+<h2 class="font-display-lg text-display-lg text-primary-fixed-dim mb-xs">Observation Browser</h2>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-2xl">
+                        A chronological sequence of recorded patterns, linguistic shifts, and archival anomalies detected across the graph.
+                    </p>
+</div>
+<div class="flex gap-sm">
+<button class="flex items-center gap-2 px-sm py-2 rounded-lg border border-outline/20 text-on-surface-variant font-label-md text-label-md hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined text-[18px]" data-icon="filter_list">filter_list</span>
+                        Filters
+                    </button>
+<button class="flex items-center gap-2 px-sm py-2 rounded-lg bg-surface-container-highest text-on-surface font-label-md text-label-md hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined text-[18px]" data-icon="sort">sort</span>
+                        Latest First
+                    </button>
+</div>
+</div>
+<!-- Bento Grid of Highlighted Stats (Atmospheric) -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-md mb-xl">
+<div class="bg-surface-container-low p-md rounded-xl border border-outline/5 relative overflow-hidden group">
+<div class="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity">
+<span class="material-symbols-outlined text-[120px]" data-icon="query_stats">query_stats</span>
+</div>
+<p class="font-label-sm text-label-sm text-primary-fixed-dim uppercase tracking-widest mb-xs">Active Nodes</p>
+<h3 class="font-headline-lg text-headline-lg text-on-surface">12,842</h3>
+<div class="mt-md flex items-center gap-2 text-primary-fixed-dim/80">
+<span class="material-symbols-outlined text-sm" data-icon="trending_up">trending_up</span>
+<span class="font-label-sm text-label-sm">+4% from last session</span>
+</div>
+</div>
+<div class="bg-surface-container-low p-md rounded-xl border border-outline/5 relative overflow-hidden group">
+<div class="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity">
+<span class="material-symbols-outlined text-[120px]" data-icon="link">link</span>
+</div>
+<p class="font-label-sm text-label-sm text-primary-fixed-dim uppercase tracking-widest mb-xs">Connections Identified</p>
+<h3 class="font-headline-lg text-headline-lg text-on-surface">48,201</h3>
+<div class="mt-md flex items-center gap-2 text-primary-fixed-dim/80">
+<span class="material-symbols-outlined text-sm" data-icon="bolt">bolt</span>
+<span class="font-label-sm text-label-sm">System integrity: 99.4%</span>
+</div>
+</div>
+<div class="bg-surface-container-low p-md rounded-xl border border-outline/5 relative overflow-hidden group">
+<div class="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity">
+<span class="material-symbols-outlined text-[120px]" data-icon="visibility">visibility</span>
+</div>
+<p class="font-label-sm text-label-sm text-primary-fixed-dim uppercase tracking-widest mb-xs">New Observations</p>
+<h3 class="font-headline-lg text-headline-lg text-on-surface">152</h3>
+<div class="mt-md flex items-center gap-2 text-primary-fixed-dim/80">
+<span class="material-symbols-outlined text-sm" data-icon="history">history</span>
+<span class="font-label-sm text-label-sm">Updated 12m ago</span>
+</div>
+</div>
+</div>
+<!-- Observations Stack -->
+<div class="space-y-md">
+<!-- Observation Card 1 -->
+<article class="observation-card bg-surface-container rounded-xl p-md border border-outline/5 flex flex-col md:flex-row gap-md">
+<div class="w-full md:w-64 h-40 rounded-lg overflow-hidden flex-shrink-0">
+<img class="w-full h-full object-cover grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all duration-500" data-alt="A highly detailed microscopic visualization of a neural network or archival link structure. Glowing teal filaments connect dark, charcoal-colored nodes against a deep background. The lighting is soft and ambient, emphasizing depth and complexity in a refined, minimalist scientific style that fits the LociGraph dark mode aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCzFGoMpsBNDq-B2IdSNePx7hVvUyG3yI_FU6cuILc7muQsQpteRvN-QP-2Vl5gVv8vwPnaCS7tmDrW21Zg76VXXtbDvY42YWywxKDq0FfoQLkLewMpnf2nO04VWsKg__9uFVo1WTvk4qVwf3phLu0dEO-GNs5GSQiOevNVXWVfgjIxQQiE7qKo9MUWC9gGR-HerYjXOjMn5Fh0ZpHr3uF2W4Anhl9Im_Gd-oLYmP8ed3xtfUurtNmKahldv7QuSpbI1oMGfc5Ue_IN"/>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start mb-sm">
+<div class="space-y-1">
+<div class="flex items-center gap-2 mb-1">
+<span class="font-label-sm text-label-sm text-primary-fixed-dim font-mono tracking-wider bg-primary/10 px-2 py-0.5 rounded">OBS-7742</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant/60">• May 12, 2024</span>
+</div>
+<h4 class="font-headline-md text-headline-md text-on-surface">Linguistic Drift in 18th Century Nautical Logs</h4>
+</div>
+<button class="text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="more_horiz">more_horiz</span>
+</button>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant/80 mb-md line-clamp-2">
+                            Identification of recurring anomalies in maritime terminology across multiple separate archival sources. Initial analysis suggests a localized dialect evolution influenced by cross-cultural trade routes.
+                        </p>
+<div class="flex flex-wrap gap-2">
+<span class="px-3 py-1 rounded-full bg-primary/5 text-primary-fixed-dim font-label-sm text-label-sm border border-primary/20">#linguistics</span>
+<span class="px-3 py-1 rounded-full bg-primary/5 text-primary-fixed-dim font-label-sm text-label-sm border border-primary/20">#maritime-history</span>
+<span class="px-3 py-1 rounded-full bg-primary/5 text-primary-fixed-dim font-label-sm text-label-sm border border-primary/20">#anomaly-detected</span>
+</div>
+</div>
+</article>
+<!-- Observation Card 2 (Pinned/Active) -->
+<article class="observation-card bg-surface-container-high rounded-xl p-md border border-primary/30 ring-1 ring-primary/20 flex flex-col md:flex-row gap-md relative">
+<div class="absolute top-4 right-4 text-primary-fixed-dim">
+<span class="material-symbols-outlined text-[18px]" data-icon="push_pin" style="font-variation-settings: 'FILL' 1;">push_pin</span>
+</div>
+<div class="w-full md:w-64 h-40 rounded-lg overflow-hidden flex-shrink-0 relative">
+<img class="w-full h-full object-cover opacity-80" data-alt="An abstract archival visualization representing a cluster of data points arranged in a gentle, leaf-like organic pattern. The colors are deep teals and soft charcoals, with a distinct highlight on a central node. The atmosphere is quiet, intellectual, and visually balanced, evoking a sense of discovery within a vast database." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAj8NfL73x4sYKEYRANNBJf1hgl_Wxpj3-Qj4we9WWT4cH3ze5KNwcD4fpZtqHiCw5W2b6C9bIW3OIycs9r4G-_30UQcA8SU7FOgHu2Ap2JLi4FKoynwJdUNNfphFP2CAkKcz3NZylID6oQEeHUT_OIRlppruT1N3LGLHSkdygTGBBvNF493jnJ_02I4DDMUCE5P5fHrQfpnOEjfJETGKkLkwdPa7DQRvqf1nBxK4iHQ22JOB2m0pExjfEDF4LTviN6ytNkk9yTZR6J"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start mb-sm">
+<div class="space-y-1">
+<div class="flex items-center gap-2 mb-1">
+<span class="font-label-sm text-label-sm text-primary-fixed-dim font-mono tracking-wider bg-primary/20 px-2 py-0.5 rounded">OBS-8109</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant/60">• May 10, 2024</span>
+<span class="ml-2 px-2 py-0.5 rounded bg-primary text-white font-label-sm text-label-sm">High Priority</span>
+</div>
+<h4 class="font-headline-md text-headline-md text-on-surface">Cross-Reference Collision: Fragment 9 & 12</h4>
+</div>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant/80 mb-md">
+                            Direct thematic overlap discovered between Fragment 9 (Smithson Collection) and Fragment 12 (Vatican Digital Archive). This suggests a shared origin previously dismissed by secondary literature.
+                        </p>
+<div class="flex items-center gap-md">
+<div class="flex flex-wrap gap-2">
+<span class="px-3 py-1 rounded-full bg-primary/5 text-primary-fixed-dim font-label-sm text-label-sm border border-primary/20">#cross-reference</span>
+<span class="px-3 py-1 rounded-full bg-primary/5 text-primary-fixed-dim font-label-sm text-label-sm border border-primary/20">#provenance</span>
+</div>
+<a class="font-label-md text-label-md text-primary-fixed-dim flex items-center gap-1 hover:underline" href="#">
+                                View Graph Detail
+                                <span class="material-symbols-outlined text-[16px]" data-icon="arrow_forward">arrow_forward</span>
+</a>
+</div>
+</div>
+</article>
+<!-- Observation Card 3 -->
+<article class="observation-card bg-surface-container rounded-xl p-md border border-outline/5 flex flex-col md:flex-row gap-md">
+<div class="w-full md:w-64 h-40 rounded-lg overflow-hidden flex-shrink-0">
+<img class="w-full h-full object-cover grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all duration-500" data-alt="A macro shot of vintage ink on aged parchment paper, showing the texture of the fibers and the slight bleed of the quill strokes. The lighting is low and cinematic, with a soft teal tint reflecting the LociGraph interface. The image captures the tactile essence of history and the scholarly focus of archival work." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBZwTwo4uWtPut9Kjin_L3Rhh9g2VD3CAgt4p5nidtYM-45Sr_IE8UgDLVFAixYPCFIiZ4QZndP5_RWaJO2JYmWOtlaFehSlNvZnP5bwuU9yBI0S30EN0iqdYRjNd_YHMKxLv7oIGvght7cKfiGbx0umaL0PK431j-vowd1F6qVJh5_XDkWSxdXdeOR97SMPdCF2YLAPpco9t3vV_ccc7vRLN3Dfo5D4lSuBYFpOnLSIKRJ3qygU9pFMyq1A7IbEi1UCyWQB_V-ZamE"/>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start mb-sm">
+<div class="space-y-1">
+<div class="flex items-center gap-2 mb-1">
+<span class="font-label-sm text-label-sm text-primary-fixed-dim font-mono tracking-wider bg-primary/10 px-2 py-0.5 rounded">OBS-7221</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant/60">• May 05, 2024</span>
+</div>
+<h4 class="font-headline-md text-headline-md text-on-surface">The 'Silence' Anomaly in 1942 Radio Correspondence</h4>
+</div>
+<button class="text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="more_horiz">more_horiz</span>
+</button>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant/80 mb-md line-clamp-2">
+                            Pattern detection algorithms have flagged a 3-week period of total thematic suspension in civilian radio archives. Investigation required to differentiate between censorship and genuine social hiatus.
+                        </p>
+<div class="flex flex-wrap gap-2">
+<span class="px-3 py-1 rounded-full bg-primary/5 text-primary-fixed-dim font-label-sm text-label-sm border border-primary/20">#radio-archives</span>
+<span class="px-3 py-1 rounded-full bg-primary/5 text-primary-fixed-dim font-label-sm text-label-sm border border-primary/20">#thematic-gap</span>
+</div>
+</div>
+</article>
+</div>
+<!-- Pagination -->
+<div class="mt-xl flex items-center justify-between border-t border-outline/10 pt-md pb-xl">
+<span class="font-label-md text-label-md text-on-surface-variant/60">Showing 1-10 of 152 Observations</span>
+<div class="flex gap-2">
+<button class="p-2 rounded-lg hover:bg-surface-container-high text-on-surface-variant transition-colors">
+<span class="material-symbols-outlined" data-icon="chevron_left">chevron_left</span>
+</button>
+<button class="px-4 py-2 rounded-lg bg-primary-container text-on-primary-container font-label-md text-label-md">1</button>
+<button class="px-4 py-2 rounded-lg hover:bg-surface-container-high text-on-surface-variant font-label-md text-label-md">2</button>
+<button class="px-4 py-2 rounded-lg hover:bg-surface-container-high text-on-surface-variant font-label-md text-label-md">3</button>
+<span class="px-2 py-2 text-on-surface-variant/40">...</span>
+<button class="px-4 py-2 rounded-lg hover:bg-surface-container-high text-on-surface-variant font-label-md text-label-md">16</button>
+<button class="p-2 rounded-lg hover:bg-surface-container-high text-on-surface-variant transition-colors">
+<span class="material-symbols-outlined" data-icon="chevron_right">chevron_right</span>
+</button>
+</div>
+</div>
+</section>
+</main>
+<!-- FAB (Contextually hidden on Details but active on Browser/Dashboard) -->
+<button class="fixed bottom-8 right-8 w-14 h-14 bg-primary text-white rounded-full shadow-lg flex items-center justify-center hover:scale-110 active:scale-95 transition-all group z-50">
+<span class="material-symbols-outlined text-[24px]" data-icon="edit_square">edit_square</span>
+<span class="absolute right-full mr-4 px-3 py-1 bg-surface-container text-on-surface font-label-md text-label-md rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none shadow-sm">Record Observation</span>
+</button>
+<script>
+        // Micro-interactions for scrolling effects
+        window.addEventListener('scroll', () => {
+            const header = document.querySelector('header');
+            if (window.scrollY > 20) {
+                header.classList.add('shadow-md', 'bg-surface/95');
+                header.classList.remove('bg-surface/80');
+            } else {
+                header.classList.remove('shadow-md', 'bg-surface/95');
+                header.classList.add('bg-surface/80');
+            }
+        });
+
+        // Simulating search interaction
+        const searchInput = document.querySelector('input[type="text"]');
+        searchInput.addEventListener('focus', () => {
+            searchInput.parentElement.classList.add('max-w-xl');
+        });
+        searchInput.addEventListener('blur', () => {
+            searchInput.parentElement.classList.remove('max-w-xl');
+        });
+    </script>
+</body></html>

@@ -1,0 +1,410 @@
+<!DOCTYPE html><html class="dark" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>LociGraph | Archivist Deck</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&amp;family=Geist+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+        .hearth-texture {
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3%3Cfilter id='noiseFilter'%3%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3%3C/filter%3%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3%3C/svg%3");
+            opacity: 0.02;
+            pointer-events: none;
+        }
+        .observation-card {
+            transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s;
+        }
+        .observation-card:active {
+            transform: translateY(1px);
+        }
+        /* Custom scrollbar for archival feel */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #2A2420; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #3c332c; }
+    </style>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-bright": "#403830",
+                    "dust": "#F5EDE2",
+                    "surface-container": "#251e18",
+                    "primary": "#ffb86e",
+                    "on-primary-fixed-variant": "#693c00",
+                    "primary-container": "#d4882f",
+                    "on-secondary": "#3e2d15",
+                    "on-secondary-container": "#cbb18f",
+                    "archive": "#141210",
+                    "error": "#ffb4ab",
+                    "primary-fixed-dim": "#ffb86e",
+                    "outline-variant": "#534437",
+                    "inverse-on-surface": "#372f28",
+                    "primary-fixed": "#ffdcbd",
+                    "surface-dim": "#19120c",
+                    "surface": "#19120c",
+                    "ledge": "#2A2420",
+                    "on-tertiary-fixed-variant": "#004d63",
+                    "on-secondary-fixed": "#271904",
+                    "surface-container-lowest": "#130d07",
+                    "on-secondary-fixed-variant": "#564429",
+                    "on-primary-container": "#4b2900",
+                    "on-error-container": "#ffdad6",
+                    "surface-container-high": "#302922",
+                    "on-surface": "#eee0d5",
+                    "surface-container-highest": "#3c332c",
+                    "secondary-fixed": "#fbdeba",
+                    "secondary": "#ddc2a0",
+                    "on-surface-variant": "#d8c3b1",
+                    "secondary-container": "#564429",
+                    "on-tertiary-container": "#003646",
+                    "void": "#0F0D0B",
+                    "surface-variant": "#3c332c",
+                    "tertiary": "#64d4fd",
+                    "surface-tint": "#ffb86e",
+                    "inverse-surface": "#eee0d5",
+                    "on-tertiary": "#003545",
+                    "on-primary": "#492900",
+                    "secondary-fixed-dim": "#ddc2a0",
+                    "chamber": "#1E1A17",
+                    "on-primary-fixed": "#2c1600",
+                    "background": "#19120c",
+                    "on-background": "#eee0d5",
+                    "tertiary-container": "#24a5cd",
+                    "signal-amber": "#8C6A2A",
+                    "char": "rgba(245, 237, 226, 0.03)",
+                    "inverse-primary": "#8a5100",
+                    "tertiary-fixed-dim": "#64d4fd",
+                    "surface-container-low": "#211a14",
+                    "signal-green": "#5A8C5A",
+                    "outline": "#a08d7d",
+                    "signal-red": "#8C4A4A",
+                    "tertiary-fixed": "#bbe9ff",
+                    "on-error": "#690005",
+                    "on-tertiary-fixed": "#001f29",
+                    "error-container": "#93000a",
+                    "whisper": "rgba(245, 237, 226, 0.07)"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "sidebar-meridian": "200px",
+                    "margin-mobile": "1rem",
+                    "gutter-hearth": "2rem",
+                    "margin-desktop": "clamp(1.5rem, 4vw, 3rem)",
+                    "max-width": "1400px",
+                    "gutter-meridian": "0.75rem",
+                    "sidebar-hearth": "240px"
+            },
+            "fontFamily": {
+                    "display-meridian": ["Outfit"],
+                    "body-hearth": ["Outfit"],
+                    "label-sm": ["Geist Mono"],
+                    "body-meridian": ["Outfit"],
+                    "headline-lg-hearth": ["Outfit"],
+                    "label-md": ["Geist Mono"],
+                    "table-header": ["Geist Mono"],
+                    "data-mono": ["Geist Mono"],
+                    "headline-lg-meridian": ["Outfit"],
+                    "display-hearth": ["Outfit"]
+            },
+            "fontSize": {
+                    "display-meridian": ["32px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                    "body-hearth": ["16px", {"lineHeight": "1.7", "fontWeight": "400"}],
+                    "label-sm": ["11px", {"lineHeight": "1.4", "fontWeight": "500", "letterSpacing": "0.05em"}],
+                    "body-meridian": ["15px", {"lineHeight": "1.7", "fontWeight": "400"}],
+                    "headline-lg-hearth": ["28px", {"lineHeight": "1.3", "fontWeight": "500"}],
+                    "label-md": ["14px", {"lineHeight": "1.4", "fontWeight": "500"}],
+                    "table-header": ["11px", {"lineHeight": "1.2", "letterSpacing": "0.08em", "fontWeight": "500"}],
+                    "data-mono": ["11px", {"lineHeight": "1.4", "fontWeight": "400"}],
+                    "headline-lg-meridian": ["24px", {"lineHeight": "1.3", "fontWeight": "500"}],
+                    "display-hearth": ["40px", {"lineHeight": "1.2", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+</head>
+<body class="bg-archive text-on-surface font-body-hearth min-h-screen selection:bg-primary/30 selection:text-primary overflow-x-hidden">
+<!-- Texture Overlay -->
+<div class="fixed inset-0 hearth-texture z-[9999]"></div>
+<!-- SideNavBar Shell -->
+<aside class="fixed left-0 top-0 h-screen w-sidebar-hearth bg-archive border-r border-whisper flex flex-col py-gutter-meridian z-50">
+<div class="px-6 mb-10">
+<h1 class="font-display-meridian text-display-meridian text-primary tracking-tight">LociGraph</h1>
+<p class="text-on-surface-variant font-label-sm uppercase tracking-widest text-[10px] opacity-60">Archivist Deck</p>
+</div>
+<nav class="flex-1 space-y-1">
+<!-- Dashboard Tab -->
+<a class="group flex items-center px-6 py-3 transition-all duration-200 border-l-2 border-transparent text-on-surface-variant hover:bg-chamber hover:text-on-surface" href="#">
+<span class="material-symbols-outlined mr-4" data-icon="dashboard">dashboard</span>
+<span class="font-body-meridian">Dashboard</span>
+</a>
+<!-- Vault Tab -->
+<a class="group flex items-center px-6 py-3 transition-all duration-200 border-l-2 border-transparent text-on-surface-variant hover:bg-chamber hover:text-on-surface" href="#">
+<span class="material-symbols-outlined mr-4" data-icon="inventory_2">inventory_2</span>
+<span class="font-body-meridian">Vault</span>
+</a>
+<!-- Sources Tab -->
+<a class="group flex items-center px-6 py-3 transition-all duration-200 border-l-2 border-transparent text-on-surface-variant hover:bg-chamber hover:text-on-surface" href="#">
+<span class="material-symbols-outlined mr-4" data-icon="database">database</span>
+<span class="font-body-meridian">Sources</span>
+</a>
+<!-- Observations (Timeline) Tab - ACTIVE -->
+<a class="group flex items-center px-6 py-3 transition-all duration-200 text-primary border-l-2 border-primary bg-ledge" href="#">
+<span class="material-symbols-outlined mr-4" data-icon="history">history</span>
+<span class="font-body-meridian">Observations</span>
+</a>
+<!-- Settings Tab -->
+<a class="group flex items-center px-6 py-3 transition-all duration-200 border-l-2 border-transparent text-on-surface-variant hover:bg-chamber hover:text-on-surface" href="#">
+<span class="material-symbols-outlined mr-4" data-icon="settings">settings</span>
+<span class="font-body-meridian">Settings</span>
+</a>
+</nav>
+<div class="px-4 mt-auto">
+<button class="w-full py-3 bg-primary text-on-primary font-medium rounded-lg flex items-center justify-center gap-2 transition-transform active:translate-y-px">
+<span class="material-symbols-outlined text-[18px]" data-icon="upload">upload</span>
+<span>Global Import</span>
+</button>
+<div class="mt-6 border-t border-whisper pt-4 space-y-3">
+<a class="flex items-center text-on-surface-variant font-label-sm hover:text-on-surface transition-colors" href="#">
+<span class="material-symbols-outlined mr-3 text-[18px]" data-icon="analytics">analytics</span>
+                    System Status
+                </a>
+<a class="flex items-center text-on-surface-variant font-label-sm hover:text-on-surface transition-colors" href="#">
+<span class="material-symbols-outlined mr-3 text-[18px]" data-icon="help">help</span>
+                    Documentation
+                </a>
+</div>
+</div>
+</aside>
+<!-- TopAppBar Shell -->
+<header class="fixed top-0 left-sidebar-hearth right-0 h-16 bg-archive border-b border-whisper flex justify-between items-center px-gutter-hearth z-40">
+<div class="flex items-center gap-4">
+<h2 class="font-headline-lg-meridian text-headline-lg-meridian text-primary">Observation Browser</h2>
+<div class="h-4 w-px bg-whisper mx-2"></div>
+<span class="font-label-sm text-on-surface-variant">Archivist Deck / Meridian 04</span>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px]" data-icon="search">search</span>
+<input class="bg-ledge border border-whisper rounded-full py-2 pl-10 pr-4 text-sm w-64 focus:outline-none focus:border-primary transition-all" placeholder="Search archive..." type="text">
+</div>
+<div class="flex gap-2">
+<button class="p-2 text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="toggle_off">toggle_off</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:text-primary transition-colors relative">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full"></span>
+</button>
+<div class="w-8 h-8 rounded-full bg-surface-container-highest border border-whisper flex items-center justify-center overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A professional portrait of an archivist in a modern minimalist setting, featuring soft rim lighting and a deep warm color palette. The aesthetic is clean, professional, and sophisticated, matching the primary orange and charcoal theme of the LociGraph brand." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAXQKlkIlHeaxY26DDFhIvRCfrpFuBzENs0R7i-vibDF2ttiTCXLIF-vznHPAnhZC6mGqAXKKCJPQjhDTVi9cZLupeyoVtv_P5kj8sDq34528XvEuP3_0xcXVGj3Kp8b9EtrfZmgdEc-nJtlD68hhPG_pCkiewwyU88aQwyxlSNryOJbaqOEa7Bq-OBvNeBCiWkdLkiBwIWmPdDl2MoXffN8DtNOroLaDP8_WlGtDLFqogrR7Y23h24LJf2YM8eg_x8PFbmempPrLYT">
+</div>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="ml-sidebar-hearth mt-16 p-gutter-hearth max-w-max-width mx-auto">
+<!-- Filter Bar -->
+<section class="mb-10 bg-ledge p-4 rounded-xl border border-whisper flex flex-wrap items-center gap-6">
+<div class="flex items-center gap-2">
+<label class="font-label-sm text-on-surface-variant uppercase text-[10px]">Source</label>
+<select class="bg-archive border-whisper text-on-surface text-sm rounded px-3 py-1.5 focus:ring-1 focus:ring-primary">
+<option>All Sources</option>
+<option>Deep Space 9</option>
+<option>Archival Tape B-12</option>
+<option>Neural Net Feedback</option>
+</select>
+</div>
+<div class="flex items-center gap-2">
+<label class="font-label-sm text-on-surface-variant uppercase text-[10px]">Date Range</label>
+<div class="flex bg-archive border border-whisper rounded">
+<input class="bg-transparent border-none text-xs text-on-surface p-1.5 focus:ring-0" type="date">
+<div class="w-px bg-whisper my-2"></div>
+<input class="bg-transparent border-none text-xs text-on-surface p-1.5 focus:ring-0" type="date">
+</div>
+</div>
+<div class="flex items-center gap-2">
+<label class="font-label-sm text-on-surface-variant uppercase text-[10px]">Speaker</label>
+<select class="bg-archive border-whisper text-on-surface text-sm rounded px-3 py-1.5 focus:ring-1 focus:ring-primary">
+<option>Any Speaker</option>
+<option>Dr. Aris Thorne</option>
+<option>System AI</option>
+<option>Subject 402</option>
+</select>
+</div>
+<div class="flex items-center gap-2">
+<label class="font-label-sm text-on-surface-variant uppercase text-[10px]">Status</label>
+<div class="flex gap-1">
+<button class="px-3 py-1.5 bg-primary text-on-primary rounded text-xs font-medium">All</button>
+<button class="px-3 py-1.5 bg-archive border border-whisper text-on-surface-variant rounded text-xs hover:border-primary transition-colors">Verified</button>
+<button class="px-3 py-1.5 bg-archive border border-whisper text-on-surface-variant rounded text-xs hover:border-primary transition-colors">Pending</button>
+</div>
+</div>
+<button class="ml-auto flex items-center gap-2 text-on-surface-variant hover:text-primary transition-colors font-label-sm">
+<span class="material-symbols-outlined text-[18px]" data-icon="filter_list">filter_list</span>
+                Advanced
+            </button>
+</section>
+<!-- Observations Feed -->
+<section class="space-y-6 max-w-[900px] mx-auto">
+<!-- Observation Card 1 (Active) -->
+<div class="observation-card bg-chamber rounded-[10px] border-l-4 border-primary p-6 shadow-sm hover:shadow-md cursor-pointer transition-all">
+<div class="flex justify-between items-start mb-4">
+<p class="text-[15px] font-body-meridian text-dust leading-[1.7] max-w-[65ch]">
+                        The data stream exhibits a rhythmic oscillation consistent with biological respiratory patterns, yet the origin signature remains localized within the silicon-substrate containment unit. We must consider the possibility of a ghosting effect within the archiver's sensory buffers.
+                    </p>
+<span class="px-2 py-0.5 bg-signal-green/10 text-signal-green border border-signal-green/20 rounded-full font-label-sm text-[10px] uppercase">Verified</span>
+</div>
+<div class="flex items-center gap-3 font-data-mono text-on-surface-variant text-[11px] opacity-70">
+<span>14:32:01 UTC</span>
+<span class="w-1 h-1 bg-whisper rounded-full"></span>
+<span>Deep Space 9</span>
+<span class="w-1 h-1 bg-whisper rounded-full"></span>
+<span>Dr. Aris Thorne</span>
+<span class="w-1 h-1 bg-whisper rounded-full"></span>
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]" data-icon="target">target</span>
+                        98.4% Confidence
+                    </span>
+</div>
+</div>
+<!-- Observation Card 2 -->
+<div class="observation-card bg-chamber rounded-[10px] border-l-4 border-transparent p-6 shadow-sm hover:bg-ledge cursor-pointer transition-all">
+<div class="flex justify-between items-start mb-4">
+<p class="text-[15px] font-body-meridian text-dust leading-[1.7] max-w-[65ch]">
+                        Signal degradation observed at the 14GHz frequency band. Correlation with the solar flare event of last Tuesday is high. Recommend manual recalibration of the intake valves before next synchronization cycle.
+                    </p>
+<span class="px-2 py-0.5 bg-signal-amber/10 text-signal-amber border border-signal-amber/20 rounded-full font-label-sm text-[10px] uppercase">Pending</span>
+</div>
+<div class="flex items-center gap-3 font-data-mono text-on-surface-variant text-[11px] opacity-70">
+<span>12:05:44 UTC</span>
+<span class="w-1 h-1 bg-whisper rounded-full"></span>
+<span>Archival Tape B-12</span>
+<span class="w-1 h-1 bg-whisper rounded-full"></span>
+<span>System AI</span>
+<span class="w-1 h-1 bg-whisper rounded-full"></span>
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]" data-icon="target">target</span>
+                        72.1% Confidence
+                    </span>
+</div>
+</div>
+<!-- Observation Card 3 -->
+<div class="observation-card bg-chamber rounded-[10px] border-l-4 border-transparent p-6 shadow-sm hover:bg-ledge cursor-pointer transition-all">
+<div class="flex justify-between items-start mb-4">
+<p class="text-[15px] font-body-meridian text-dust leading-[1.7] max-w-[65ch]">
+                        Subject 402 responded to the tertiary prompt with unexpected emotional variance. Speech patterns shifted from clinical to narrative within three standard seconds. Transcription follow-up required to identify specific trigger keywords.
+                    </p>
+<span class="px-2 py-0.5 bg-signal-red/10 text-signal-red border border-signal-red/20 rounded-full font-label-sm text-[10px] uppercase">Critical</span>
+</div>
+<div class="flex items-center gap-3 font-data-mono text-on-surface-variant text-[11px] opacity-70">
+<span>09:15:22 UTC</span>
+<span class="w-1 h-1 bg-whisper rounded-full"></span>
+<span>Neural Net Feedback</span>
+<span class="w-1 h-1 bg-whisper rounded-full"></span>
+<span>Subject 402</span>
+<span class="w-1 h-1 bg-whisper rounded-full"></span>
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]" data-icon="target">target</span>
+                        89.9% Confidence
+                    </span>
+</div>
+</div>
+<!-- Observation Card 4 -->
+<div class="observation-card bg-chamber rounded-[10px] border-l-4 border-transparent p-6 shadow-sm hover:bg-ledge cursor-pointer transition-all">
+<div class="flex justify-between items-start mb-4">
+<p class="text-[15px] font-body-meridian text-dust leading-[1.7] max-w-[65ch]">
+                        Ambient noise levels in the vault have increased by 4dB over the baseline. Possible thermal expansion in the archival racks or cooling fan degradation in Sector 7-G.
+                    </p>
+<span class="px-2 py-0.5 bg-on-surface-variant/10 text-on-surface-variant border border-whisper rounded-full font-label-sm text-[10px] uppercase">Archived</span>
+</div>
+<div class="flex items-center gap-3 font-data-mono text-on-surface-variant text-[11px] opacity-70">
+<span>04:40:01 UTC</span>
+<span class="w-1 h-1 bg-whisper rounded-full"></span>
+<span>Vault Monitor</span>
+<span class="w-1 h-1 bg-whisper rounded-full"></span>
+<span>Automated Sentry</span>
+<span class="w-1 h-1 bg-whisper rounded-full"></span>
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]" data-icon="target">target</span>
+                        100% Confidence
+                    </span>
+</div>
+</div>
+<!-- Observation Card 5 -->
+<div class="observation-card bg-chamber rounded-[10px] border-l-4 border-transparent p-6 shadow-sm hover:bg-ledge cursor-pointer transition-all">
+<div class="flex justify-between items-start mb-4">
+<p class="text-[15px] font-body-meridian text-dust leading-[1.7] max-w-[65ch]">
+                        Fragments of a deleted conversation were recovered from the parity cache. References to "Project Icarus" and a "Level 5 breach" are partially audible. Full reconstruction will require three more compute cycles.
+                    </p>
+<span class="px-2 py-0.5 bg-primary/10 text-primary border border-primary/20 rounded-full font-label-sm text-[10px] uppercase">Ingesting</span>
+</div>
+<div class="flex items-center gap-3 font-data-mono text-on-surface-variant text-[11px] opacity-70">
+<span>01:12:10 UTC</span>
+<span class="w-1 h-1 bg-whisper rounded-full"></span>
+<span>Parity Cache A</span>
+<span class="w-1 h-1 bg-whisper rounded-full"></span>
+<span>System AI</span>
+<span class="w-1 h-1 bg-whisper rounded-full"></span>
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]" data-icon="target">target</span>
+                        45.0% Confidence
+                    </span>
+</div>
+</div>
+</section>
+<!-- Pagination / Footer -->
+<footer class="mt-12 py-8 border-t border-whisper flex justify-between items-center text-on-surface-variant font-label-sm">
+<div>Showing 5 of 1,284 observations</div>
+<div class="flex gap-2">
+<button class="px-4 py-2 bg-ledge border border-whisper rounded hover:border-primary transition-colors disabled:opacity-30" disabled="">Previous</button>
+<button class="px-4 py-2 bg-ledge border border-whisper rounded hover:border-primary transition-colors">Next</button>
+</div>
+</footer>
+</main>
+<!-- Contextual FAB - Only for relevant screens -->
+<button class="fixed bottom-8 right-8 w-14 h-14 bg-primary text-on-primary rounded-full shadow-lg flex items-center justify-center transition-transform hover:scale-105 active:scale-95 group z-50">
+<span class="material-symbols-outlined text-[28px]" data-icon="add">add</span>
+<span class="absolute right-16 bg-chamber border border-whisper px-3 py-1.5 rounded-lg text-sm whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">New Observation</span>
+</button>
+<script>
+        // Handle interaction on cards
+        document.querySelectorAll('.observation-card').forEach(card => {
+            card.addEventListener('click', () => {
+                // Remove active state from all
+                document.querySelectorAll('.observation-card').forEach(c => {
+                    c.classList.remove('border-primary');
+                    c.classList.add('border-transparent');
+                    c.classList.remove('bg-ledge');
+                });
+                
+                // Add active state to clicked
+                card.classList.add('border-primary');
+                card.classList.remove('border-transparent');
+                card.classList.add('bg-ledge');
+            });
+        });
+
+        // Simple smooth scrolling
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        });
+    </script>
+</body></html>

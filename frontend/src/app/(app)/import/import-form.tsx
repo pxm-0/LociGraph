@@ -10,14 +10,14 @@ import { Button } from "@/components/ui/Button"
 // --- Source type metadata ---
 const FORMAT_META: Record<
   SourceType,
-  { label: string; ext: string; icon: string }
+  { label: string; ext: string }
 > = {
-  json: { label: "JSON", ext: ".json", icon: "data_object" },
-  markdown: { label: "Markdown", ext: ".md", icon: "article" },
-  html: { label: "Web Archive", ext: ".html", icon: "language" },
-  pdf: { label: "Portable Doc", ext: ".pdf", icon: "description" },
-  chatgpt: { label: "LLM Export", ext: ".zip", icon: "chat" },
-  meta: { label: "Social Meta", ext: ".json", icon: "hub" },
+  json: { label: "JSON", ext: ".json" },
+  markdown: { label: "Markdown", ext: ".md" },
+  html: { label: "Web Archive", ext: ".html" },
+  pdf: { label: "Portable Doc", ext: ".pdf" },
+  chatgpt: { label: "LLM Export", ext: ".zip" },
+  meta: { label: "Social Meta", ext: ".json" },
 }
 
 // --- Drag-and-drop state type ---
