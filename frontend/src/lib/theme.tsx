@@ -1,5 +1,5 @@
 "use client"
-import { createContext, useContext, useEffect, useMemo, useState } from "react"
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react"
 
 export type Mode = "hearth" | "meridian"
 const KEY = "locigraph-mode"
@@ -24,12 +24,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem(KEY, mode)
   }, [mode])
 
-  const toggle = () => setMode((m) => (m === "hearth" ? "meridian" : "hearth"))
+  const toggle = useCallback(() => setMode((m) => (m === "hearth" ? "meridian" : "hearth")), [])
 
   const value = useMemo<ThemeCtx>(
     () => ({ mode, toggle, setMode }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [mode],
+    [mode, toggle, setMode],
   )
 
   return (
