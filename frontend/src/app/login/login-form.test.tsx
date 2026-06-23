@@ -14,6 +14,7 @@ test("submits password and redirects to dashboard on success", async () => {
   await userEvent.type(screen.getByLabelText(/password/i), "secret")
   await userEvent.click(screen.getByRole("button", { name: /enter archive/i }))
   expect(login).toHaveBeenCalledWith("secret")
+  await vi.waitFor(() => expect(push).toHaveBeenCalledWith("/dashboard"))
 })
 
 test("shows an error message on 401", async () => {

@@ -15,13 +15,15 @@ export function AuthGate({ children }: AuthGateProps) {
   const [confirmed, setConfirmed] = useState(false)
 
   useEffect(() => {
-    me().then((user) => {
-      if (!user) {
-        router.replace("/login")
-      } else {
-        setConfirmed(true)
-      }
-    })
+    me()
+      .then((user) => {
+        if (!user) {
+          router.replace("/login")
+        } else {
+          setConfirmed(true)
+        }
+      })
+      .catch(() => router.replace("/login"))
   }, [router])
 
   if (!confirmed) return null
