@@ -1,0 +1,438 @@
+<!DOCTYPE html><html class="dark" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>LociGraph | Archivist Deck (Meridian)</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&amp;family=Geist+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-bright": "#403830",
+                    "dust": "#F5EDE2",
+                    "surface-container": "#251e18",
+                    "primary": "#ffb86e",
+                    "on-primary-fixed-variant": "#693c00",
+                    "primary-container": "#d4882f",
+                    "on-secondary": "#3e2d15",
+                    "on-secondary-container": "#cbb18f",
+                    "archive": "#141210",
+                    "error": "#ffb4ab",
+                    "primary-fixed-dim": "#ffb86e",
+                    "outline-variant": "#534437",
+                    "inverse-on-surface": "#372f28",
+                    "primary-fixed": "#ffdcbd",
+                    "surface-dim": "#19120c",
+                    "surface": "#19120c",
+                    "ledge": "#2A2420",
+                    "on-tertiary-fixed-variant": "#004d63",
+                    "on-secondary-fixed": "#271904",
+                    "surface-container-lowest": "#130d07",
+                    "on-secondary-fixed-variant": "#564429",
+                    "on-primary-container": "#4b2900",
+                    "on-error-container": "#ffdad6",
+                    "surface-container-high": "#302922",
+                    "on-surface": "#eee0d5",
+                    "surface-container-highest": "#3c332c",
+                    "secondary-fixed": "#fbdeba",
+                    "secondary": "#ddc2a0",
+                    "on-surface-variant": "#d8c3b1",
+                    "secondary-container": "#564429",
+                    "on-tertiary-container": "#003646",
+                    "void": "#0F0D0B",
+                    "surface-variant": "#3c332c",
+                    "tertiary": "#64d4fd",
+                    "surface-tint": "#ffb86e",
+                    "inverse-surface": "#eee0d5",
+                    "on-tertiary": "#003545",
+                    "on-primary": "#492900",
+                    "secondary-fixed-dim": "#ddc2a0",
+                    "chamber": "#1E1A17",
+                    "on-primary-fixed": "#2c1600",
+                    "background": "#19120c",
+                    "on-background": "#eee0d5",
+                    "tertiary-container": "#24a5cd",
+                    "signal-amber": "#8C6A2A",
+                    "char": "rgba(245, 237, 226, 0.03)",
+                    "inverse-primary": "#8a5100",
+                    "tertiary-fixed-dim": "#64d4fd",
+                    "surface-container-low": "#211a14",
+                    "signal-green": "#5A8C5A",
+                    "outline": "#a08d7d",
+                    "signal-red": "#8C4A4A",
+                    "tertiary-fixed": "#bbe9ff",
+                    "on-error": "#690005",
+                    "on-tertiary-fixed": "#001f29",
+                    "error-container": "#93000a",
+                    "whisper": "rgba(245, 237, 226, 0.07)"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "sidebar-meridian": "64px",
+                    "margin-mobile": "1rem",
+                    "gutter-hearth": "2rem",
+                    "margin-desktop": "1.5rem",
+                    "max-width": "1400px",
+                    "gutter-meridian": "0.75rem",
+                    "sidebar-hearth": "240px"
+            },
+            "fontFamily": {
+                    "display-meridian": ["Outfit"],
+                    "body-hearth": ["Outfit"],
+                    "label-sm": ["Geist Mono"],
+                    "body-meridian": ["Outfit"],
+                    "headline-lg-hearth": ["Outfit"],
+                    "label-md": ["Geist Mono"],
+                    "table-header": ["Geist Mono"],
+                    "data-mono": ["Geist Mono"],
+                    "headline-lg-meridian": ["Outfit"],
+                    "display-hearth": ["Outfit"]
+            }
+          },
+        },
+      }
+    </script>
+<style>.material-symbols-outlined {
+    font-variation-settings: "FILL" 0, "wght" 300, "GRAD" 0, "opsz" 20
+    }
+.grain {
+    background-image: url(https://lh3.googleusercontent.com/aida-public/AB6AXuCsNKBOxMpLsKKLaeK1hiKojjw5VgrwKb4SVN2dxjy92h917vPIp-rZaaIvteCLp_SGWrTCyb9u1pwy2aTDFH0R7f3hM5DRSuZtoCuSOgd_-VDAzk6Qk14VaomCK1RMWRggU4fEDcgEt7slLnKXNUw4wwEEOGXTkAiFC1DAa9ISWGrw_qWnixN0zDtyVQvRmRSH1vrB_Zpd3f-N_cE-B-VB1zUN5SFTlScSRQg4TsWFnhki1X4K3X4fLghLL_WGUdOr3TAvBxtwO0P8);
+    opacity: 0.02;
+    pointer-events: none
+    }
+.custom-scrollbar::-webkit-scrollbar {
+    width: 4px
+    }
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent
+    }
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #2A2420
+    }
+.active-glow {
+    box-shadow: -2px 0 0 0 #ffb86e
+    }</style>
+</head>
+<body class="bg-archive text-on-surface font-body-meridian text-body-meridian antialiased selection:bg-primary/30">
+<div class="fixed inset-0 grain"></div>
+<!-- SideNavBar (Meridian Mode: Tighter, Icon-only focus) -->
+<aside class="fixed left-0 top-0 h-screen w-sidebar-meridian bg-archive border-r border-whisper flex flex-col items-center py-gutter-meridian z-50">
+<div class="mb-8 p-2">
+<span class="material-symbols-outlined text-primary text-2xl font-bold">database</span>
+</div>
+<nav class="flex flex-col gap-2 w-full px-2">
+<!-- Active: Dashboard -->
+<button class="w-12 h-12 flex items-center justify-center rounded-sm bg-ledge text-primary border-l-2 border-primary transition-all duration-200" title="Dashboard">
+<span class="material-symbols-outlined">dashboard</span>
+</button>
+<button class="w-12 h-12 flex items-center justify-center rounded-sm text-on-surface-variant hover:bg-chamber hover:text-on-surface transition-all duration-200" title="Vault">
+<span class="material-symbols-outlined">inventory_2</span>
+</button>
+<button class="w-12 h-12 flex items-center justify-center rounded-sm text-on-surface-variant hover:bg-chamber hover:text-on-surface transition-all duration-200" title="Sources">
+<span class="material-symbols-outlined">database</span>
+</button>
+<button class="w-12 h-12 flex items-center justify-center rounded-sm text-on-surface-variant hover:bg-chamber hover:text-on-surface transition-all duration-200" title="Timeline">
+<span class="material-symbols-outlined">history</span>
+</button>
+<button class="w-12 h-12 flex items-center justify-center rounded-sm text-on-surface-variant hover:bg-chamber hover:text-on-surface transition-all duration-200" title="Settings">
+<span class="material-symbols-outlined">settings</span>
+</button>
+</nav>
+<div class="mt-auto flex flex-col gap-2 w-full px-2">
+<button class="w-12 h-12 flex items-center justify-center rounded-sm text-on-surface-variant hover:bg-chamber hover:text-on-surface transition-all duration-200">
+<span class="material-symbols-outlined">analytics</span>
+</button>
+<div class="w-8 h-8 rounded-full bg-surface-container border border-whisper flex items-center justify-center overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A macro photograph of a professional user's portrait in dramatic side-lighting, reminiscent of a high-end tech magazine. The subject has an expression of deep focus, with subtle warm amber highlights reflecting off their glasses. The background is a blurred dark studio environment." src="https://lh3.googleusercontent.com/aida-public/AB6AXuATA9FYsd5NOCD8LSm54mqE-QFPxleAU5cdqfjmyOO9rOgTutxvn8suSzaRQgyf2koAg-SiUN6_m4iy2nij0jUXL6b0b7pv9gcms1pbzx82dHzTroAwEoQ8nyT7GpEYhusWK0SvJAlPDZ2tRnkUGobh1_iSX6z7gzA1jq3y21__uu2G2MBNgMw5KncH1k427sT1P7KncT2zWIVMu_GkZRdyGTSvUIvPL67UqgKnRkbSs9xi_1SHshmr2--_XAFKmXrXZzj6q3q_YG6f">
+</div>
+</div>
+</aside>
+<!-- TopAppBar -->
+<header class="fixed top-0 left-sidebar-meridian right-0 h-16 bg-archive border-b border-whisper flex items-center justify-between px-gutter-hearth z-40">
+<div class="flex items-center gap-4">
+<h1 class="font-display-meridian text-display-meridian text-primary tracking-tight">LociGraph</h1>
+<span class="px-2 py-0.5 bg-chamber border border-whisper text-table-header uppercase text-[10px] tracking-widest text-on-surface-variant">Meridian Deck</span>
+</div>
+<div class="flex items-center gap-6">
+<div class="relative group">
+<span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-on-surface-variant text-sm">search</span>
+<input class="bg-chamber border border-whisper pl-10 pr-4 py-1.5 rounded-sm text-sm focus:border-primary focus:ring-1 focus:ring-primary/20 outline-none transition-all w-64 placeholder:text-outline-variant font-body-meridian" placeholder="Query archivum..." type="text">
+</div>
+<div class="flex items-center gap-3">
+<button class="text-on-surface-variant hover:text-primary transition-colors"><span class="material-symbols-outlined">toggle_off</span></button>
+<button class="text-on-surface-variant hover:text-primary transition-colors relative">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-0 right-0 w-1.5 h-1.5 bg-primary rounded-full"></span>
+</button>
+<button class="text-on-surface-variant hover:text-primary transition-colors"><span class="material-symbols-outlined">account_circle</span></button>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="ml-sidebar-meridian pt-16 flex h-screen overflow-hidden">
+<!-- Left Content Area (Knowledge Engine) -->
+<section class="flex-1 p-gutter-meridian overflow-y-auto custom-scrollbar">
+<div class="max-w-max mx-auto space-y-6">
+<!-- Status Row -->
+<div class="grid grid-cols-4 gap-4">
+<div class="bg-chamber p-4 border border-whisper rounded-sm">
+<p class="text-table-header uppercase text-outline-variant mb-1">Index Density</p>
+<p class="text-2xl font-display-meridian text-on-surface">4.82<span class="text-sm text-on-surface-variant ml-1">PB</span></p>
+<div class="w-full bg-ledge h-1 mt-3 overflow-hidden">
+<div class="bg-primary h-full w-[72%]"></div>
+</div>
+</div>
+<div class="bg-chamber p-4 border border-whisper rounded-sm">
+<p class="text-table-header uppercase text-outline-variant mb-1">Active Sinks</p>
+<p class="text-2xl font-display-meridian text-on-surface">14</p>
+<div class="flex gap-1 mt-3">
+<div class="w-2 h-2 bg-signal-green rounded-full"></div>
+<div class="w-2 h-2 bg-signal-green rounded-full"></div>
+<div class="w-2 h-2 bg-signal-green rounded-full"></div>
+<div class="w-2 h-2 bg-ledge rounded-full"></div>
+</div>
+</div>
+<div class="bg-chamber p-4 border border-whisper rounded-sm col-span-2">
+<p class="text-table-header uppercase text-outline-variant mb-1">Ingestion Pulse</p>
+<div class="h-10 w-full flex items-end gap-1">
+<div class="bg-primary/20 w-full h-[40%] rounded-t-sm"></div>
+<div class="bg-primary/40 w-full h-[60%] rounded-t-sm"></div>
+<div class="bg-primary/60 w-full h-[30%] rounded-t-sm"></div>
+<div class="bg-primary w-full h-[90%] rounded-t-sm"></div>
+<div class="bg-primary/70 w-full h-[55%] rounded-t-sm"></div>
+<div class="bg-primary/30 w-full h-[45%] rounded-t-sm"></div>
+<div class="bg-primary/80 w-full h-[85%] rounded-t-sm"></div>
+<div class="bg-primary/40 w-full h-[25%] rounded-t-sm"></div>
+</div>
+</div>
+</div>
+<!-- Main Table Section -->
+<div class="bg-chamber border border-whisper rounded-sm">
+<div class="flex items-center justify-between px-4 py-3 border-b border-whisper">
+<h2 class="text-table-header uppercase text-on-surface tracking-widest flex items-center gap-2">
+<span class="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></span>
+                            Live Source Feed
+                        </h2>
+<div class="flex gap-2">
+<button class="px-3 py-1 bg-ledge border border-whisper text-[11px] font-label-sm uppercase hover:text-primary transition-colors">Filter</button>
+<button class="px-3 py-1 bg-ledge border border-whisper text-[11px] font-label-sm uppercase hover:text-primary transition-colors">Export</button>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-char border-b border-whisper">
+<th class="py-2 px-4 text-table-header text-outline-variant uppercase">Source ID</th>
+<th class="py-2 px-4 text-table-header text-outline-variant uppercase">Timestamp</th>
+<th class="py-2 px-4 text-table-header text-outline-variant uppercase">Origin</th>
+<th class="py-2 px-4 text-table-header text-outline-variant uppercase">Status</th>
+<th class="py-2 px-4 text-table-header text-outline-variant uppercase">Vector Score</th>
+<th class="py-2 px-4 text-table-header text-outline-variant uppercase">Action</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-whisper">
+<tr class="hover:bg-ledge group transition-colors">
+<td class="py-2 px-4 font-data-mono text-primary text-xs">ARCH-9021-X</td>
+<td class="py-2 px-4 font-data-mono text-on-surface-variant text-xs">2024-10-12 14:22:01</td>
+<td class="py-2 px-4 text-on-surface">Neural_Link_Beta</td>
+<td class="py-2 px-4">
+<span class="inline-flex items-center px-1.5 py-0.5 rounded-sm bg-signal-green/10 text-signal-green text-[10px] font-label-sm uppercase">Verified</span>
+</td>
+<td class="py-2 px-4 font-data-mono text-xs">0.9982</td>
+<td class="py-2 px-4">
+<button class="text-on-surface-variant hover:text-primary"><span class="material-symbols-outlined text-sm">more_vert</span></button>
+</td>
+</tr>
+<tr class="bg-char hover:bg-ledge group transition-colors">
+<td class="py-2 px-4 font-data-mono text-primary text-xs">ARCH-9022-X</td>
+<td class="py-2 px-4 font-data-mono text-on-surface-variant text-xs">2024-10-12 14:21:45</td>
+<td class="py-2 px-4 text-on-surface">Global_Stream_04</td>
+<td class="py-2 px-4">
+<span class="inline-flex items-center px-1.5 py-0.5 rounded-sm bg-primary/10 text-primary text-[10px] font-label-sm uppercase">Ingesting</span>
+</td>
+<td class="py-2 px-4 font-data-mono text-xs">0.8741</td>
+<td class="py-2 px-4">
+<button class="text-on-surface-variant hover:text-primary"><span class="material-symbols-outlined text-sm">more_vert</span></button>
+</td>
+</tr>
+<tr class="hover:bg-ledge group transition-colors">
+<td class="py-2 px-4 font-data-mono text-primary text-xs">ARCH-9023-X</td>
+<td class="py-2 px-4 font-data-mono text-on-surface-variant text-xs">2024-10-12 14:19:30</td>
+<td class="py-2 px-4 text-on-surface">Deep_Web_Crawl</td>
+<td class="py-2 px-4">
+<span class="inline-flex items-center px-1.5 py-0.5 rounded-sm bg-signal-red/10 text-signal-red text-[10px] font-label-sm uppercase">Stalled</span>
+</td>
+<td class="py-2 px-4 font-data-mono text-xs">0.1245</td>
+<td class="py-2 px-4">
+<button class="text-on-surface-variant hover:text-primary"><span class="material-symbols-outlined text-sm">more_vert</span></button>
+</td>
+</tr>
+<tr class="bg-char hover:bg-ledge group transition-colors">
+<td class="py-2 px-4 font-data-mono text-primary text-xs">ARCH-9024-X</td>
+<td class="py-2 px-4 font-data-mono text-on-surface-variant text-xs">2024-10-12 14:18:12</td>
+<td class="py-2 px-4 text-on-surface">Satellite_Relay</td>
+<td class="py-2 px-4">
+<span class="inline-flex items-center px-1.5 py-0.5 rounded-sm bg-signal-green/10 text-signal-green text-[10px] font-label-sm uppercase">Verified</span>
+</td>
+<td class="py-2 px-4 font-data-mono text-xs">0.9554</td>
+<td class="py-2 px-4">
+<button class="text-on-surface-variant hover:text-primary"><span class="material-symbols-outlined text-sm">more_vert</span></button>
+</td>
+</tr>
+<tr class="hover:bg-ledge group transition-colors">
+<td class="py-2 px-4 font-data-mono text-primary text-xs">ARCH-9025-X</td>
+<td class="py-2 px-4 font-data-mono text-on-surface-variant text-xs">2024-10-12 14:15:00</td>
+<td class="py-2 px-4 text-on-surface">Local_DB_Import</td>
+<td class="py-2 px-4">
+<span class="inline-flex items-center px-1.5 py-0.5 rounded-sm bg-signal-green/10 text-signal-green text-[10px] font-label-sm uppercase">Verified</span>
+</td>
+<td class="py-2 px-4 font-data-mono text-xs">1.0000</td>
+<td class="py-2 px-4">
+<button class="text-on-surface-variant hover:text-primary"><span class="material-symbols-outlined text-sm">more_vert</span></button>
+</td>
+</tr>
+<tr class="bg-char hover:bg-ledge group transition-colors">
+<td class="py-2 px-4 font-data-mono text-primary text-xs">ARCH-9026-X</td>
+<td class="py-2 px-4 font-data-mono text-on-surface-variant text-xs">2024-10-12 14:12:33</td>
+<td class="py-2 px-4 text-on-surface">Spectral_Analysis</td>
+<td class="py-2 px-4">
+<span class="inline-flex items-center px-1.5 py-0.5 rounded-sm bg-primary/10 text-primary text-[10px] font-label-sm uppercase">Ingesting</span>
+</td>
+<td class="py-2 px-4 font-data-mono text-xs">0.8920</td>
+<td class="py-2 px-4">
+<button class="text-on-surface-variant hover:text-primary"><span class="material-symbols-outlined text-sm">more_vert</span></button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="p-3 border-t border-whisper flex justify-between items-center bg-char/20">
+<span class="text-[11px] font-data-mono text-outline-variant">Showing records 1-6 of 14,029</span>
+<div class="flex gap-1">
+<button class="w-6 h-6 flex items-center justify-center bg-ledge border border-whisper text-on-surface-variant hover:text-primary"><span class="material-symbols-outlined text-sm">chevron_left</span></button>
+<button class="w-6 h-6 flex items-center justify-center bg-ledge border border-whisper text-primary"><span class="text-[10px] font-data-mono">1</span></button>
+<button class="w-6 h-6 flex items-center justify-center bg-ledge border border-whisper text-on-surface-variant hover:text-primary"><span class="text-[10px] font-data-mono">2</span></button>
+<button class="w-6 h-6 flex items-center justify-center bg-ledge border border-whisper text-on-surface-variant hover:text-primary"><span class="material-symbols-outlined text-sm">chevron_right</span></button>
+</div>
+</div>
+</div>
+<!-- Footer Log Console -->
+<div class="bg-void border border-whisper rounded-sm p-3 font-data-mono text-[10px] text-signal-green/80 leading-relaxed overflow-hidden">
+<p>&gt; [SYSTEM]: Archival deck synchronized at 14:23:44 UTC.</p>
+<p>&gt; [NETWORK]: High-latency detected in orbital relay sector 07. Retrying...</p>
+<p>&gt; [DATA]: Batch #X998 processed successfully. 4,201 entities mapped to the global graph.</p>
+<p>&gt; [SECURITY]: Unauthorized scan attempt from node 192.168.0.22 - BLOCKED.</p>
+<p class="animate-pulse">&gt; [WAITING]: Listening for new stream packets...</p>
+</div>
+</div>
+</section>
+<!-- Right Job Queue Panel -->
+<aside class="w-80 bg-chamber border-l border-whisper flex flex-col z-30">
+<div class="p-4 border-b border-whisper bg-char">
+<h3 class="text-table-header uppercase text-on-surface flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">pending_actions</span>
+                    Active Jobs
+                </h3>
+</div>
+<div class="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4">
+<!-- Job Card 1 -->
+<div class="space-y-2">
+<div class="flex justify-between items-start">
+<div>
+<h4 class="text-xs font-semibold text-on-surface">Vectorization: 2024_Q3_REPORTS</h4>
+<p class="text-[10px] text-outline-variant font-data-mono uppercase">Worker #042</p>
+</div>
+<span class="text-[10px] font-data-mono text-primary">82%</span>
+</div>
+<div class="w-full bg-ledge h-0.5 relative overflow-hidden">
+<div class="absolute top-0 left-0 bg-primary h-full w-[82%]"></div>
+</div>
+<div class="flex justify-between text-[10px] font-data-mono text-outline-variant">
+<span>EST: 4m 12s</span>
+<span>4.2GB / 5.1GB</span>
+</div>
+</div>
+<!-- Job Card 2 -->
+<div class="space-y-2">
+<div class="flex justify-between items-start">
+<div>
+<h4 class="text-xs font-semibold text-on-surface">Crawl: IP_LIST_SHADOW</h4>
+<p class="text-[10px] text-outline-variant font-data-mono uppercase">Worker #109</p>
+</div>
+<span class="text-[10px] font-data-mono text-primary">34%</span>
+</div>
+<div class="w-full bg-ledge h-0.5 relative overflow-hidden">
+<div class="absolute top-0 left-0 bg-primary h-full w-[34%]"></div>
+</div>
+<div class="flex justify-between text-[10px] font-data-mono text-outline-variant">
+<span>EST: 18m 04s</span>
+<span>12.5k nodes</span>
+</div>
+</div>
+<!-- Job Card 3 (Queued) -->
+<div class="p-3 border border-dashed border-whisper bg-char/10 rounded-sm opacity-60">
+<div class="flex justify-between items-center">
+<h4 class="text-xs font-semibold text-on-surface-variant">Sync: ARCHIVE_CLONE</h4>
+<span class="material-symbols-outlined text-sm text-outline-variant">schedule</span>
+</div>
+<p class="text-[10px] text-outline-variant font-data-mono mt-1">WAITING FOR WORKER...</p>
+</div>
+</div>
+<!-- Panel Footer Metrics -->
+<div class="p-4 bg-void border-t border-whisper mt-auto">
+<div class="flex justify-between items-center mb-3">
+<span class="text-table-header uppercase text-outline-variant">Engine Health</span>
+<span class="text-[11px] font-data-mono text-signal-green">OPTIMAL</span>
+</div>
+<div class="space-y-2">
+<div class="flex justify-between text-[10px] font-data-mono text-on-surface-variant">
+<span>CPU Load</span>
+<span>42%</span>
+</div>
+<div class="w-full bg-ledge h-1 rounded-full overflow-hidden">
+<div class="bg-signal-green/60 h-full w-[42%]"></div>
+</div>
+<div class="flex justify-between text-[10px] font-data-mono text-on-surface-variant">
+<span>Mem Allocation</span>
+<span>68%</span>
+</div>
+<div class="w-full bg-ledge h-1 rounded-full overflow-hidden">
+<div class="bg-signal-amber/60 h-full w-[68%]"></div>
+</div>
+</div>
+</div>
+</aside>
+</main>
+<!-- Micro-interaction Script -->
+<script>
+        document.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('mousedown', () => {
+                btn.classList.add('translate-y-px');
+            });
+            btn.addEventListener('mouseup', () => {
+                btn.classList.remove('translate-y-px');
+            });
+            btn.addEventListener('mouseleave', () => {
+                btn.classList.remove('translate-y-px');
+            });
+        });
+
+        // Simulating live data update for the pulse line
+        setInterval(() => {
+            const bars = document.querySelectorAll('.ingestion-pulse div');
+            bars.forEach(bar => {
+                const newHeight = Math.floor(Math.random() * 80) + 10;
+                bar.style.height = newHeight + '%';
+            });
+        }, 3000);
+    </script>
+</body></html>

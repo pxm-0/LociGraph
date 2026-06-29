@@ -1,0 +1,373 @@
+<!DOCTYPE html><html class="dark" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>LociGraph - Import Source</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<style>
+        @font-face {
+            font-family: 'Geist';
+            src: url('https://cdn.jsdelivr.net/npm/geist@1.0.0/fonts/geist-sans/Geist-Regular.woff2') format('woff2');
+        }
+        body {
+            background-color: #141210; /* archive */
+            color: #eee0d5; /* on-surface */
+            -webkit-font-smoothing: antialiased;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+        /* Hearth Texture overlay */
+        .hearth-grain {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            opacity: 0.02;
+            background-image: url("https://www.transparenttextures.com/patterns/p6.png");
+            z-index: 50;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-bright": "#403830",
+                        "dust": "#F5EDE2",
+                        "surface-container": "#251e18",
+                        "primary": "#ffb86e",
+                        "on-primary-fixed-variant": "#693c00",
+                        "primary-container": "#d4882f",
+                        "on-secondary": "#3e2d15",
+                        "on-secondary-container": "#cbb18f",
+                        "archive": "#141210",
+                        "error": "#ffb4ab",
+                        "primary-fixed-dim": "#ffb86e",
+                        "outline-variant": "#534437",
+                        "inverse-on-surface": "#372f28",
+                        "primary-fixed": "#ffdcbd",
+                        "surface-dim": "#19120c",
+                        "surface": "#19120c",
+                        "ledge": "#2A2420",
+                        "on-tertiary-fixed-variant": "#004d63",
+                        "on-secondary-fixed": "#271904",
+                        "surface-container-lowest": "#130d07",
+                        "on-secondary-fixed-variant": "#564429",
+                        "on-primary-container": "#4b2900",
+                        "on-error-container": "#ffdad6",
+                        "surface-container-high": "#302922",
+                        "on-surface": "#eee0d5",
+                        "surface-container-highest": "#3c332c",
+                        "secondary-fixed": "#fbdeba",
+                        "secondary": "#ddc2a0",
+                        "on-surface-variant": "#d8c3b1",
+                        "secondary-container": "#564429",
+                        "on-tertiary-container": "#003646",
+                        "void": "#0F0D0B",
+                        "surface-variant": "#3c332c",
+                        "tertiary": "#64d4fd",
+                        "surface-tint": "#ffb86e",
+                        "inverse-surface": "#eee0d5",
+                        "on-tertiary": "#003545",
+                        "on-primary": "#492900",
+                        "secondary-fixed-dim": "#ddc2a0",
+                        "chamber": "#1E1A17",
+                        "on-primary-fixed": "#2c1600",
+                        "background": "#19120c",
+                        "on-background": "#eee0d5",
+                        "tertiary-container": "#24a5cd",
+                        "signal-amber": "#8C6A2A",
+                        "char": "rgba(245, 237, 226, 0.03)",
+                        "inverse-primary": "#8a5100",
+                        "tertiary-fixed-dim": "#64d4fd",
+                        "surface-container-low": "#211a14",
+                        "signal-green": "#5A8C5A",
+                        "outline": "#a08d7d",
+                        "signal-red": "#8C4A4A",
+                        "tertiary-fixed": "#bbe9ff",
+                        "on-error": "#690005",
+                        "on-tertiary-fixed": "#001f29",
+                        "error-container": "#93000a",
+                        "whisper": "rgba(245, 237, 226, 0.07)",
+                        "ash": "#8a837c"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "sidebar-meridian": "200px",
+                        "margin-mobile": "1rem",
+                        "gutter-hearth": "2rem",
+                        "margin-desktop": "clamp(1.5rem, 4vw, 3rem)",
+                        "max-width": "1400px",
+                        "gutter-meridian": "0.75rem",
+                        "sidebar-hearth": "240px"
+                    },
+                    "fontFamily": {
+                        "display-meridian": ["Outfit"],
+                        "body-hearth": ["Outfit"],
+                        "label-sm": ["Geist"],
+                        "body-meridian": ["Outfit"],
+                        "headline-lg-hearth": ["Outfit"],
+                        "label-md": ["Geist"],
+                        "table-header": ["Geist"],
+                        "data-mono": ["Geist Mono"],
+                        "headline-lg-meridian": ["Outfit"],
+                        "display-hearth": ["Outfit"]
+                    },
+                    "fontSize": {
+                        "display-meridian": ["32px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                        "body-hearth": ["16px", {"lineHeight": "1.7", "fontWeight": "400"}],
+                        "label-sm": ["12px", {"lineHeight": "1.4", "fontWeight": "500"}],
+                        "body-meridian": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                        "headline-lg-hearth": ["28px", {"lineHeight": "1.3", "fontWeight": "500"}],
+                        "label-md": ["14px", {"lineHeight": "1.4", "fontWeight": "500"}],
+                        "table-header": ["11px", {"lineHeight": "1.2", "letterSpacing": "0.08em", "fontWeight": "500"}],
+                        "data-mono": ["12px", {"lineHeight": "1.4", "fontWeight": "400"}],
+                        "headline-lg-meridian": ["24px", {"lineHeight": "1.3", "fontWeight": "500"}],
+                        "display-hearth": ["40px", {"lineHeight": "1.2", "fontWeight": "600"}]
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-archive">
+<div class="hearth-grain"></div>
+<!-- Sidebar Shell -->
+<aside class="fixed left-0 top-0 h-screen w-sidebar-hearth bg-archive border-r border-whisper flex flex-col h-full py-gutter-meridian z-40">
+<div class="px-6 mb-10">
+<h1 class="font-display-meridian text-display-meridian text-primary">LociGraph</h1>
+<p class="text-on-surface-variant font-label-sm text-label-sm uppercase tracking-widest opacity-50">Archivist Deck</p>
+</div>
+<nav class="flex-1 px-4 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant font-body-meridian text-body-meridian transition-all duration-200 border-l-2 border-transparent hover:bg-chamber hover:text-on-surface" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+                Dashboard
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant font-body-meridian text-body-meridian transition-all duration-200 border-l-2 border-transparent hover:bg-chamber hover:text-on-surface" href="#">
+<span class="material-symbols-outlined">inventory_2</span>
+                Vault
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-primary border-l-2 border-primary bg-ledge font-body-meridian text-body-meridian transition-all duration-200" href="#">
+<span class="material-symbols-outlined">database</span>
+                Sources
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant font-body-meridian text-body-meridian transition-all duration-200 border-l-2 border-transparent hover:bg-chamber hover:text-on-surface" href="#">
+<span class="material-symbols-outlined">history</span>
+                Timeline
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant font-body-meridian text-body-meridian transition-all duration-200 border-l-2 border-transparent hover:bg-chamber hover:text-on-surface" href="#">
+<span class="material-symbols-outlined">settings</span>
+                Settings
+            </a>
+</nav>
+<div class="px-4 mt-auto space-y-1">
+<button class="w-full mb-4 bg-primary text-on-primary py-2 px-4 rounded font-label-md text-label-md font-bold transition-transform active:translate-y-px">
+                Global Import
+            </button>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant font-body-meridian text-body-meridian hover:text-on-surface transition-colors" href="#">
+<span class="material-symbols-outlined">analytics</span>
+                System Status
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant font-body-meridian text-body-meridian hover:text-on-surface transition-colors" href="#">
+<span class="material-symbols-outlined">help</span>
+                Documentation
+            </a>
+</div>
+</aside>
+<!-- Top AppBar Shell -->
+<header class="fixed top-0 right-0 left-0 ml-sidebar-hearth h-16 px-gutter-hearth bg-archive border-b border-whisper flex justify-between items-center z-30">
+<div class="flex items-center gap-4">
+<h2 class="font-headline-lg-meridian text-headline-lg-meridian text-primary">Import Source</h2>
+</div>
+<div class="flex items-center gap-6">
+<div class="relative w-64">
+<input class="w-full bg-ledge border border-whisper rounded py-1.5 pl-9 pr-4 text-on-surface placeholder-on-surface-variant/40 focus:outline-none focus:border-primary/50 text-label-md font-label-md" placeholder="Search archive..." type="text">
+<span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">search</span>
+</div>
+<div class="flex items-center gap-4 text-on-surface-variant">
+<button class="material-symbols-outlined hover:text-primary transition-colors">toggle_off</button>
+<button class="material-symbols-outlined hover:text-primary transition-colors">notifications</button>
+<div class="h-8 w-8 rounded-full bg-chamber border border-whisper flex items-center justify-center overflow-hidden">
+<img class="h-full w-full object-cover" data-alt="A portrait of a professional data archivist in a dark, tech-focused environment. The lighting is low and warm, reflecting off vintage-style computing hardware. The individual wears dark, minimalist clothing, looking directly at the viewer with an air of sophisticated competence. The background is a blurred library of digital storage units in deep blacks and warm ambers." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDPq2UKqWlurMauX6OBEn07FVaQCBLzGhztxe7uhlhgShsBJfYE8f6dyhEw1N8g1nFhgtfoXbrk2s8Yysv5VXrm-Xo2ck1neTXwBdBL2V8KMei3GxQnOkXF6Bs2v9g0pWBfO9h3gVVH6UTH7DMlwAdVO1_xQllC14PZpKmj_chLQEbBqaJMIfs5MZE2iLqZ3NOQ5FT9wNANwkxTSRleIgptuARJsd41NKsbry3UWyMlXy5qi-Gvf1dstNBXtxi4gqQH1UTrm7Ysf_fa">
+</div>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="ml-sidebar-hearth mt-16 p-gutter-hearth flex flex-col items-center">
+<div class="max-w-[1000px] w-full mt-10">
+<!-- Drop Zone -->
+<div class="group relative w-full h-[320px] border-2 border-dashed border-primary/30 rounded-xl bg-chamber flex flex-col items-center justify-center transition-all hover:border-primary/60 hover:bg-ledge cursor-pointer" id="dropZone">
+<div class="flex flex-col items-center text-center space-y-4">
+<div class="w-16 h-16 rounded-full bg-void flex items-center justify-center text-ash group-hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[32px]">inventory_2</span>
+</div>
+<div class="space-y-1">
+<p class="font-display-meridian text-headline-lg-meridian text-on-surface">Drop files here</p>
+<p class="font-label-sm text-label-sm text-ash tracking-wide">JSON · PDF · HTML · Markdown · ChatGPT export · Meta export</p>
+</div>
+<button class="mt-4 bg-primary text-on-primary-container px-8 py-2.5 rounded font-label-md text-label-md font-bold transition-all active:translate-y-px hover:shadow-[0_2px_10px_rgba(255,184,110,0.2)]">
+                        Browse Files
+                    </button>
+</div>
+<input class="absolute inset-0 opacity-0 cursor-pointer" multiple="" type="file">
+</div>
+<!-- Format Cards Grid -->
+<div class="mt-12">
+<h3 class="font-table-header text-table-header text-ash uppercase mb-6">Supported Formats</h3>
+<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+<!-- JSON -->
+<div class="bg-chamber border border-whisper p-5 rounded hover:bg-ledge transition-colors group">
+<div class="text-primary-fixed-dim mb-3">
+<span class="material-symbols-outlined">javascript</span>
+</div>
+<p class="font-body-meridian text-on-surface font-medium">JSON</p>
+<p class="font-data-mono text-data-mono text-primary/70">.json</p>
+</div>
+<!-- PDF -->
+<div class="bg-chamber border border-whisper p-5 rounded hover:bg-ledge transition-colors">
+<div class="text-primary-fixed-dim mb-3">
+<span class="material-symbols-outlined">picture_as_pdf</span>
+</div>
+<p class="font-body-meridian text-on-surface font-medium">Portable Doc</p>
+<p class="font-data-mono text-data-mono text-primary/70">.pdf</p>
+</div>
+<!-- HTML -->
+<div class="bg-chamber border border-whisper p-5 rounded hover:bg-ledge transition-colors">
+<div class="text-primary-fixed-dim mb-3">
+<span class="material-symbols-outlined">html</span>
+</div>
+<p class="font-body-meridian text-on-surface font-medium">Web Archive</p>
+<p class="font-data-mono text-data-mono text-primary/70">.html</p>
+</div>
+<!-- Markdown -->
+<div class="bg-chamber border border-whisper p-5 rounded hover:bg-ledge transition-colors">
+<div class="text-primary-fixed-dim mb-3">
+<span class="material-symbols-outlined">markdown</span>
+</div>
+<p class="font-body-meridian text-on-surface font-medium">Markdown</p>
+<p class="font-data-mono text-data-mono text-primary/70">.md</p>
+</div>
+<!-- Chat -->
+<div class="bg-chamber border border-whisper p-5 rounded hover:bg-ledge transition-colors">
+<div class="text-primary-fixed-dim mb-3">
+<span class="material-symbols-outlined">chat</span>
+</div>
+<p class="font-body-meridian text-on-surface font-medium">LLM Export</p>
+<p class="font-data-mono text-data-mono text-primary/70">.zip</p>
+</div>
+<!-- Meta -->
+<div class="bg-chamber border border-whisper p-5 rounded hover:bg-ledge transition-colors">
+<div class="text-primary-fixed-dim mb-3">
+<span class="material-symbols-outlined">hub</span>
+</div>
+<p class="font-body-meridian text-on-surface font-medium">Social Meta</p>
+<p class="font-data-mono text-data-mono text-primary/70">.json</p>
+</div>
+</div>
+</div>
+<!-- Progress Feedback Area -->
+<div class="mt-12 space-y-6 hidden" id="progressArea">
+<div class="flex items-center justify-between border-b border-whisper pb-4">
+<h3 class="font-table-header text-table-header text-ash uppercase">Active Ingestion</h3>
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
+<span class="font-data-mono text-data-mono text-primary uppercase">Ingesting</span>
+</div>
+</div>
+<div class="space-y-4">
+<!-- Progress Item 1 -->
+<div class="bg-void border border-whisper/20 p-4 rounded flex items-center gap-4">
+<div class="h-10 w-10 bg-chamber rounded flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">description</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between mb-1.5">
+<span class="font-body-meridian text-on-surface">lexicon_vault_2023.json</span>
+<span class="font-data-mono text-data-mono text-ash">74%</span>
+</div>
+<div class="h-1 w-full bg-ledge rounded-full overflow-hidden">
+<div class="h-full bg-primary transition-all duration-500" style="width: 74%"></div>
+</div>
+</div>
+<button class="text-on-surface-variant hover:text-error transition-colors">
+<span class="material-symbols-outlined text-[20px]">close</span>
+</button>
+</div>
+<!-- Progress Item 2 (Complete) -->
+<div class="bg-void border border-whisper/20 p-4 rounded flex items-center gap-4 opacity-60">
+<div class="h-10 w-10 bg-chamber rounded flex items-center justify-center text-signal-green">
+<span class="material-symbols-outlined">check_circle</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between mb-1.5">
+<span class="font-body-meridian text-on-surface">research_notes.md</span>
+<span class="font-data-mono text-data-mono text-signal-green uppercase">Verified</span>
+</div>
+<div class="h-1 w-full bg-signal-green/20 rounded-full">
+<div class="h-full bg-signal-green w-full"></div>
+</div>
+</div>
+<button class="text-on-surface-variant hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined text-[20px]">visibility</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+<script>
+        // Micro-interactions for the drop zone
+        const dropZone = document.getElementById('dropZone');
+        const progressArea = document.getElementById('progressArea');
+        const fileInput = dropZone.querySelector('input');
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => {
+                dropZone.classList.add('bg-ledge', 'border-primary/100');
+            }, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => {
+                dropZone.classList.remove('bg-ledge', 'border-primary/100');
+            }, false);
+        });
+
+        dropZone.addEventListener('drop', handleDrop, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            simulateUpload();
+        }
+
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length > 0) {
+                simulateUpload();
+            }
+        });
+
+        function simulateUpload() {
+            progressArea.classList.remove('hidden');
+            progressArea.scrollIntoView({ behavior: 'smooth' });
+        }
+    </script>
+</body></html>

@@ -1,0 +1,9 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { --gap: 2rem; }            /* Hearth density */
+[data-mode="meridian"] { --gap: 0.5rem; }
+
+html, body { padding: 0; margin: 0; }
+body { font-family: var(--font-geist), sans-serif; }

@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>LociGraph | Source Import</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Outfit:wght@100..900&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Outfit:wght@100..900&display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            font-family: 'Geist', sans-serif;
+            background-color: #f4fbfa;
+            color: #161d1d;
+        }
+        .drop-zone-active {
+            background-color: rgba(45, 106, 106, 0.05);
+            border-color: #2d6a6a;
+        }
+        .hearth-shadow {
+            box-shadow: 0px 4px 20px rgba(71, 71, 68, 0.04);
+        }
+        .custom-dashed {
+            background-image: url("data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='100%25' height='100%25' fill='none' rx='12' ry='12' stroke='%232D6A6AFF' stroke-width='2' stroke-dasharray='12%2c 12' stroke-dashoffset='0' stroke-linecap='square'/%3e%3c/svg%3e");
+            border-radius: 12px;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-bright": "#f4fbfa",
+                        "primary-fixed-dim": "#95d1d1",
+                        "on-surface-variant": "#3f4848",
+                        "primary-fixed": "#b1eeed",
+                        "on-secondary-fixed-variant": "#474744",
+                        "surface-tint": "#2a6767",
+                        "on-surface": "#161d1d",
+                        "inverse-surface": "#2b3232",
+                        "tertiary-fixed-dim": "#c3c7c7",
+                        "tertiary-container": "#5d6262",
+                        "on-tertiary-fixed-variant": "#434848",
+                        "surface-dim": "#d5dbdb",
+                        "on-secondary-fixed": "#1b1c19",
+                        "on-background": "#161d1d",
+                        "secondary": "#5e5e5b",
+                        "on-tertiary-container": "#d9dedd",
+                        "primary": "#0c5252",
+                        "on-tertiary-fixed": "#171c1c",
+                        "on-error-container": "#93000a",
+                        "tertiary-fixed": "#dfe3e3",
+                        "primary-container": "#2d6a6a",
+                        "on-secondary-container": "#63635f",
+                        "surface-container-high": "#e3e9e9",
+                        "inverse-primary": "#95d1d1",
+                        "error-container": "#ffdad6",
+                        "error": "#ba1a1a",
+                        "secondary-fixed": "#e4e2dd",
+                        "outline-variant": "#bfc8c8",
+                        "on-error": "#ffffff",
+                        "on-primary-fixed-variant": "#074f4f",
+                        "background": "#f4fbfa",
+                        "secondary-container": "#e1dfdb",
+                        "surface-variant": "#dde4e3",
+                        "surface-container-lowest": "#ffffff",
+                        "on-primary-fixed": "#002020",
+                        "on-primary": "#ffffff",
+                        "inverse-on-surface": "#ebf2f2",
+                        "secondary-fixed-dim": "#c8c6c2",
+                        "surface-container": "#e8efef",
+                        "surface-container-low": "#eef5f5",
+                        "surface": "#f4fbfa",
+                        "tertiary": "#454a4a",
+                        "on-tertiary": "#ffffff",
+                        "on-primary-container": "#abe8e7",
+                        "outline": "#707978",
+                        "on-secondary": "#ffffff",
+                        "surface-container-highest": "#dde4e3"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "md": "24px",
+                        "lg": "40px",
+                        "xl": "64px",
+                        "base": "4px",
+                        "xs": "8px",
+                        "sm": "16px",
+                        "gutter": "24px",
+                        "margin-safe": "32px"
+                    },
+                    "fontFamily": {
+                        "label-sm": ["Geist"],
+                        "headline-lg": ["Outfit"],
+                        "body-lg": ["Geist"],
+                        "label-md": ["Geist"],
+                        "display-lg": ["Outfit"],
+                        "body-md": ["Geist"],
+                        "headline-md": ["Outfit"]
+                    },
+                    "fontSize": {
+                        "label-sm": ["12px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                        "headline-lg": ["32px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                        "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "label-md": ["14px", {"lineHeight": "1", "letterSpacing": "0.02em", "fontWeight": "500"}],
+                        "display-lg": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "body-md": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                        "headline-md": ["24px", {"lineHeight": "1.3", "fontWeight": "500"}]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-surface-bright selection:bg-primary-fixed">
+<!-- Sidebar Navigation Shell -->
+<nav class="fixed left-0 top-0 h-full w-[240px] bg-surface-container-low dark:bg-surface-dim shadow-sm flex flex-col py-md z-50">
+<div class="px-md mb-xl">
+<h1 class="font-headline-md text-headline-md text-primary">LociGraph</h1>
+<p class="font-label-sm text-label-sm text-on-surface-variant/70 uppercase tracking-widest mt-1">Archival Intelligence</p>
+</div>
+<div class="flex-1 flex flex-col gap-1">
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-variant/50 transition-colors" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">dashboard</span>
+<span class="font-label-md text-label-md">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-variant/50 transition-colors" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">account_tree</span>
+<span class="font-label-md text-label-md">Knowledge Graph</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-primary border-l-4 border-primary bg-secondary-container/30" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">inventory_2</span>
+<span class="font-label-md text-label-md">Archives</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-variant/50 transition-colors" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">auto_stories</span>
+<span class="font-label-md text-label-md">Collections</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-variant/50 transition-colors" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">settings</span>
+<span class="font-label-md text-label-md">Settings</span>
+</a>
+</div>
+<div class="px-md mt-auto">
+<button class="w-full bg-primary py-3 rounded-xl text-on-primary font-label-md flex items-center justify-center gap-2 hover:bg-primary-container transition-all">
+<span class="material-symbols-outlined text-[20px]">add</span>
+                New Entry
+            </button>
+</div>
+</nav>
+<!-- Top App Bar -->
+<header class="fixed top-0 right-0 w-[calc(100%-240px)] h-16 bg-surface/80 backdrop-blur-md z-40 flex items-center px-gutter justify-between">
+<div class="flex items-center gap-4 flex-1">
+<div class="relative w-full max-w-md focus-within:ring-2 focus-within:ring-primary/20 rounded-full transition-all">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+<input class="w-full bg-surface-container border-none rounded-full py-2 pl-12 pr-4 text-label-md focus:ring-0 placeholder:text-on-surface-variant/50" placeholder="Search your archive..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">settings</span>
+</button>
+<div class="h-8 w-8 rounded-full overflow-hidden border border-outline-variant">
+<img class="w-full h-full object-cover" data-alt="A clean professional headshot of a scholar with glasses in a warmly lit library, soft focus background, light mode aesthetic, high-key photography, beige and teal accents." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA46Katyh5UQ7aWaAqwPLKlwbJVj00_YT-W5pPJuX5Akcpl_oHqKZudAMMiRvT9_VXI512_feT8EaOF0xO_EUoScGI9yausDPUUHyrUVvlaNoNfiOrlL5RjRCZ9QkaXvXbLDOP-ywUaUpCbVvsKqZjjdyzzHUIMlTYg5ci9AlhOuWj8HqLUbKsRPmTyrnBbiHr8woliiiUmWwloRIARhYrkhKlCZ1KEmQTYV1Dguy_1Ptv6mGKFWvs1fbV74tpMHoLd97JO1oERkGGi"/>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="ml-[240px] pt-16 min-h-screen px-margin-safe pb-xl">
+<!-- Breadcrumbs -->
+<nav class="flex items-center gap-2 py-8 text-on-surface-variant/60 font-label-sm uppercase tracking-wider">
+<span>Archives</span>
+<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+<span class="text-primary font-bold">Source Import</span>
+</nav>
+<section class="max-w-4xl mx-auto">
+<div class="mb-lg">
+<h2 class="font-headline-lg text-headline-lg text-on-surface mb-xs">Import Knowledge</h2>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-2xl">
+                    Expand your graph by importing structured research, raw notes, or bibliographies. LociGraph will automatically identify nodes and edges during the processing phase.
+                </p>
+</div>
+<!-- Drag and Drop Zone -->
+<div class="custom-dashed w-full min-h-[340px] flex flex-col items-center justify-center p-xl transition-all duration-300 group hover:bg-primary/5 cursor-pointer hearth-shadow bg-surface-container-lowest" id="drop-zone">
+<div class="w-20 h-20 rounded-full bg-surface-variant flex items-center justify-center mb-md group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-primary text-[40px]" style="font-variation-settings: 'wght' 200;">upload_file</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-surface mb-xs text-center">Drop your archive files here</h3>
+<p class="font-body-md text-body-md text-on-surface-variant text-center mb-lg">Drag and drop or browse to upload your research data.</p>
+<button class="bg-primary text-on-primary px-xl py-3 rounded-xl font-label-md flex items-center gap-2 hover:bg-primary-container transition-all active:scale-95">
+<span class="material-symbols-outlined">folder_open</span>
+                    Browse Files
+                </button>
+<input class="hidden" id="file-input" type="file"/>
+</div>
+<!-- Supported Formats Section -->
+<div class="mt-xl">
+<div class="flex items-center gap-3 mb-md">
+<span class="h-px flex-1 bg-outline-variant/30"></span>
+<span class="font-label-sm text-label-sm text-on-surface-variant/70 uppercase tracking-widest">Supported Formats</span>
+<span class="h-px flex-1 bg-outline-variant/30"></span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-md">
+<!-- Format Card 1 -->
+<div class="border border-primary/20 bg-surface-bright p-md rounded-xl hearth-shadow flex flex-col gap-3 group hover:border-primary/50 transition-colors">
+<div class="flex items-center justify-between">
+<span class="material-symbols-outlined text-primary">description</span>
+<span class="text-[10px] font-bold bg-primary-container/10 text-primary px-2 py-1 rounded">TEXTUAL</span>
+</div>
+<div>
+<p class="font-label-md text-label-md text-on-surface font-bold">Markdown & PDF</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant mt-1">Exported notes, research papers, and static documents.</p>
+</div>
+</div>
+<!-- Format Card 2 -->
+<div class="border border-primary/20 bg-surface-bright p-md rounded-xl hearth-shadow flex flex-col gap-3 group hover:border-primary/50 transition-colors">
+<div class="flex items-center justify-between">
+<span class="material-symbols-outlined text-primary">table_chart</span>
+<span class="text-[10px] font-bold bg-primary-container/10 text-primary px-2 py-1 rounded">TABULAR</span>
+</div>
+<div>
+<p class="font-label-md text-label-md text-on-surface font-bold">JSON & CSV</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant mt-1">Structured datasets, bibliography lists, and node exports.</p>
+</div>
+</div>
+<!-- Format Card 3 -->
+<div class="border border-primary/20 bg-surface-bright p-md rounded-xl hearth-shadow flex flex-col gap-3 group hover:border-primary/50 transition-colors">
+<div class="flex items-center justify-between">
+<span class="material-symbols-outlined text-primary">link</span>
+<span class="text-[10px] font-bold bg-primary-container/10 text-primary px-2 py-1 rounded">NETWORK</span>
+</div>
+<div>
+<p class="font-label-md text-label-md text-on-surface font-bold">BibTeX & Zotero</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant mt-1">Reference management data for citation mapping.</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer Message -->
+<div class="mt-xl p-md bg-surface-container/30 rounded-xl flex items-start gap-4">
+<span class="material-symbols-outlined text-primary-container">info</span>
+<div>
+<p class="font-label-md text-label-md text-on-surface font-bold">Privacy Note</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant">All file processing happens locally before being indexed into your private encrypted graph. No research data is shared with external servers unless cloud-sync is explicitly enabled.</p>
+</div>
+</div>
+</section>
+</main>
+<script>
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+
+        // Micro-interactions for Drag and Drop
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => {
+                dropZone.classList.add('drop-zone-active');
+            }, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => {
+                dropZone.classList.remove('drop-zone-active');
+            }, false);
+        });
+
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        fileInput.addEventListener('change', (e) => {
+            if(e.target.files.length > 0) {
+                alert(`Preparing to import ${e.target.files.length} file(s).`);
+            }
+        });
+
+        // Floating ambient effect for the header
+        window.addEventListener('scroll', () => {
+            const header = document.querySelector('header');
+            if (window.scrollY > 10) {
+                header.classList.add('shadow-sm');
+            } else {
+                header.classList.remove('shadow-sm');
+            }
+        });
+    </script>
+</body></html>
