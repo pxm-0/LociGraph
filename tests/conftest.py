@@ -49,6 +49,8 @@ async def make_user(reset_engine):
     engine = get_engine()
     for uid in created:
         async with session(uid) as conn:
+            await conn.execute(text("DELETE FROM concept_candidates"))
+            await conn.execute(text("DELETE FROM claims"))
             await conn.execute(text("DELETE FROM observations"))
             await conn.execute(text("DELETE FROM fragments"))
             await conn.execute(text("DELETE FROM jobs"))

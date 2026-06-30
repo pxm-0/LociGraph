@@ -1,6 +1,8 @@
 import pytest
 import sqlalchemy.exc
 
+from kernel.db.claims import ClaimRepository
+from kernel.db.concept_candidates import ConceptCandidateRepository
 from kernel.db.observations import ObservationRepository
 from kernel.db.session import session
 from kernel.db.sources import SourceRepository
@@ -51,3 +53,43 @@ async def test_observations_isolated_between_tenants(make_user):
     async with session(user_b) as conn:
         b_view = await ObservationRepository(conn).list_for_source(src.id)
     assert b_view == []
+
+
+@pytest.mark.asyncio
+async def test_claims_and_concept_candidates_isolated_between_tenants(make_user):
+    user_a = await make_user()
+    user_b = await make_user()
+
+    async with session(user_a) as conn:
+        src = await SourceRepository(conn).create(user_a, "json", "iso-claims")
+        [obs_id] = await ObservationRepository(conn).bulk_insert(
+            [{"content": "Secret claim source"}], src.id, user_a
+        )
+        claim = await ClaimRepository(conn).create(
+            user_id=user_a,
+            source_id=src.id,
+            observation_id=obs_id,
+            claim_text="Secret claim.",
+            claim_type="fact",
+            confidence=0.9,
+            extraction_method="test",
+            model_name="fake",
+            prompt_version="v1",
+        )
+        assert claim is not None
+        await ConceptCandidateRepository(conn).create(
+            user_id=user_a,
+            source_id=src.id,
+            claim_id=claim.id,
+            candidate_name="Secret",
+            concept_type="idea",
+            rationale=None,
+            confidence=0.8,
+            extraction_method="test",
+            model_name="fake",
+            prompt_version="v1",
+        )
+
+    async with session(user_b) as conn:
+        assert await ClaimRepository(conn).list(source_id=src.id) == []
+        assert await ConceptCandidateRepository(conn).list(source_id=src.id) == []

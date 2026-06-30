@@ -17,6 +17,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Import", href: "/import", icon: "inventory_2" },
   { label: "Sources", href: "/sources", icon: "database" },
   { label: "Observations", href: "/observations", icon: "visibility" },
+  { label: "Claims", href: "/claims", icon: "analytics" },
 ]
 
 // Hearth: wide left sidebar with label + icon, teal active indicator

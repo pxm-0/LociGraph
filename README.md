@@ -95,6 +95,11 @@ export JWT_SECRET="dev-secret"
 export LOCIGRAPH_EMAIL="you@example.com"
 export LOCIGRAPH_PASSWORD="changeme"
 export RAW_STORAGE_PATH="/tmp/locigraph-raw"
+export ACTIVE_AI_PROVIDER="openai"
+export OPENAI_API_KEY=""
+export OPENAI_EXTRACTION_MODEL="gpt-4o-mini"
+export CLAIM_EXTRACTION_AUTORUN="false"
+export CLAIM_EXTRACTION_BATCH_SIZE="12"
 export COOKIE_SECURE="false"
 
 # Run migrations
@@ -125,8 +130,11 @@ Copy `.env.example` to `.env` and fill in real values for production.
 | `LOCIGRAPH_PASSWORD` | yes | Admin user password |
 | `REDIS_URL` | yes | Redis connection URL (default: `redis://redis:6379`) |
 | `RAW_STORAGE_PATH` | yes | Path for uploaded raw files (Docker default: `/data/raw`) |
-| `ACTIVE_AI_PROVIDER` | no | AI provider: `openai` \| `anthropic` (default: `openai`) |
+| `ACTIVE_AI_PROVIDER` | no | AI provider for Phase 1 extraction (default: `openai`) |
 | `OPENAI_API_KEY` | no | OpenAI API key (required if provider is openai) |
+| `OPENAI_EXTRACTION_MODEL` | no | OpenAI model used by claim extraction (default: `gpt-4o-mini`) |
+| `CLAIM_EXTRACTION_AUTORUN` | no | Enqueue claim extraction after successful ingestion (`false` by default) |
+| `CLAIM_EXTRACTION_BATCH_SIZE` | no | Observations per extraction request (default: `12`) |
 | `COOKIE_SECURE` | no | Set `true` in production (HTTPS only cookies) |
 
 ---
@@ -137,6 +145,23 @@ Copy `.env.example` to `.env` and fill in real values for production.
 # Requires postgres + redis to be running (docker compose up -d postgres redis)
 pytest
 ```
+
+For local host tests that exercise uploads, set `RAW_STORAGE_PATH` to a writable
+host path such as `/tmp/locigraph-raw`.
+
+---
+
+## Phase 1 Claim Extraction
+
+Verified sources can produce proposed claims through:
+
+- automatic `extract_claims` jobs after ingestion when `CLAIM_EXTRACTION_AUTORUN=true`
+- manual `POST /api/sources/{source_id}/extract-claims`
+
+Claim and concept-candidate rows are tenant-scoped by PostgreSQL RLS. Concept
+candidates are proposed memory only; canonical concepts, graph edges,
+contradiction detection, embeddings, Custodian, and Planetarium work remain
+out of scope for Phase 1 Plan 1.
 
 ---
 

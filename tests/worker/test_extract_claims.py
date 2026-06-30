@@ -1,0 +1,172 @@
+from __future__ import annotations
+
+import pytest
+
+from kernel.ai.claim_extraction import (
+    ClaimExtractionResult,
+    ExtractedClaim,
+    ExtractedConceptCandidate,
+)
+from kernel.db.claims import ClaimRepository
+from kernel.db.concept_candidates import ConceptCandidateRepository
+from kernel.db.jobs import JobRepository
+from kernel.db.observations import ObservationRepository
+from kernel.db.session import session
+from kernel.db.sources import SourceRepository
+from worker.tasks.extract_claims import _extract_claims, _public_error
+
+
+class FakeExtractor:
+    def __init__(self, claim_text: str = "Alpha matters.") -> None:
+        self.claim_text = claim_text
+
+    async def extract(self, observations):  # type: ignore[no-untyped-def]
+        return ClaimExtractionResult(
+            claims=[
+                ExtractedClaim(
+                    observation_id=observations[0].id,
+                    claim_text=self.claim_text,
+                    claim_type="fact",
+                    confidence=0.88,
+                    concept_candidates=[
+                        ExtractedConceptCandidate(
+                            candidate_name="Alpha",
+                            concept_type="idea",
+                            confidence=0.72,
+                            rationale="Primary term",
+                        )
+                    ],
+                )
+            ],
+            extraction_method="test",
+            model_name="fake",
+            prompt_version="v1",
+        )
+
+
+def test_public_error_redacts_openai_api_key_fragments():
+    message = (
+        "Incorrect API key provided: sk-abc123*************xyz. "
+        "You can find your API key at https://platform.openai.com/account/api-keys."
+    )
+    assert _public_error(message) == "OpenAI rejected the configured API key"
+
+
+async def _seed_verified_source(user_id):  # type: ignore[no-untyped-def]
+    async with session(user_id) as conn:
+        source = await SourceRepository(conn).create(user_id, "json", "extract-worker")
+        await SourceRepository(conn).mark_verified(source.id)
+        await ObservationRepository(conn).bulk_insert(
+            [{"content": "Alpha matters."}], source.id, user_id
+        )
+        job = await JobRepository(conn).create(
+            user_id, "extract_claims", payload={"source_id": str(source.id)}
+        )
+    return source, job
+
+
+@pytest.mark.asyncio
+async def test_extract_claims_persists_claims_and_candidates(make_user, monkeypatch):
+    user_id = await make_user()
+    source, job = await _seed_verified_source(user_id)
+    monkeypatch.setattr(
+        "worker.tasks.extract_claims.get_claim_extractor",
+        lambda settings: FakeExtractor(),
+    )
+
+    await _extract_claims(str(source.id), str(user_id), str(job.id))
+
+    async with session(user_id) as conn:
+        claims = await ClaimRepository(conn).list(source_id=source.id)
+        candidates = await ConceptCandidateRepository(conn).list(source_id=source.id)
+        done = await JobRepository(conn).get(job.id)
+
+    assert len(claims) == 1
+    assert len(candidates) == 1
+    assert done.status == "completed"
+
+
+@pytest.mark.asyncio
+async def test_extract_claims_is_idempotent_by_default(make_user, monkeypatch):
+    user_id = await make_user()
+    source, job = await _seed_verified_source(user_id)
+    monkeypatch.setattr(
+        "worker.tasks.extract_claims.get_claim_extractor",
+        lambda settings: FakeExtractor(),
+    )
+
+    await _extract_claims(str(source.id), str(user_id), str(job.id))
+    async with session(user_id) as conn:
+        second_job = await JobRepository(conn).create(
+            user_id, "extract_claims", payload={"source_id": str(source.id)}
+        )
+    await _extract_claims(str(source.id), str(user_id), str(second_job.id))
+
+    async with session(user_id) as conn:
+        claims = await ClaimRepository(conn).list(source_id=source.id)
+        done = await JobRepository(conn).get(second_job.id)
+
+    assert len(claims) == 1
+    assert done.status == "completed"
+
+
+@pytest.mark.asyncio
+async def test_extract_claims_force_replaces_proposed_claims(make_user, monkeypatch):
+    user_id = await make_user()
+    source, job = await _seed_verified_source(user_id)
+    monkeypatch.setattr(
+        "worker.tasks.extract_claims.get_claim_extractor",
+        lambda settings: FakeExtractor("Alpha matters."),
+    )
+    await _extract_claims(str(source.id), str(user_id), str(job.id))
+
+    async with session(user_id) as conn:
+        second_job = await JobRepository(conn).create(
+            user_id, "extract_claims", payload={"source_id": str(source.id), "force": True}
+        )
+    monkeypatch.setattr(
+        "worker.tasks.extract_claims.get_claim_extractor",
+        lambda settings: FakeExtractor("Alpha is important."),
+    )
+    await _extract_claims(str(source.id), str(user_id), str(second_job.id), force=True)
+
+    async with session(user_id) as conn:
+        claims = await ClaimRepository(conn).list(source_id=source.id)
+
+    assert [claim.claim_text for claim in claims] == ["Alpha is important."]
+
+
+@pytest.mark.asyncio
+async def test_extract_claims_missing_provider_config_fails_job(make_user, monkeypatch):
+    user_id = await make_user()
+    source, job = await _seed_verified_source(user_id)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("ACTIVE_AI_PROVIDER", "openai")
+
+    with pytest.raises(ValueError, match="OPENAI_API_KEY"):
+        await _extract_claims(str(source.id), str(user_id), str(job.id))
+
+    async with session(user_id) as conn:
+        failed = await JobRepository(conn).get(job.id)
+    assert failed.status == "failed"
+
+
+@pytest.mark.asyncio
+async def test_extract_claims_provider_error_fails_job(make_user, monkeypatch):
+    class BrokenExtractor:
+        async def extract(self, observations):  # type: ignore[no-untyped-def]
+            raise ValueError("bad schema")
+
+    user_id = await make_user()
+    source, job = await _seed_verified_source(user_id)
+    monkeypatch.setattr(
+        "worker.tasks.extract_claims.get_claim_extractor",
+        lambda settings: BrokenExtractor(),
+    )
+
+    with pytest.raises(ValueError, match="bad schema"):
+        await _extract_claims(str(source.id), str(user_id), str(job.id))
+
+    async with session(user_id) as conn:
+        failed = await JobRepository(conn).get(job.id)
+    assert failed.status == "failed"

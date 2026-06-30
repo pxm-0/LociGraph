@@ -1,0 +1,133 @@
+from __future__ import annotations
+
+import asyncio
+import re
+from collections.abc import Sequence
+
+import dramatiq
+
+from kernel.ai.claim_extraction import ClaimExtractionSettings, get_claim_extractor
+from kernel.db.claims import ClaimRepository
+from kernel.db.concept_candidates import ConceptCandidateRepository
+from kernel.db.jobs import JobRepository
+from kernel.db.observations import ObservationRepository
+from kernel.db.session import session
+from kernel.db.sources import SourceRepository
+from kernel.models import Observation
+from worker.broker import get_broker
+
+get_broker()
+
+
+def _public_error(message: str) -> str:
+    redacted = re.sub(r"sk-[A-Za-z0-9_*\\-]+", "sk-REDACTED", message)
+    if "Incorrect API key provided" in redacted:
+        return "OpenAI rejected the configured API key"
+    return redacted
+
+
+def _batches(items: Sequence[Observation], batch_size: int) -> list[list[Observation]]:
+    return [list(items[i : i + batch_size]) for i in range(0, len(items), batch_size)]
+
+
+async def _extract_claims(
+    source_id: str, user_id: str, job_id: str, force: bool = False
+) -> None:
+    settings = ClaimExtractionSettings.from_env()
+    async with session(user_id) as conn:
+        await JobRepository(conn).mark_running(job_id)
+        source = await SourceRepository(conn).get(source_id)
+        if source is None:
+            raise ValueError(f"source {source_id} not found")
+        if source.import_status != "VERIFIED":
+            raise ValueError(f"source {source_id} is not verified")
+        claim_repo = ClaimRepository(conn)
+        observations = await ObservationRepository(conn).list_for_source(source_id)
+        if force:
+            await claim_repo.delete_proposed_for_source(source_id)
+            existing_observation_ids = set()
+        else:
+            existing_observation_ids = await claim_repo.observation_ids_with_live_claims(
+                source_id
+            )
+
+    pending_observations = [
+        obs for obs in observations if obs.id not in existing_observation_ids
+    ]
+    if not pending_observations:
+        async with session(user_id) as conn:
+            await JobRepository(conn).mark_completed(
+                job_id,
+                result={
+                    "claims": 0,
+                    "concept_candidates": 0,
+                    "skipped_observations": len(observations),
+                },
+            )
+        return
+
+    try:
+        extractor = get_claim_extractor(settings)
+        claim_count = 0
+        candidate_count = 0
+        for batch in _batches(
+            pending_observations, settings.claim_extraction_batch_size
+        ):
+            result = await extractor.extract(batch)
+            async with session(user_id) as conn:
+                claim_repo = ClaimRepository(conn)
+                candidate_repo = ConceptCandidateRepository(conn)
+                for extracted in result.claims:
+                    claim = await claim_repo.create(
+                        user_id=user_id,
+                        source_id=source_id,
+                        observation_id=extracted.observation_id,
+                        claim_text=extracted.claim_text,
+                        claim_type=extracted.claim_type,
+                        confidence=extracted.confidence,
+                        extraction_method=result.extraction_method,
+                        model_name=result.model_name,
+                        prompt_version=result.prompt_version,
+                        metadata=extracted.metadata,
+                    )
+                    if claim is None:
+                        continue
+                    claim_count += 1
+                    for candidate in extracted.concept_candidates:
+                        await candidate_repo.create(
+                            user_id=user_id,
+                            source_id=source_id,
+                            claim_id=claim.id,
+                            candidate_name=candidate.candidate_name,
+                            concept_type=candidate.concept_type,
+                            rationale=candidate.rationale,
+                            confidence=candidate.confidence,
+                            extraction_method=result.extraction_method,
+                            model_name=result.model_name,
+                            prompt_version=result.prompt_version,
+                            metadata=candidate.metadata,
+                        )
+                        candidate_count += 1
+
+        async with session(user_id) as conn:
+            await JobRepository(conn).mark_completed(
+                job_id,
+                result={
+                    "claims": claim_count,
+                    "concept_candidates": candidate_count,
+                    "processed_observations": len(pending_observations),
+                    "skipped_observations": len(observations)
+                    - len(pending_observations),
+                },
+            )
+    except Exception as exc:
+        async with session(user_id) as conn:
+            await JobRepository(conn).record_attempt(job_id, error=_public_error(str(exc)))
+        raise
+
+
+@dramatiq.actor(queue_name="extraction", max_retries=3)
+def extract_claims(
+    source_id: str, user_id: str, job_id: str, force: bool = False
+) -> None:
+    asyncio.run(_extract_claims(source_id, user_id, job_id, force))

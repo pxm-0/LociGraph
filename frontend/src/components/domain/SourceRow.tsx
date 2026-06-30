@@ -2,6 +2,7 @@
 
 import type { Source } from "@/lib/types"
 import { Badge } from "@/components/ui/Badge"
+import { Button } from "@/components/ui/Button"
 import { StatusBadge } from "@/components/ui/StatusBadge"
 
 function formatBytes(bytes: number | null): string {
@@ -13,13 +14,16 @@ function formatBytes(bytes: number | null): string {
 
 interface SourceRowProps {
   source: Source
+  isExtracting?: boolean
+  onExtract?: (source: Source) => void
 }
 
-export function SourceRow({ source }: SourceRowProps) {
+export function SourceRow({ source, isExtracting = false, onExtract }: SourceRowProps) {
   const isPurged = source.importStatus === "PURGED"
   const filenameClass = isPurged
     ? "font-heading text-ash line-through"
     : "font-heading text-dust"
+  const canExtract = source.importStatus === "VERIFIED" && onExtract !== undefined
 
   return (
     <tr className="border-t border-whisper transition-colors hover:bg-chamber-hover">
@@ -39,8 +43,23 @@ export function SourceRow({ source }: SourceRowProps) {
       <td className="px-5 py-3 font-mono text-xs text-ash">
         {formatBytes(source.fileSizeBytes)}
       </td>
-      {/* NOTE: importTimestamp column omitted — API does not return a created/import timestamp in Phase 0 */}
-      {/* NOTE: observations count column omitted — API does not provide per-source observation count in Phase 0 */}
+      <td className="px-5 py-3 font-mono text-xs text-ash">
+        {source.observationCount ?? 0}
+      </td>
+      <td className="px-5 py-3 font-mono text-xs text-ash">
+        {source.claimCount ?? 0}
+      </td>
+      <td className="px-5 py-3 text-right">
+        <Button
+          className="px-3 py-1.5 font-mono text-[11px] uppercase"
+          disabled={!canExtract || isExtracting}
+          onClick={() => onExtract?.(source)}
+          type="button"
+          variant="ghost"
+        >
+          {isExtracting ? "Running" : (source.claimCount ?? 0) > 0 ? "Retry" : "Extract"}
+        </Button>
+      </td>
     </tr>
   )
 }
