@@ -33,6 +33,7 @@ async def test_upload_creates_pending_source_and_enqueues(client, seeded_user, _
     assert r.status_code == 202
     body = r.json()
     assert body["status"] == "PENDING"
+    assert "job_id" in body
     assert len(_no_broker) == 1  # enqueued exactly once
     # cleanup (use session() so RLS current_user_id is set)
     async with session(seeded_user) as conn:
@@ -92,10 +93,13 @@ async def test_list_and_get_sources_returns_only_current_user_rows(client, seede
     items = list_r.json()
     assert any(item["id"] == source_id for item in items)
     assert all(item["import_status"] == "PENDING" for item in items if item["id"] == source_id)
+    assert all("imported_at" in item for item in items)
+    assert all("observation_count" in item for item in items)
 
     get_r = await client.get(f"/sources/{source_id}")
     assert get_r.status_code == 200
     assert get_r.json()["id"] == source_id
+    assert get_r.json()["observation_count"] == 0
 
     # cleanup (use session() so RLS current_user_id is set)
     async with session(seeded_user) as conn:

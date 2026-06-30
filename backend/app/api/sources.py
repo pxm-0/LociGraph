@@ -12,6 +12,7 @@ from backend.app.auth.dependencies import get_current_user
 from backend.app.config import Settings
 from backend.app.jobs.submit import submit_ingest
 from kernel.db.jobs import JobRepository
+from kernel.db.observations import ObservationRepository
 from kernel.db.session import session
 from kernel.db.sources import SourceRepository
 from kernel.ingestion.base import SourceType
@@ -21,13 +22,15 @@ from kernel.storage import save_raw
 router = APIRouter()
 
 
-def _serialize(s: Source) -> dict[str, Any]:
+async def _serialize(s: Source, observations: ObservationRepository) -> dict[str, Any]:
     return {
         "id": str(s.id),
         "source_type": s.source_type,
         "original_filename": s.original_filename,
         "import_status": s.import_status,
         "file_size_bytes": s.file_size_bytes,
+        "imported_at": s.imported_at.isoformat() if s.imported_at else None,
+        "observation_count": await observations.count_for_source(s.id),
     }
 
 
@@ -73,7 +76,7 @@ async def upload_source(
         raise HTTPException(status_code=409, detail="duplicate source (checksum)") from None
 
     submit_ingest(str(source_id), str(user_id), str(job_id))
-    return {"source_id": str(source_id), "status": "PENDING"}
+    return {"source_id": str(source_id), "job_id": str(job_id), "status": "PENDING"}
 
 
 @router.get("/sources")
@@ -82,7 +85,8 @@ async def list_sources(
 ) -> list[dict[str, Any]]:
     async with session(user_id) as conn:
         sources = await SourceRepository(conn).list()
-    return [_serialize(s) for s in sources]
+        observations = ObservationRepository(conn)
+        return [await _serialize(s, observations) for s in sources]
 
 
 @router.get("/sources/{source_id}")
@@ -92,6 +96,6 @@ async def get_source(
 ) -> dict[str, Any]:
     async with session(user_id) as conn:
         source = await SourceRepository(conn).get(source_id)
-    if source is None:
-        raise HTTPException(status_code=404, detail="not found")
-    return _serialize(source)
+        if source is None:
+            raise HTTPException(status_code=404, detail="not found")
+        return await _serialize(source, ObservationRepository(conn))

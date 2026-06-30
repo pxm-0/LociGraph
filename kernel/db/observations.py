@@ -75,6 +75,12 @@ class ObservationRepository(BaseRepository):
         ).scalar_one()
         return result
 
+    async def count(self) -> int:
+        result: int = (
+            await self.conn.execute(text("SELECT count(*) FROM observations"))
+        ).scalar_one()
+        return result
+
     async def list(
         self,
         *,

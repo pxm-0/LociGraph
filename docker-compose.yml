@@ -73,6 +73,16 @@ services:
       redis:
         condition: service_healthy
 
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    environment:
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: "1"
+    depends_on:
+      - backend
+
   caddy:
     image: caddy:2-alpine
     ports:
@@ -81,6 +91,7 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
     depends_on:
       - backend
+      - frontend
 
 volumes:
   postgres_data:

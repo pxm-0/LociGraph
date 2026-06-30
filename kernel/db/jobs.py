@@ -11,7 +11,10 @@ from sqlalchemy.engine import RowMapping
 from kernel.db.base_repository import BaseRepository
 from kernel.models import Job
 
-_COLUMNS = "id, user_id, job_type, status, attempts, error"
+_COLUMNS = (
+    "id, user_id, job_type, status, attempts, error, "
+    "created_at, started_at, completed_at"
+)
 
 
 def _as_mapping(row: RowMapping) -> Mapping[str, Any]:
@@ -81,3 +84,16 @@ class JobRepository(BaseRepository):
             )
         ).mappings().first()
         return Job.from_row(_as_mapping(row)) if row else None
+
+    async def count_by_statuses(self, statuses: list[str]) -> int:
+        if not statuses:
+            return 0
+        params = {f"status_{i}": status for i, status in enumerate(statuses)}
+        placeholders = ", ".join(f":status_{i}" for i in range(len(statuses)))
+        result: int = (
+            await self.conn.execute(
+                text(f"SELECT count(*) FROM jobs WHERE status IN ({placeholders})"),
+                params,
+            )
+        ).scalar_one()
+        return result

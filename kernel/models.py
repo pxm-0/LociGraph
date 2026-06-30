@@ -29,6 +29,7 @@ class Source:
     original_mime_type: str | None = None
     file_size_bytes: int | None = None
     raw_storage_path: str | None = None
+    imported_at: datetime | None = None
     verified_at: datetime | None = None
     metadata: Mapping[str, Any] | None = None
 
@@ -44,6 +45,7 @@ class Source:
             original_mime_type=row.get("original_mime_type"),
             file_size_bytes=row.get("file_size_bytes"),
             raw_storage_path=row.get("raw_storage_path"),
+            imported_at=row.get("imported_at"),
             verified_at=row.get("verified_at"),
             metadata=row.get("metadata"),
         )
@@ -109,6 +111,9 @@ class Job:
     status: str
     attempts: int = 0
     error: str | None = None
+    created_at: datetime | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
 
     @classmethod
     def from_row(cls, row: Mapping[str, Any]) -> Job:
@@ -119,4 +124,7 @@ class Job:
             status=row["status"],
             attempts=row.get("attempts", 0),
             error=row.get("error"),
+            created_at=row.get("created_at"),
+            started_at=row.get("started_at"),
+            completed_at=row.get("completed_at"),
         )

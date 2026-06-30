@@ -18,7 +18,8 @@ def _as_mapping(row: RowMapping) -> Mapping[str, Any]:
 
 _COLUMNS = (
     "id, user_id, source_type, original_filename, original_mime_type, "
-    "checksum_sha256, file_size_bytes, raw_storage_path, import_status, verified_at, metadata"
+    "checksum_sha256, file_size_bytes, raw_storage_path, import_status, "
+    "imported_at, verified_at, metadata"
 )
 
 
@@ -101,3 +102,7 @@ class SourceRepository(BaseRepository):
             )
         ).mappings().all()
         return [Source.from_row(_as_mapping(r)) for r in rows]
+
+    async def count(self) -> int:
+        result: int = (await self.conn.execute(text("SELECT count(*) FROM sources"))).scalar_one()
+        return result

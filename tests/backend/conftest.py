@@ -25,6 +25,20 @@ async def seeded_user(reset_engine):
         async with mig_engine.begin() as conn:
             await conn.execute(
                 text(
+                    "DELETE FROM observations WHERE user_id IN "
+                    "(SELECT id FROM users WHERE email = :e)"
+                ),
+                {"e": email},
+            )
+            await conn.execute(
+                text(
+                    "DELETE FROM fragments WHERE user_id IN "
+                    "(SELECT id FROM users WHERE email = :e)"
+                ),
+                {"e": email},
+            )
+            await conn.execute(
+                text(
                     "DELETE FROM jobs WHERE user_id IN "
                     "(SELECT id FROM users WHERE email = :e)"
                 ),
@@ -50,6 +64,8 @@ async def seeded_user(reset_engine):
     yield uid
     # Teardown: remove owned rows (FK-protected) then the user itself.
     async with session(uid) as conn:
+        await conn.execute(text("DELETE FROM observations"))
+        await conn.execute(text("DELETE FROM fragments"))
         await conn.execute(text("DELETE FROM jobs"))
         await conn.execute(text("DELETE FROM sources"))
     async with engine.begin() as conn:

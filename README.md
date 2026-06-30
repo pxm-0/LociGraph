@@ -16,6 +16,8 @@ Frontend (Next.js — Plan 4)
     │
     ▼
 Caddy  (:80)  →  /api/*  →  Backend (FastAPI :8000)
+          │
+          └────  /*      →  Frontend (Next.js :3000)
                                 │
                                 ▼
                          Knowledge Kernel
@@ -37,7 +39,8 @@ Caddy  (:80)  →  /api/*  →  Backend (FastAPI :8000)
 | redis    | redis:7-alpine       | Dramatiq job queue |
 | backend  | ./backend/Dockerfile | FastAPI API (uvicorn :8000) |
 | worker   | ./worker/Dockerfile  | Dramatiq background workers |
-| caddy    | caddy:2-alpine       | Reverse proxy — routes `/api/*` to backend |
+| frontend | ./frontend/Dockerfile | Next.js archive interface |
+| caddy    | caddy:2-alpine       | Reverse proxy — routes `/api/*` to backend and app routes to frontend |
 
 ---
 
@@ -67,7 +70,7 @@ docker compose exec backend python -m backend.app.scripts.init_user
 
 ```bash
 curl http://localhost/api/auth/me    # → 401 (gateway live, auth required)
-curl http://localhost/               # → "LociGraph API gateway"
+curl http://localhost/               # → LociGraph frontend
 ```
 
 ---
@@ -131,6 +134,20 @@ Copy `.env.example` to `.env` and fill in real values for production.
 
 ---
 
+## Frontend Dev
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The frontend calls relative `/api/*` paths. In local Next dev, `next.config.mjs`
+rewrites those requests to `http://localhost:8000`; in Docker, Caddy handles
+the same route split at the single public origin.
+
+---
+
 ## Running Tests
 
 ```bash
@@ -148,6 +165,7 @@ locigraph/
 ├── backend/
 │   ├── app/         # FastAPI application
 │   └── Dockerfile
+├── frontend/        # Next.js application
 ├── worker/
 │   ├── main.py      # Dramatiq worker entry point
 │   └── Dockerfile
@@ -165,7 +183,7 @@ locigraph/
 `Caddyfile` configures Caddy as the single ingress at `:80`:
 
 - `GET /api/*` → strips `/api` prefix → proxied to `backend:8000`
-- All other paths → `"LociGraph API gateway"` (frontend added in Plan 4)
+- All other paths → proxied to `frontend:3000`
 
 ---
 

@@ -3,6 +3,7 @@ import os
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import create_async_engine
 
 from kernel.auth.passwords import hash_password
 from kernel.db.engine import dispose_engine, get_engine
@@ -15,8 +16,21 @@ async def test_upload_then_ingest_then_query(monkeypatch):  # type: ignore[no-un
     email = os.environ["LOCIGRAPH_EMAIL"]
     # seed the login user
     engine = get_engine()
+    migration_url = os.environ.get("MIGRATION_DATABASE_URL")
+    if migration_url:
+        mig_engine = create_async_engine(migration_url, pool_pre_ping=True)
+        async with mig_engine.begin() as conn:
+            for table in ("observations", "fragments", "jobs", "sources"):
+                await conn.execute(
+                    text(
+                        f"DELETE FROM {table} WHERE user_id IN "
+                        "(SELECT id FROM users WHERE email=:e)"
+                    ),
+                    {"e": email},
+                )
+            await conn.execute(text("DELETE FROM users WHERE email=:e"), {"e": email})
+        await mig_engine.dispose()
     async with engine.begin() as conn:
-        await conn.execute(text("DELETE FROM users WHERE email=:e"), {"e": email})
         await conn.execute(
             text("INSERT INTO users (email, password_hash) VALUES (:e,:p)"),
             {"e": email, "p": hash_password(os.environ["LOCIGRAPH_PASSWORD"])},
