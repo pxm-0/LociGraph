@@ -9,9 +9,25 @@ from kernel.db.claim_concept_edges import ClaimConceptEdgeRepository
 from kernel.db.claims import ClaimRepository
 from kernel.db.concepts import ConceptRepository
 from kernel.db.session import session
-from kernel.models import ClaimConceptEdge, Concept
+from kernel.models import Claim, ClaimConceptEdge, Concept
 
 router = APIRouter()
+
+
+def serialize_claim(claim: Claim) -> dict[str, Any]:
+    return {
+        "id": str(claim.id),
+        "source_id": str(claim.source_id),
+        "observation_id": str(claim.observation_id),
+        "claim_text": claim.claim_text,
+        "claim_type": claim.claim_type,
+        "confidence": claim.confidence,
+        "extraction_method": claim.extraction_method,
+        "model_name": claim.model_name,
+        "prompt_version": claim.prompt_version,
+        "status": claim.status,
+        "created_at": claim.created_at.isoformat(),
+    }
 
 
 def serialize_edge(edge: ClaimConceptEdge) -> dict[str, Any]:
@@ -74,8 +90,6 @@ async def list_concept_claims(
     concept_id: str,
     user_id: str = Depends(get_current_user),
 ) -> list[dict[str, Any]]:
-    from backend.app.api.claims import _serialize_claim  # local: avoids claims<->concepts cycle
-
     async with session(user_id) as conn:
         concept = await ConceptRepository(conn).get(concept_id)
         if concept is None:
@@ -86,5 +100,5 @@ async def list_concept_claims(
         for edge in edges:
             claim = await claims.get(edge.claim_id)
             if claim is not None:
-                result.append(_serialize_claim(claim))
+                result.append(serialize_claim(claim))
         return result
