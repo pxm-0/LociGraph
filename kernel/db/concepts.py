@@ -74,6 +74,34 @@ class ConceptRepository(BaseRepository):
         ).mappings().first()
         return Concept.from_row(_as_mapping(row)) if row else None
 
+    async def find_or_create(
+        self,
+        *,
+        user_id: str | UUID,
+        concept_type: str,
+        concept_name: str,
+        description: str | None = None,
+    ) -> Concept:
+        """Case-insensitive dedup within (user_id, concept_type): return the
+        existing concept if one matches by name, else create it. RLS scopes
+        find_by_name to the current user, so a concurrent insert by the same
+        user racing this call is the only conflict case `create` can hit —
+        handled by re-fetching on the None (conflict) result."""
+        existing = await self.find_by_name(concept_type, concept_name)
+        if existing is not None:
+            return existing
+        created = await self.create(
+            user_id=user_id,
+            concept_name=concept_name,
+            concept_type=concept_type,
+            description=description,
+        )
+        if created is not None:
+            return created
+        existing = await self.find_by_name(concept_type, concept_name)
+        assert existing is not None, "create() conflicted but no matching row found"
+        return existing
+
     async def list(
         self,
         *,
