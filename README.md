@@ -165,6 +165,27 @@ out of scope for Phase 1 Plan 1.
 
 ---
 
+## Phase 1 Concept Promotion
+
+Proposed concept candidates are reviewed on `/claims`:
+
+- **Approve** (`POST /api/concept-candidates/{id}/approve`) dedups against
+  existing concepts case-insensitively within the same `concept_type`,
+  reusing a match or creating a new canonical concept, then links a
+  `claim_concept_edges` graph edge from the originating claim to the
+  concept. Re-approving an already-accepted candidate is a safe no-op — it
+  returns the existing concept/edge rather than erroring or duplicating.
+- **Reject** (`POST /api/concept-candidates/{id}/reject`) just marks the
+  candidate rejected; no concept or edge is created.
+
+Canonical concepts are browsable at `/concepts` (`GET /api/concepts`,
+`GET /api/concepts/{id}`, `GET /api/concepts/{id}/claims`), scoped by RLS
+like every other table. Concept-to-concept relationships, inferred graph
+edges, and an interactive graph visualization are out of scope for this
+plan — see the Planetarium (Phase 4).
+
+---
+
 ## Project Layout
 
 ```

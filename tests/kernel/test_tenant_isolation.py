@@ -1,8 +1,10 @@
 import pytest
 import sqlalchemy.exc
 
+from kernel.db.claim_concept_edges import ClaimConceptEdgeRepository
 from kernel.db.claims import ClaimRepository
 from kernel.db.concept_candidates import ConceptCandidateRepository
+from kernel.db.concepts import ConceptRepository
 from kernel.db.observations import ObservationRepository
 from kernel.db.session import session
 from kernel.db.sources import SourceRepository
@@ -93,3 +95,79 @@ async def test_claims_and_concept_candidates_isolated_between_tenants(make_user)
     async with session(user_b) as conn:
         assert await ClaimRepository(conn).list(source_id=src.id) == []
         assert await ConceptCandidateRepository(conn).list(source_id=src.id) == []
+
+
+@pytest.mark.asyncio
+async def test_concepts_and_edges_isolated_between_tenants(make_user):
+    user_a = await make_user()
+    user_b = await make_user()
+
+    async with session(user_a) as conn:
+        src = await SourceRepository(conn).create(user_a, "json", "iso-concepts")
+        [obs_id] = await ObservationRepository(conn).bulk_insert(
+            [{"content": "Secret concept source"}], src.id, user_a
+        )
+        claim = await ClaimRepository(conn).create(
+            user_id=user_a,
+            source_id=src.id,
+            observation_id=obs_id,
+            claim_text="Secret claim about a concept.",
+            claim_type="fact",
+            confidence=0.9,
+            extraction_method="test",
+            model_name="fake",
+            prompt_version="v1",
+        )
+        assert claim is not None
+        candidate = await ConceptCandidateRepository(conn).create(
+            user_id=user_a,
+            source_id=src.id,
+            claim_id=claim.id,
+            candidate_name="Secret Concept",
+            concept_type="idea",
+            rationale=None,
+            confidence=0.8,
+            extraction_method="test",
+            model_name="fake",
+            prompt_version="v1",
+        )
+        concept = await ConceptRepository(conn).create(
+            user_id=user_a,
+            concept_name="Secret Concept",
+            concept_type="idea",
+        )
+        assert concept is not None
+        edge = await ClaimConceptEdgeRepository(conn).create(
+            user_id=user_a,
+            claim_id=claim.id,
+            concept_id=concept.id,
+            concept_candidate_id=candidate.id,
+            confidence=0.8,
+        )
+        assert edge is not None
+
+    # User B cannot see user A's concepts or edges via list/get.
+    async with session(user_b) as conn:
+        assert await ConceptRepository(conn).list() == []
+        assert await ConceptRepository(conn).get(concept.id) is None
+        assert await ClaimConceptEdgeRepository(conn).list_for_claim(claim.id) == []
+        assert await ClaimConceptEdgeRepository(conn).list_for_concept(concept.id) == []
+        assert await ClaimConceptEdgeRepository(conn).get(edge.id) is None
+
+    # User B cannot insert a concept or edge tagged as user A's.
+    async with session(user_b) as conn:
+        with pytest.raises(sqlalchemy.exc.DBAPIError):
+            await ConceptRepository(conn).create(
+                user_id=user_a,
+                concept_name="Hostile Concept",
+                concept_type="idea",
+            )
+    async with session(user_b) as conn:
+        with pytest.raises(sqlalchemy.exc.DBAPIError):
+            await ClaimConceptEdgeRepository(conn).create(
+                user_id=user_a,
+                claim_id=claim.id,
+                concept_id=concept.id,
+                concept_candidate_id=candidate.id,
+                confidence=0.5,
+            )

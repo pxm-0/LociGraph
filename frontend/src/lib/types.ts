@@ -59,6 +59,16 @@ export interface ConceptCandidate {
   createdAt: string
 }
 
+export interface Concept {
+  id: string
+  conceptName: string
+  conceptType: string
+  description: string | null
+  status: string
+  createdAt: string
+  claimCount: number
+}
+
 export interface DashboardSummary {
   sourceCount: number
   observationCount: number

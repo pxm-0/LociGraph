@@ -176,6 +176,54 @@ class ConceptCandidate:
 
 
 @dataclass(frozen=True, slots=True)
+class Concept:
+    id: UUID
+    user_id: UUID
+    concept_name: str
+    concept_type: str
+    status: str
+    created_at: datetime
+    description: str | None = None
+    metadata: Mapping[str, Any] | None = None
+
+    @classmethod
+    def from_row(cls, row: Mapping[str, Any]) -> Concept:
+        return cls(
+            id=row["id"],
+            user_id=row["user_id"],
+            concept_name=row["concept_name"],
+            concept_type=row["concept_type"],
+            description=row.get("description"),
+            status=row["status"],
+            created_at=row["created_at"],
+            metadata=row.get("metadata"),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class ClaimConceptEdge:
+    id: UUID
+    user_id: UUID
+    claim_id: UUID
+    concept_id: UUID
+    concept_candidate_id: UUID
+    confidence: float
+    created_at: datetime
+
+    @classmethod
+    def from_row(cls, row: Mapping[str, Any]) -> ClaimConceptEdge:
+        return cls(
+            id=row["id"],
+            user_id=row["user_id"],
+            claim_id=row["claim_id"],
+            concept_id=row["concept_id"],
+            concept_candidate_id=row["concept_candidate_id"],
+            confidence=float(row["confidence"]),
+            created_at=row["created_at"],
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class Job:
     id: UUID
     user_id: UUID

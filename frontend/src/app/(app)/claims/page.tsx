@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { listClaims } from "@/lib/api"
 import type { Claim } from "@/lib/types"
+import { ConceptCandidateReview } from "@/components/domain/ConceptCandidateReview"
 import { Badge } from "@/components/ui/Badge"
 import { Skeleton } from "@/components/ui/Skeleton"
 
@@ -124,6 +125,8 @@ export default function ClaimsPage() {
           ) : null}
         </div>
       )}
+
+      <ConceptCandidateReview />
     </div>
   )
 }

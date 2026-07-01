@@ -69,6 +69,44 @@ class ConceptCandidateRepository(BaseRepository):
         ).mappings().one()
         return ConceptCandidate.from_row(_as_mapping(row))
 
+    async def get(self, candidate_id: str | UUID) -> ConceptCandidate | None:
+        row = (
+            await self.conn.execute(
+                text(f"SELECT {_COLUMNS} FROM concept_candidates WHERE id = :id"),
+                {"id": str(candidate_id)},
+            )
+        ).mappings().first()
+        return ConceptCandidate.from_row(_as_mapping(row)) if row else None
+
+    async def mark_status(
+        self, candidate_id: str | UUID, *, from_status: str, to_status: str
+    ) -> ConceptCandidate | None:
+        """Transition status only if currently `from_status`. Returns the
+        updated row, or None if the candidate doesn't exist / isn't in
+        `from_status` (RLS makes cross-tenant rows invisible too). Shared by
+        `reject` and by kernel/concepts_promotion.py's approve orchestration."""
+        row = (
+            await self.conn.execute(
+                text(
+                    f"""
+                    UPDATE concept_candidates
+                    SET status = :to_status
+                    WHERE id = :id AND status = :from_status
+                    RETURNING {_COLUMNS}
+                    """
+                ),
+                {"id": str(candidate_id), "from_status": from_status, "to_status": to_status},
+            )
+        ).mappings().first()
+        return ConceptCandidate.from_row(_as_mapping(row)) if row else None
+
+    async def reject(self, candidate_id: str | UUID) -> ConceptCandidate | None:
+        """Status transition only: proposed -> rejected. No concept or edge
+        involved. Returns None if the candidate is missing, not visible to
+        this tenant, or not currently `proposed` (Task 3/API decides how to
+        surface that as a 404 vs 409)."""
+        return await self.mark_status(candidate_id, from_status="proposed", to_status="rejected")
+
     async def list(
         self,
         *,
