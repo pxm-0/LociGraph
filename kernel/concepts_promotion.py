@@ -11,10 +11,14 @@ from kernel.db.concepts import ConceptRepository
 from kernel.models import ClaimConceptEdge, Concept
 
 
+@dataclass
 class CandidateNotPromotable(Exception):
     """Raised when a candidate can't be approved: missing, invisible to this
     tenant (RLS), or already rejected. Task 3 (API) catches this to decide
     the HTTP status (404 for not-found, 409 for a status conflict)."""
+
+    message: str
+    reason: str  # "not_found" (missing/RLS-hidden) or "invalid_status" (not proposed/accepted)
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,11 +45,15 @@ async def approve_candidate(conn: AsyncConnection, candidate_id: str | UUID) -> 
 
     candidate = await candidate_repo.get(candidate_id)
     if candidate is None:
-        raise CandidateNotPromotable(f"concept candidate {candidate_id} not found")
+        raise CandidateNotPromotable(
+            message=f"concept candidate {candidate_id} not found",
+            reason="not_found",
+        )
     if candidate.status not in ("proposed", "accepted"):
         raise CandidateNotPromotable(
-            f"concept candidate {candidate_id} has status {candidate.status!r}, "
-            "expected 'proposed' or already-'accepted'"
+            message=f"concept candidate {candidate_id} has status {candidate.status!r}, "
+            "expected 'proposed' or already-'accepted'",
+            reason="invalid_status",
         )
 
     concept = await concept_repo.find_or_create(

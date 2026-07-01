@@ -109,8 +109,9 @@ async def test_approve_rejects_a_rejected_candidate(make_user):
         _claim, candidate = await _make_candidate(conn, user_id, source.id)
         await ConceptCandidateRepository(conn).reject(candidate.id)
 
-        with pytest.raises(CandidateNotPromotable):
+        with pytest.raises(CandidateNotPromotable) as exc_info:
             await approve_candidate(conn, candidate.id)
+        assert exc_info.value.reason == "invalid_status"
 
 
 @pytest.mark.asyncio
@@ -122,8 +123,9 @@ async def test_cannot_approve_another_users_candidate(make_user):
         _claim, candidate = await _make_candidate(conn, owner_id, source.id)
 
     async with session(other_id) as conn:
-        with pytest.raises(CandidateNotPromotable):
+        with pytest.raises(CandidateNotPromotable) as exc_info:
             await approve_candidate(conn, candidate.id)
+        assert exc_info.value.reason == "not_found"
 
 
 @pytest.mark.asyncio
