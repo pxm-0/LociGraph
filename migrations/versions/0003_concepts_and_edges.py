@@ -52,6 +52,10 @@ def upgrade() -> None:
         "ON claim_concept_edges (user_id, claim_id, concept_id)"
     )
     op.execute(
+        "CREATE INDEX claim_concept_edges_concept_idx "
+        "ON claim_concept_edges (user_id, concept_id)"
+    )
+    op.execute(
         "GRANT SELECT, INSERT, UPDATE, DELETE ON "
         "concepts, claim_concept_edges TO locigraph_app"
     )
