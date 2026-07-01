@@ -59,7 +59,7 @@ export default function SourcesPage() {
   async function startExtraction(source: Source) {
     setError(null)
     try {
-      const result = await extractClaims(source.id, (source.claimCount ?? 0) > 0)
+      const result = await extractClaims(source.id, source.claimCount > 0)
       setRunning((current) => ({ ...current, [source.id]: result.jobId }))
 
       let active = true

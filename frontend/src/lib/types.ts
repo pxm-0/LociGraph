@@ -7,10 +7,10 @@ export interface Source {
   originalFilename: string | null
   importStatus: string
   fileSizeBytes: number | null
-  importedAt?: string | null
-  observationCount?: number
-  claimCount?: number
-  claimExtractionStatus?: string
+  importedAt: string | null
+  observationCount: number
+  claimCount: number
+  claimExtractionStatus: string
 }
 
 export interface Observation {

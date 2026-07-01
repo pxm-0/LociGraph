@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import re
-from collections.abc import Sequence
+from itertools import batched
 
 import dramatiq
 
@@ -13,7 +13,6 @@ from kernel.db.jobs import JobRepository
 from kernel.db.observations import ObservationRepository
 from kernel.db.session import session
 from kernel.db.sources import SourceRepository
-from kernel.models import Observation
 from worker.broker import get_broker
 
 get_broker()
@@ -24,10 +23,6 @@ def _public_error(message: str) -> str:
     if "Incorrect API key provided" in redacted:
         return "OpenAI rejected the configured API key"
     return redacted
-
-
-def _batches(items: Sequence[Observation], batch_size: int) -> list[list[Observation]]:
-    return [list(items[i : i + batch_size]) for i in range(0, len(items), batch_size)]
 
 
 async def _extract_claims(
@@ -70,9 +65,7 @@ async def _extract_claims(
         extractor = get_claim_extractor(settings)
         claim_count = 0
         candidate_count = 0
-        for batch in _batches(
-            pending_observations, settings.claim_extraction_batch_size
-        ):
+        for batch in batched(pending_observations, settings.claim_extraction_batch_size):
             result = await extractor.extract(batch)
             async with session(user_id) as conn:
                 claim_repo = ClaimRepository(conn)

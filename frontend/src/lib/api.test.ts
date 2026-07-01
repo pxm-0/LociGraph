@@ -38,7 +38,17 @@ test("listSources maps snake_case API fields to camelCase Source", async () => {
     { id: "s1", source_type: "json", original_filename: "a.json", import_status: "VERIFIED", file_size_bytes: 12 },
   ]))
   const [s] = await listSources()
-  expect(s).toEqual({ id: "s1", sourceType: "json", originalFilename: "a.json", importStatus: "VERIFIED", fileSizeBytes: 12 })
+  expect(s).toEqual({
+    id: "s1",
+    sourceType: "json",
+    originalFilename: "a.json",
+    importStatus: "VERIFIED",
+    fileSizeBytes: 12,
+    importedAt: null,
+    observationCount: 0,
+    claimCount: 0,
+    claimExtractionStatus: "waiting",
+  })
 })
 
 test("getSource returns null on 404", async () => {

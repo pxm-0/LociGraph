@@ -23,7 +23,7 @@ from kernel.storage import save_raw
 router = APIRouter()
 
 
-async def _serialize(
+async def serialize_source(
     s: Source, observations: ObservationRepository, claims: ClaimRepository
 ) -> dict[str, Any]:
     claim_count = await claims.count_for_source(s.id)
@@ -96,7 +96,7 @@ async def list_sources(
         sources = await SourceRepository(conn).list()
         observations = ObservationRepository(conn)
         claims = ClaimRepository(conn)
-        return [await _serialize(s, observations, claims) for s in sources]
+        return [await serialize_source(s, observations, claims) for s in sources]
 
 
 @router.get("/sources/{source_id}")
@@ -108,7 +108,7 @@ async def get_source(
         source = await SourceRepository(conn).get(source_id)
         if source is None:
             raise HTTPException(status_code=404, detail="not found")
-        return await _serialize(source, ObservationRepository(conn), ClaimRepository(conn))
+        return await serialize_source(source, ObservationRepository(conn), ClaimRepository(conn))
 
 
 @router.post("/sources/{source_id}/extract-claims", status_code=202)

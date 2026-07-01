@@ -44,10 +44,10 @@ export function SourceRow({ source, isExtracting = false, onExtract }: SourceRow
         {formatBytes(source.fileSizeBytes)}
       </td>
       <td className="px-5 py-3 font-mono text-xs text-ash">
-        {source.observationCount ?? 0}
+        {source.observationCount}
       </td>
       <td className="px-5 py-3 font-mono text-xs text-ash">
-        {source.claimCount ?? 0}
+        {source.claimCount}
       </td>
       <td className="px-5 py-3 text-right">
         <Button
@@ -57,7 +57,7 @@ export function SourceRow({ source, isExtracting = false, onExtract }: SourceRow
           type="button"
           variant="ghost"
         >
-          {isExtracting ? "Running" : (source.claimCount ?? 0) > 0 ? "Retry" : "Extract"}
+          {isExtracting ? "Running" : source.claimCount > 0 ? "Retry" : "Extract"}
         </Button>
       </td>
     </tr>

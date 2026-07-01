@@ -4,7 +4,7 @@ import json
 import os
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Any, Protocol
+from typing import Any
 from uuid import UUID
 
 from kernel.models import Observation
@@ -87,11 +87,6 @@ class ClaimExtractionResult:
     extraction_method: str
     model_name: str | None
     prompt_version: str
-
-
-class ClaimExtractor(Protocol):
-    async def extract(self, observations: Sequence[Observation]) -> ClaimExtractionResult:
-        """Extract proposed claims and concept candidates from observations."""
 
 
 def _as_float(value: object, field_name: str) -> float:
@@ -295,7 +290,7 @@ class OpenAIClaimExtractor:
         )
 
 
-def get_claim_extractor(settings: ClaimExtractionSettings | None = None) -> ClaimExtractor:
+def get_claim_extractor(settings: ClaimExtractionSettings | None = None) -> OpenAIClaimExtractor:
     settings = settings or ClaimExtractionSettings.from_env()
     if settings.active_ai_provider != "openai":
         raise ValueError(f"unsupported ACTIVE_AI_PROVIDER: {settings.active_ai_provider}")

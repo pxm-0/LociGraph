@@ -19,6 +19,10 @@ const MOCK_SOURCES: Source[] = [
     originalFilename: "archive_manifest.json",
     importStatus: "VERIFIED",
     fileSizeBytes: 2048,
+    importedAt: null,
+    observationCount: 0,
+    claimCount: 0,
+    claimExtractionStatus: "waiting",
   },
   {
     id: "2",
@@ -26,6 +30,10 @@ const MOCK_SOURCES: Source[] = [
     originalFilename: "notes_2024.md",
     importStatus: "VERIFIED",
     fileSizeBytes: 512,
+    importedAt: null,
+    observationCount: 0,
+    claimCount: 0,
+    claimExtractionStatus: "waiting",
   },
   {
     id: "3",
@@ -33,6 +41,10 @@ const MOCK_SOURCES: Source[] = [
     originalFilename: "report_q3.pdf",
     importStatus: "PENDING",
     fileSizeBytes: 8192,
+    importedAt: null,
+    observationCount: 0,
+    claimCount: 0,
+    claimExtractionStatus: "waiting",
   },
 ]
 
@@ -102,6 +114,10 @@ describe("DashboardPage", () => {
         originalFilename: "stream.json",
         importStatus: "INGESTING",
         fileSizeBytes: 4096,
+        importedAt: null,
+        observationCount: 0,
+        claimCount: 0,
+        claimExtractionStatus: "waiting",
       },
     ]
     mockListSources.mockResolvedValueOnce(sources)

@@ -40,12 +40,10 @@ function toSource(d: Record<string, unknown>): Source {
     originalFilename: (d.original_filename as string | null) ?? null,
     importStatus: String(d.import_status),
     fileSizeBytes: (d.file_size_bytes as number | null) ?? null,
-  }
-  if ("imported_at" in d) source.importedAt = (d.imported_at as string | null) ?? null
-  if ("observation_count" in d) source.observationCount = Number(d.observation_count ?? 0)
-  if ("claim_count" in d) source.claimCount = Number(d.claim_count ?? 0)
-  if ("claim_extraction_status" in d) {
-    source.claimExtractionStatus = String(d.claim_extraction_status ?? "waiting")
+    importedAt: (d.imported_at as string | null) ?? null,
+    observationCount: Number(d.observation_count ?? 0),
+    claimCount: Number(d.claim_count ?? 0),
+    claimExtractionStatus: String(d.claim_extraction_status ?? "waiting"),
   }
   return source
 }

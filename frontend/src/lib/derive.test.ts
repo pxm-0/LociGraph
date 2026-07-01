@@ -9,6 +9,10 @@ function makeSource(importStatus: string, id = "1"): Source {
     originalFilename: `file-${id}.json`,
     importStatus,
     fileSizeBytes: 1024,
+    importedAt: null,
+    observationCount: 0,
+    claimCount: 0,
+    claimExtractionStatus: "waiting",
   }
 }
 
