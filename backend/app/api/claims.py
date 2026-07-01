@@ -5,6 +5,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 
 from backend.app.auth.dependencies import get_current_user
+from kernel.concepts_promotion import CandidateNotPromotable, approve_candidate
 from kernel.db.claims import ClaimRepository
 from kernel.db.concept_candidates import ConceptCandidateRepository
 from kernel.db.session import session
@@ -96,3 +97,49 @@ async def list_concept_candidates(
             offset=offset,
         )
     return [_serialize_candidate(candidate) for candidate in candidates]
+
+
+@router.post("/concept-candidates/{candidate_id}/approve")
+async def approve_concept_candidate(
+    candidate_id: str,
+    user_id: str = Depends(get_current_user),
+) -> dict[str, Any]:
+    from backend.app.api.concepts import (  # local: avoids claims<->concepts cycle
+        serialize_concept,
+        serialize_edge,
+    )
+    from kernel.db.concepts import ConceptRepository
+
+    async with session(user_id) as conn:
+        try:
+            result = await approve_candidate(conn, candidate_id)
+        except CandidateNotPromotable as exc:
+            status_code = 404 if exc.reason == "not_found" else 409
+            raise HTTPException(status_code=status_code, detail=exc.message) from exc
+        concept_dict = await serialize_concept(result.concept, ConceptRepository(conn))
+    return {
+        "concept": concept_dict,
+        "edge": serialize_edge(result.edge),
+    }
+
+
+@router.post("/concept-candidates/{candidate_id}/reject")
+async def reject_concept_candidate(
+    candidate_id: str,
+    user_id: str = Depends(get_current_user),
+) -> dict[str, Any]:
+    async with session(user_id) as conn:
+        repo = ConceptCandidateRepository(conn)
+        candidate = await repo.get(candidate_id)
+        if candidate is None:
+            raise HTTPException(status_code=404, detail="not found")
+        if candidate.status != "proposed":
+            raise HTTPException(
+                status_code=409,
+                detail=f"concept candidate has status {candidate.status!r}, expected 'proposed'",
+            )
+        rejected = await repo.reject(candidate_id)
+        assert rejected is not None, (
+            "status was 'proposed' under the same conn; reject() must succeed"
+        )
+    return _serialize_candidate(rejected)

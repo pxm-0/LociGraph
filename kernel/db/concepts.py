@@ -102,6 +102,17 @@ class ConceptRepository(BaseRepository):
         assert existing is not None, "create() conflicted but no matching row found"
         return existing
 
+    async def count_for_concept(self, concept_id: str | UUID) -> int:
+        result: int = (
+            await self.conn.execute(
+                text(
+                    "SELECT count(*) FROM claim_concept_edges WHERE concept_id = :concept_id"
+                ),
+                {"concept_id": str(concept_id)},
+            )
+        ).scalar_one()
+        return result
+
     async def list(
         self,
         *,
