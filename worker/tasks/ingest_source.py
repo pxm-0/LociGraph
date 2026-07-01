@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
+from typing import Any
 
 import dramatiq
 
+from kernel.ai.claim_extraction import ClaimExtractionSettings
 from kernel.db.fragments import FragmentRepository
 from kernel.db.jobs import JobRepository
 from kernel.db.observations import ObservationRepository
@@ -13,6 +15,7 @@ from kernel.db.sources import SourceRepository
 from kernel.ingestion.normalizer import Normalizer
 from kernel.ingestion.registry import get_parser
 from worker.broker import get_broker
+from worker.tasks.extract_claims import extract_claims
 
 get_broker()  # ensure a broker is set before the actor is declared
 
@@ -42,7 +45,19 @@ async def _ingest(source_id: str, user_id: str, job_id: str) -> None:
             rows = Normalizer().normalize(fragments)
             await ObservationRepository(conn).bulk_insert(rows, source_id, user_id)
             await SourceRepository(conn).mark_verified(source_id)
-            await JobRepository(conn).mark_completed(job_id, result={"observations": len(rows)})
+            result: dict[str, Any] = {"observations": len(rows)}
+            settings = ClaimExtractionSettings.from_env()
+            if settings.claim_extraction_autorun and rows:
+                extraction_job = await JobRepository(conn).create(
+                    user_id,
+                    "extract_claims",
+                    payload={"source_id": str(source.id), "force": False},
+                )
+                extract_claims.send(
+                    str(source.id), str(user_id), str(extraction_job.id), False
+                )
+                result["extract_claims_job_id"] = str(extraction_job.id)
+            await JobRepository(conn).mark_completed(job_id, result=result)
     except Exception as exc:
         async with session(user_id) as conn:
             await JobRepository(conn).record_attempt(job_id, error=str(exc))

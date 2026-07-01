@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { listSources } from "@/lib/api"
+import { extractClaims, getJob, listSources } from "@/lib/api"
 import { filterByStatus } from "@/lib/derive"
 import type { Source } from "@/lib/types"
 import { SourceRow } from "@/components/domain/SourceRow"
@@ -15,7 +15,7 @@ function SkeletonRows() {
     <>
       {Array.from({ length: 5 }).map((_, i) => (
         <tr key={i} className="border-t border-whisper">
-          <td className="px-5 py-3" colSpan={4}>
+          <td className="px-5 py-3" colSpan={7}>
             <Skeleton className="h-5 w-full" />
           </td>
         </tr>
@@ -28,6 +28,17 @@ export default function SourcesPage() {
   const [sources, setSources] = useState<Source[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [activeFilter, setActiveFilter] = useState<FilterPill>("ALL")
+  const [running, setRunning] = useState<Record<string, string>>({})
+
+  async function refreshSources() {
+    await listSources()
+      .then((data) => {
+        setSources(data)
+      })
+      .catch((err: unknown) => {
+        setError(err instanceof Error ? err.message : "Failed to load sources")
+      })
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -44,6 +55,37 @@ export default function SourcesPage() {
       cancelled = true
     }
   }, [])
+
+  async function startExtraction(source: Source) {
+    setError(null)
+    try {
+      const result = await extractClaims(source.id, (source.claimCount ?? 0) > 0)
+      setRunning((current) => ({ ...current, [source.id]: result.jobId }))
+
+      let active = true
+      while (active) {
+        await new Promise((resolve) => window.setTimeout(resolve, 1200))
+        const job = await getJob(result.jobId)
+        if (job.status === "completed" || job.status === "failed") {
+          active = false
+          setRunning((current) => {
+            const next = { ...current }
+            delete next[source.id]
+            return next
+          })
+          await refreshSources()
+          if (job.status === "failed") setError(job.error ?? "Claim extraction failed")
+        }
+      }
+    } catch (err: unknown) {
+      setRunning((current) => {
+        const next = { ...current }
+        delete next[source.id]
+        return next
+      })
+      setError(err instanceof Error ? err.message : "Claim extraction failed")
+    }
+  }
 
   const isLoading = sources === null && error === null
   const filtered = sources ? filterByStatus(sources, activeFilter) : []
@@ -104,13 +146,29 @@ export default function SourcesPage() {
             <th className="px-5 py-3 font-mono text-[11px] uppercase tracking-widest text-ash">
               Size
             </th>
+            <th className="px-5 py-3 font-mono text-[11px] uppercase tracking-widest text-ash">
+              Obs
+            </th>
+            <th className="px-5 py-3 font-mono text-[11px] uppercase tracking-widest text-ash">
+              Claims
+            </th>
+            <th className="px-5 py-3 text-right font-mono text-[11px] uppercase tracking-widest text-ash">
+              Extract
+            </th>
           </tr>
         </thead>
         <tbody>
           {isLoading ? (
             <SkeletonRows />
           ) : (
-            filtered.map((source) => <SourceRow key={source.id} source={source} />)
+            filtered.map((source) => (
+              <SourceRow
+                isExtracting={Boolean(running[source.id])}
+                key={source.id}
+                onExtract={startExtraction}
+                source={source}
+              />
+            ))
           )}
         </tbody>
       </table>

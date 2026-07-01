@@ -55,6 +55,33 @@ async def test_ingest_parses_and_persists_observations(make_user, tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_ingest_auto_enqueues_claim_extraction(make_user, tmp_path, monkeypatch):
+    user_id = await make_user()
+    raw = tmp_path / "s.json"
+    raw.write_text('[{"text":"alpha"}]', encoding="utf-8")
+    sent: list[tuple[object, ...]] = []
+    monkeypatch.setenv("CLAIM_EXTRACTION_AUTORUN", "true")
+    monkeypatch.setattr(
+        "worker.tasks.ingest_source.extract_claims.send",
+        lambda *args: sent.append(args),
+    )
+
+    async with session(user_id) as conn:
+        src = await SourceRepository(conn).create(
+            user_id, "json", "e2e-auto-extract", raw_storage_path=str(raw)
+        )
+        job = await JobRepository(conn).create(user_id, "ingest_source")
+
+    await _ingest(str(src.id), str(user_id), str(job.id))
+
+    async with session(user_id) as conn:
+        jobs = await JobRepository(conn).count_by_statuses(["pending"])
+
+    assert len(sent) == 1
+    assert jobs >= 1
+
+
+@pytest.mark.asyncio
 async def test_ingest_is_idempotent(make_user, tmp_path):
     user_id = await make_user()
     raw = tmp_path / "s.json"

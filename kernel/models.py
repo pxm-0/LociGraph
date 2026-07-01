@@ -29,6 +29,7 @@ class Source:
     original_mime_type: str | None = None
     file_size_bytes: int | None = None
     raw_storage_path: str | None = None
+    imported_at: datetime | None = None
     verified_at: datetime | None = None
     metadata: Mapping[str, Any] | None = None
 
@@ -44,6 +45,7 @@ class Source:
             original_mime_type=row.get("original_mime_type"),
             file_size_bytes=row.get("file_size_bytes"),
             raw_storage_path=row.get("raw_storage_path"),
+            imported_at=row.get("imported_at"),
             verified_at=row.get("verified_at"),
             metadata=row.get("metadata"),
         )
@@ -102,6 +104,78 @@ class Observation:
 
 
 @dataclass(frozen=True, slots=True)
+class Claim:
+    id: UUID
+    user_id: UUID
+    source_id: UUID
+    observation_id: UUID
+    claim_text: str
+    claim_type: str
+    confidence: float
+    extraction_method: str
+    status: str
+    created_at: datetime
+    model_name: str | None = None
+    prompt_version: str | None = None
+    metadata: Mapping[str, Any] | None = None
+
+    @classmethod
+    def from_row(cls, row: Mapping[str, Any]) -> Claim:
+        return cls(
+            id=row["id"],
+            user_id=row["user_id"],
+            source_id=row["source_id"],
+            observation_id=row["observation_id"],
+            claim_text=row["claim_text"],
+            claim_type=row["claim_type"],
+            confidence=float(row["confidence"]),
+            extraction_method=row["extraction_method"],
+            model_name=row.get("model_name"),
+            prompt_version=row.get("prompt_version"),
+            status=row["status"],
+            created_at=row["created_at"],
+            metadata=row.get("metadata"),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class ConceptCandidate:
+    id: UUID
+    user_id: UUID
+    source_id: UUID
+    claim_id: UUID
+    candidate_name: str
+    concept_type: str
+    confidence: float
+    extraction_method: str
+    status: str
+    created_at: datetime
+    rationale: str | None = None
+    model_name: str | None = None
+    prompt_version: str | None = None
+    metadata: Mapping[str, Any] | None = None
+
+    @classmethod
+    def from_row(cls, row: Mapping[str, Any]) -> ConceptCandidate:
+        return cls(
+            id=row["id"],
+            user_id=row["user_id"],
+            source_id=row["source_id"],
+            claim_id=row["claim_id"],
+            candidate_name=row["candidate_name"],
+            concept_type=row["concept_type"],
+            rationale=row.get("rationale"),
+            confidence=float(row["confidence"]),
+            extraction_method=row["extraction_method"],
+            model_name=row.get("model_name"),
+            prompt_version=row.get("prompt_version"),
+            status=row["status"],
+            created_at=row["created_at"],
+            metadata=row.get("metadata"),
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class Job:
     id: UUID
     user_id: UUID
@@ -109,6 +183,9 @@ class Job:
     status: str
     attempts: int = 0
     error: str | None = None
+    created_at: datetime | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
 
     @classmethod
     def from_row(cls, row: Mapping[str, Any]) -> Job:
@@ -119,4 +196,7 @@ class Job:
             status=row["status"],
             attempts=row.get("attempts", 0),
             error=row.get("error"),
+            created_at=row.get("created_at"),
+            started_at=row.get("started_at"),
+            completed_at=row.get("completed_at"),
         )

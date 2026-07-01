@@ -13,6 +13,11 @@ class Settings:
     locigraph_password: str
     raw_storage_path: str
     cookie_secure: bool
+    active_ai_provider: str
+    openai_api_key: str | None
+    openai_extraction_model: str
+    claim_extraction_autorun: bool
+    claim_extraction_batch_size: int
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -24,4 +29,16 @@ class Settings:
             locigraph_password=os.environ["LOCIGRAPH_PASSWORD"],
             raw_storage_path=os.environ.get("RAW_STORAGE_PATH", "/data/raw"),
             cookie_secure=os.environ.get("COOKIE_SECURE", "false").lower() == "true",
+            active_ai_provider=os.environ.get("ACTIVE_AI_PROVIDER", "openai"),
+            openai_api_key=os.environ.get("OPENAI_API_KEY"),
+            openai_extraction_model=os.environ.get(
+                "OPENAI_EXTRACTION_MODEL", "gpt-4o-mini"
+            ),
+            claim_extraction_autorun=os.environ.get(
+                "CLAIM_EXTRACTION_AUTORUN", "false"
+            ).lower()
+            == "true",
+            claim_extraction_batch_size=max(
+                1, int(os.environ.get("CLAIM_EXTRACTION_BATCH_SIZE", "12"))
+            ),
         )

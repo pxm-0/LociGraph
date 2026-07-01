@@ -20,7 +20,14 @@ async def test_rls_is_forced_on_data_tables():
                 )
             )
             forced = {r[0] for r in rows}
-        assert {"sources", "fragments", "observations", "jobs"} <= forced
+        assert {
+            "sources",
+            "fragments",
+            "observations",
+            "jobs",
+            "claims",
+            "concept_candidates",
+        } <= forced
     finally:
         await engine.dispose()
 

@@ -6,6 +6,7 @@ import pytest
 from sqlalchemy import text
 
 from kernel.db.session import session
+from kernel.db.sources import SourceRepository
 
 
 @pytest.fixture(autouse=True)
@@ -13,6 +14,16 @@ def _no_broker(monkeypatch):  # type: ignore[no-untyped-def]
     calls: list[tuple[object, ...]] = []
     monkeypatch.setattr(
         "backend.app.api.sources.submit_ingest",
+        lambda *a, **k: calls.append(a),
+    )
+    return calls
+
+
+@pytest.fixture
+def _no_extraction_broker(monkeypatch):  # type: ignore[no-untyped-def]
+    calls: list[tuple[object, ...]] = []
+    monkeypatch.setattr(
+        "backend.app.api.sources.submit_claim_extraction",
         lambda *a, **k: calls.append(a),
     )
     return calls
@@ -92,10 +103,16 @@ async def test_list_and_get_sources_returns_only_current_user_rows(client, seede
     items = list_r.json()
     assert any(item["id"] == source_id for item in items)
     assert all(item["import_status"] == "PENDING" for item in items if item["id"] == source_id)
+    assert all("imported_at" in item for item in items)
+    assert all("observation_count" in item for item in items)
+    assert all("claim_count" in item for item in items)
+    assert all("claim_extraction_status" in item for item in items)
 
     get_r = await client.get(f"/sources/{source_id}")
     assert get_r.status_code == 200
     assert get_r.json()["id"] == source_id
+    assert get_r.json()["observation_count"] == 0
+    assert get_r.json()["claim_count"] == 0
 
     # cleanup (use session() so RLS current_user_id is set)
     async with session(seeded_user) as conn:
@@ -108,3 +125,37 @@ async def test_get_unknown_source_returns_404(client, seeded_user, _no_broker): 
     await _login(client)
     r = await client.get("/sources/00000000-0000-0000-0000-000000000000")
     assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_manual_claim_extraction_creates_job(client, seeded_user, _no_extraction_broker):  # type: ignore[no-untyped-def]
+    async with session(seeded_user) as conn:
+        source = await SourceRepository(conn).create(seeded_user, "json", "manual-extract")
+        await SourceRepository(conn).mark_verified(source.id)
+
+    await _login(client)
+    r = await client.post(f"/sources/{source.id}/extract-claims")
+
+    assert r.status_code == 202
+    assert "job_id" in r.json()
+    assert len(_no_extraction_broker) == 1
+
+    async with session(seeded_user) as conn:
+        await conn.execute(text("DELETE FROM jobs"))
+        await conn.execute(text("DELETE FROM sources"))
+
+
+@pytest.mark.asyncio
+async def test_manual_claim_extraction_rejects_inaccessible_source(
+    client, seeded_user, make_user, _no_extraction_broker  # type: ignore[no-untyped-def]
+):
+    other_user = await make_user()
+    async with session(other_user) as conn:
+        source = await SourceRepository(conn).create(other_user, "json", "manual-other")
+        await SourceRepository(conn).mark_verified(source.id)
+
+    await _login(client)
+    r = await client.post(f"/sources/{source.id}/extract-claims")
+
+    assert r.status_code == 404
+    assert _no_extraction_broker == []
