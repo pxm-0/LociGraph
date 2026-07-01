@@ -1,5 +1,6 @@
 import type {
   Claim,
+  Concept,
   ConceptCandidate,
   DashboardSummary,
   Job,
@@ -99,6 +100,18 @@ function toConceptCandidate(d: Record<string, unknown>): ConceptCandidate {
     confidence: Number(d.confidence),
     status: String(d.status),
     createdAt: String(d.created_at),
+  }
+}
+
+function toConcept(d: Record<string, unknown>): Concept {
+  return {
+    id: String(d.id),
+    conceptName: String(d.concept_name),
+    conceptType: String(d.concept_type),
+    description: (d.description as string | null) ?? null,
+    status: String(d.status),
+    createdAt: String(d.created_at),
+    claimCount: Number(d.claim_count ?? 0),
   }
 }
 
@@ -233,4 +246,48 @@ export async function extractClaims(
   if (!r.ok) throw await readError(r, "extractClaims failed")
   const d = await r.json()
   return { jobId: d.job_id, status: d.status }
+}
+
+export async function approveConceptCandidate(candidateId: string): Promise<Concept> {
+  const r = await req(`/concept-candidates/${candidateId}/approve`, { method: "POST" })
+  if (!r.ok) throw await readError(r, "approveConceptCandidate failed")
+  const d = await r.json()
+  return toConcept(d.concept)
+}
+
+export async function rejectConceptCandidate(candidateId: string): Promise<ConceptCandidate> {
+  const r = await req(`/concept-candidates/${candidateId}/reject`, { method: "POST" })
+  if (!r.ok) throw await readError(r, "rejectConceptCandidate failed")
+  return toConceptCandidate(await r.json())
+}
+
+export interface ConceptQuery {
+  conceptType?: string
+  status?: string
+  limit?: number
+  offset?: number
+}
+
+export async function listConcepts(q: ConceptQuery = {}): Promise<Concept[]> {
+  const params = new URLSearchParams()
+  if (q.conceptType) params.set("concept_type", q.conceptType)
+  if (q.status) params.set("status", q.status)
+  if (q.limit != null) params.set("limit", String(q.limit))
+  if (q.offset != null) params.set("offset", String(q.offset))
+  const r = await req(`/concepts?${params.toString()}`)
+  if (!r.ok) throw await readError(r, "listConcepts failed")
+  return (await r.json()).map(toConcept)
+}
+
+export async function getConcept(conceptId: string): Promise<Concept | null> {
+  const r = await req(`/concepts/${conceptId}`)
+  if (r.status === 404) return null
+  if (!r.ok) throw await readError(r, "getConcept failed")
+  return toConcept(await r.json())
+}
+
+export async function getConceptClaims(conceptId: string): Promise<Claim[]> {
+  const r = await req(`/concepts/${conceptId}/claims`)
+  if (!r.ok) throw await readError(r, "getConceptClaims failed")
+  return (await r.json()).map(toClaim)
 }
