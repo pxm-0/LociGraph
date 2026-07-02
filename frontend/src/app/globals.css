@@ -5,5 +5,47 @@
 :root { --gap: 2rem; }            /* Hearth density */
 [data-mode="meridian"] { --gap: 0.5rem; }
 
+/* Hearth (light) is the default palette; Meridian (dark) overrides below.
+   Components should use the semantic canvas/surface/ink/muted/hairline/accent
+   utilities (mapped to these vars in tailwind.config.ts) instead of the
+   literal archive/chamber/dust/ash/whisper/ember colors, which stay fixed
+   regardless of mode and are for places that are intentionally single-mode
+   (e.g. the always-dark login screen, or MeridianSidebar/HearthSidebar's own
+   hand-tuned per-mode chrome). */
+/* Both selectors are explicit (not just a bare :root fallback) because
+   CSS custom properties inherit down the DOM by value, not by re-matching
+   [data-mode]: the root <body> carries a fixed data-mode="meridian" fallback
+   (for /login, which has no ThemeProvider ancestor), and ThemeProvider's own
+   wrapper div carries the live data-mode for actual app pages — without an
+   explicit [data-mode="hearth"] rule here, that inner div would just inherit
+   body's meridian values instead of overriding them. */
+:root,
+[data-mode="hearth"] {
+  --color-canvas: #f4fbfa;
+  --color-surface: #ffffff;
+  --color-surface-hover: #eaf5f4;
+  --color-text-primary: #211d19;
+  --color-text-secondary: #6b5f4f;
+  --color-border: rgba(33, 29, 25, 0.1);
+  --color-accent: #2d6a6a;
+  /* Darker than the Meridian originals — the literal #5A8C5A/#D4882F/#8C6A2A
+     status colors don't clear 4.5:1 against this light canvas. */
+  --color-status-verified: #2e6b30;
+  --color-status-ingesting: #8a5a1e;
+  --color-status-quarantined: #6b4e1a;
+}
+[data-mode="meridian"] {
+  --color-canvas: #141210;
+  --color-surface: #1e1a17;
+  --color-surface-hover: #26211d;
+  --color-text-primary: #f5ede2;
+  --color-text-secondary: #a89070;
+  --color-border: rgba(245, 237, 226, 0.07);
+  --color-accent: #d4882f;
+  --color-status-verified: #5a8c5a;
+  --color-status-ingesting: #d4882f;
+  --color-status-quarantined: #8c6a2a;
+}
+
 html, body { padding: 0; margin: 0; }
 body { font-family: var(--font-geist), sans-serif; }

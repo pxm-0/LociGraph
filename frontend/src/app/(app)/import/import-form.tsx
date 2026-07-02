@@ -107,7 +107,7 @@ export default function ImportForm() {
       <div className="space-y-2">
         <label
           htmlFor="source-type-select"
-          className="block font-ui text-xs uppercase tracking-widest text-ash"
+          className="block font-ui text-xs uppercase tracking-widest text-muted"
         >
           Source Type
         </label>
@@ -116,7 +116,7 @@ export default function ImportForm() {
           aria-label="Source Type"
           value={sourceType}
           onChange={(e) => setSourceType(e.target.value as SourceType)}
-          className="w-full max-w-xs rounded-meridian border border-whisper bg-archive px-3 py-2 font-ui text-sm text-dust focus:outline-none focus:ring-1 focus:ring-ember"
+          className="w-full max-w-xs rounded-meridian border border-hairline bg-canvas px-3 py-2 font-ui text-sm text-ink focus:outline-none focus:ring-1 focus:ring-ember"
         >
           {SOURCE_TYPES.map((t) => (
             <option key={t} value={t}>
@@ -137,8 +137,8 @@ export default function ImportForm() {
           "relative flex h-72 w-full cursor-pointer flex-col items-center justify-center",
           "rounded-hearth border-2 border-dashed transition-colors",
           isOver
-            ? "border-ember bg-chamber-hover"
-            : "border-ember/30 bg-chamber hover:border-ember/60 hover:bg-chamber-hover",
+            ? "border-ember bg-surface-hover"
+            : "border-ember/30 bg-surface hover:border-ember/60 hover:bg-surface-hover",
         ].join(" ")}
       >
         {/* Hidden real file input */}
@@ -170,10 +170,10 @@ export default function ImportForm() {
           </div>
 
           <div className="space-y-1">
-            <p className="font-heading text-lg font-medium text-dust">
+            <p className="font-heading text-lg font-medium text-ink">
               {file ? file.name : "Drop file here"}
             </p>
-            <p className="font-mono text-xs text-ash">
+            <p className="font-mono text-xs text-muted">
               JSON · PDF · HTML · Markdown · ChatGPT export · Meta export
             </p>
           </div>
@@ -188,7 +188,7 @@ export default function ImportForm() {
       {error !== null && (
         <div
           role="alert"
-          className="rounded-hearth border border-whisper bg-chamber px-5 py-3 font-ui text-sm text-ash"
+          className="rounded-hearth border border-hairline bg-surface px-5 py-3 font-ui text-sm text-muted"
         >
           {error}
         </div>
@@ -196,12 +196,12 @@ export default function ImportForm() {
 
       {/* ── Success state ── */}
       {result !== null && (
-        <div className="rounded-hearth border border-whisper bg-chamber px-5 py-4 space-y-2">
-          <p className="font-ui text-sm text-dust">
+        <div className="rounded-hearth border border-hairline bg-surface px-5 py-4 space-y-2">
+          <p className="font-ui text-sm text-ink">
             Import queued —{" "}
             <span className="font-mono text-xs text-ember">{result.sourceId}</span>
           </p>
-          <p className="font-ui text-sm text-ash">
+          <p className="font-ui text-sm text-muted">
             Status:{" "}
             <span className="font-mono text-xs uppercase tracking-wide text-status-ingesting">
               {result.status}
@@ -229,7 +229,7 @@ export default function ImportForm() {
 
       {/* ── Format cards ── */}
       <section aria-label="Supported formats">
-        <h2 className="mb-5 font-mono text-[11px] uppercase tracking-widest text-ash">
+        <h2 className="mb-5 font-mono text-[11px] uppercase tracking-widest text-muted">
           Supported Formats
         </h2>
         {/*
@@ -269,8 +269,8 @@ function FormatCard({
       className={[
         "col-span-2 rounded-hearth border p-4 transition-colors",
         active
-          ? "border-ember bg-chamber-hover"
-          : "border-whisper bg-chamber hover:bg-chamber-hover",
+          ? "border-ember bg-surface-hover"
+          : "border-hairline bg-surface hover:bg-surface-hover",
       ].join(" ")}
     >
       <svg
@@ -287,8 +287,8 @@ function FormatCard({
           d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
         />
       </svg>
-      <p className="font-ui text-sm font-medium text-dust">{meta.label}</p>
-      <p className="font-mono text-xs text-ash">{meta.ext}</p>
+      <p className="font-ui text-sm font-medium text-ink">{meta.label}</p>
+      <p className="font-mono text-xs text-muted">{meta.ext}</p>
     </div>
   )
 }

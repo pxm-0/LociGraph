@@ -7,7 +7,7 @@ const COLORS: Record<string, string> = {
 }
 
 export function StatusBadge({ status }: { status: string }) {
-  const color = COLORS[status] ?? "text-ash"
+  const color = COLORS[status] ?? "text-muted"
   return (
     <span className={`font-mono text-xs uppercase tracking-wide ${color}`}>
       {status === "INGESTING" && (

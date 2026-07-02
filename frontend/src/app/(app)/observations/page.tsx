@@ -77,15 +77,15 @@ export default function ObservationsPage() {
   return (
     <div className="space-y-6 p-8">
       {/* Page heading */}
-      <h1 className="font-heading text-2xl font-medium text-dust">Observations</h1>
+      <h1 className="font-heading text-2xl font-medium text-ink">Observations</h1>
 
       {/* Filter bar */}
       <form
         onSubmit={handleApply}
-        className="flex flex-wrap items-end gap-4 rounded-hearth border border-whisper bg-chamber p-4"
+        className="flex flex-wrap items-end gap-4 rounded-hearth border border-hairline bg-surface p-4"
       >
         <div className="flex flex-col gap-1">
-          <label className="font-mono text-[11px] uppercase tracking-widest text-ash">
+          <label className="font-mono text-[11px] uppercase tracking-widest text-muted">
             Source
           </label>
           <input
@@ -93,12 +93,12 @@ export default function ObservationsPage() {
             value={sourceInput}
             onChange={(e) => setSourceInput(e.target.value)}
             placeholder="Source ID"
-            className="rounded-meridian border border-whisper bg-archive px-3 py-1.5 font-ui text-sm text-dust placeholder:text-ash focus:border-hearth-accent focus:outline-none"
+            className="rounded-meridian border border-hairline bg-canvas px-3 py-1.5 font-ui text-sm text-ink placeholder:text-muted focus:border-accent focus:outline-none"
           />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="font-mono text-[11px] uppercase tracking-widest text-ash">
+          <label className="font-mono text-[11px] uppercase tracking-widest text-muted">
             Speaker
           </label>
           <input
@@ -106,18 +106,18 @@ export default function ObservationsPage() {
             value={speakerInput}
             onChange={(e) => setSpeakerInput(e.target.value)}
             placeholder="Speaker"
-            className="rounded-meridian border border-whisper bg-archive px-3 py-1.5 font-ui text-sm text-dust placeholder:text-ash focus:border-hearth-accent focus:outline-none"
+            className="rounded-meridian border border-hairline bg-canvas px-3 py-1.5 font-ui text-sm text-ink placeholder:text-muted focus:border-accent focus:outline-none"
           />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="font-mono text-[11px] uppercase tracking-widest text-ash">
+          <label className="font-mono text-[11px] uppercase tracking-widest text-muted">
             Status
           </label>
           <select
             value={statusInput}
             onChange={(e) => setStatusInput(e.target.value)}
-            className="rounded-meridian border border-whisper bg-archive px-3 py-1.5 font-ui text-sm text-dust focus:border-hearth-accent focus:outline-none"
+            className="rounded-meridian border border-hairline bg-canvas px-3 py-1.5 font-ui text-sm text-ink focus:border-accent focus:outline-none"
           >
             {STATUS_OPTIONS.map((s) => (
               <option key={s} value={s}>
@@ -129,7 +129,7 @@ export default function ObservationsPage() {
 
         <button
           type="submit"
-          className="rounded-meridian bg-ember px-4 py-1.5 font-mono text-xs uppercase tracking-widest text-archive transition-colors hover:opacity-90"
+          className="rounded-meridian bg-ember px-4 py-1.5 font-mono text-xs uppercase tracking-widest text-void transition-colors hover:opacity-90"
         >
           Apply
         </button>
@@ -139,7 +139,7 @@ export default function ObservationsPage() {
       {error !== null && (
         <div
           role="alert"
-          className="rounded-hearth border border-whisper bg-chamber px-6 py-4 text-sm text-ash"
+          className="rounded-hearth border border-hairline bg-surface px-6 py-4 text-sm text-muted"
         >
           Could not load observations: {error}
         </div>
@@ -152,7 +152,7 @@ export default function ObservationsPage() {
       {!isLoading && error === null && observations !== null && (
         <>
           {observations.length === 0 ? (
-            <p className="px-5 text-sm text-ash">No observations match this filter.</p>
+            <p className="px-5 text-sm text-muted">No observations match this filter.</p>
           ) : (
             <div className="space-y-4">
               {observations.map((obs) => (

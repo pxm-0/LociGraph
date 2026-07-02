@@ -6,14 +6,17 @@ import { useMode } from "@/lib/theme"
 import { NavIcon } from "@/components/layout/NavIcon"
 import type { IconName } from "@/components/layout/NavIcon"
 
-interface NavItem {
+export interface NavItem {
   label: string
+  /** Header title for this route, if it differs from the nav label
+   *  (e.g. the Dashboard page's own heading reads "Archive Overview"). */
+  pageTitle?: string
   href: string
   icon: IconName
 }
 
-const NAV_ITEMS: NavItem[] = [
-  { label: "Dashboard", href: "/dashboard", icon: "dashboard" },
+export const NAV_ITEMS: NavItem[] = [
+  { label: "Dashboard", pageTitle: "Archive Overview", href: "/dashboard", icon: "dashboard" },
   { label: "Import", href: "/import", icon: "inventory_2" },
   { label: "Sources", href: "/sources", icon: "database" },
   { label: "Observations", href: "/observations", icon: "visibility" },
@@ -24,11 +27,11 @@ const NAV_ITEMS: NavItem[] = [
 // Hearth: wide left sidebar with label + icon, teal active indicator
 function HearthSidebar({ pathname }: { pathname: string }) {
   return (
-    <aside className="fixed left-0 top-0 h-screen w-60 bg-archive border-r border-whisper flex flex-col py-3 z-40">
+    <aside className="fixed left-0 top-0 h-screen w-60 bg-canvas border-r border-hairline flex flex-col py-3 z-40">
       {/* Brand */}
       <div className="px-6 mb-12">
         <h1 className="font-heading text-2xl text-ember tracking-tight">LociGraph</h1>
-        <p className="text-xs text-ash opacity-60 uppercase tracking-widest mt-1">Archivist Deck</p>
+        <p className="text-xs text-muted opacity-80 uppercase tracking-widest mt-1">Archivist Deck</p>
       </div>
 
       {/* Nav links */}
@@ -42,8 +45,8 @@ function HearthSidebar({ pathname }: { pathname: string }) {
               className={[
                 "flex items-center px-6 py-3 transition-all duration-200 border-l-2",
                 isActive
-                  ? "text-hearth-accent border-hearth-accent bg-chamber"
-                  : "text-ash border-transparent hover:bg-chamber hover:text-dust",
+                  ? "text-accent border-accent bg-surface-hover"
+                  : "text-muted border-transparent hover:bg-surface-hover hover:text-ink",
               ].join(" ")}
             >
               <NavIcon
@@ -64,8 +67,8 @@ function HearthSidebar({ pathname }: { pathname: string }) {
       </div>
 
       {/* Footer utility links */}
-      <div className="px-6 pb-4 border-t border-whisper pt-4 space-y-3">
-        <span className="flex items-center text-xs text-ash hover:text-dust transition-colors cursor-default">
+      <div className="px-6 pb-4 border-t border-hairline pt-4 space-y-3">
+        <span className="flex items-center text-xs text-muted hover:text-ink transition-colors cursor-default">
           <NavIcon
             name="analytics"
             className="w-4 h-4 mr-2 shrink-0"
@@ -81,7 +84,7 @@ function HearthSidebar({ pathname }: { pathname: string }) {
 // Meridian: compact icon-only left sidebar (64px wide), tight density
 function MeridianSidebar({ pathname }: { pathname: string }) {
   return (
-    <aside className="fixed left-0 top-0 h-screen w-16 bg-archive border-r border-whisper flex flex-col items-center py-3 z-40">
+    <aside className="fixed left-0 top-0 h-screen w-16 bg-canvas border-r border-hairline flex flex-col items-center py-3 z-40">
       {/* Brand icon */}
       <div className="mb-8 p-2">
         <NavIcon
@@ -104,8 +107,8 @@ function MeridianSidebar({ pathname }: { pathname: string }) {
               className={[
                 "w-12 h-12 flex items-center justify-center rounded-meridian transition-all duration-200 border-l-2",
                 isActive
-                  ? "bg-chamber text-hearth-accent border-hearth-accent"
-                  : "text-ash border-transparent hover:bg-chamber hover:text-dust",
+                  ? "bg-surface-hover text-accent border-accent"
+                  : "text-muted border-transparent hover:bg-surface-hover hover:text-ink",
               ].join(" ")}
             >
               <NavIcon
@@ -127,7 +130,7 @@ function MeridianSidebar({ pathname }: { pathname: string }) {
       {/* Footer icon */}
       <div className="flex flex-col gap-1 w-full px-2 pb-2">
         <span
-          className="w-12 h-12 flex items-center justify-center text-ash cursor-default"
+          className="w-12 h-12 flex items-center justify-center text-muted cursor-default"
           aria-label="System Status"
           title="System Status"
         >

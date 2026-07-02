@@ -1,23 +1,26 @@
 "use client"
 
 import type { ReactNode } from "react"
+import { usePathname } from "next/navigation"
 import { useMode } from "@/lib/theme"
 import { Sidebar } from "@/components/layout/Sidebar"
+import { NAV_ITEMS } from "@/components/layout/Sidebar"
 import { ModeToggle } from "@/components/layout/ModeToggle"
+
+function currentPageTitle(pathname: string): string {
+  const item = NAV_ITEMS.find((i) => pathname === i.href || pathname.startsWith(i.href + "/"))
+  return item?.pageTitle ?? item?.label ?? "LociGraph"
+}
 
 // AppChrome reads mode after ThemeProvider mounts — must be a client component
 export function AppChrome({ children }: { children: ReactNode }) {
   const { mode } = useMode()
+  const pathname = usePathname()
 
   const isHearth = mode === "hearth"
 
   return (
-    <div
-      className={[
-        "min-h-screen",
-        isHearth ? "bg-hearth-surface" : "bg-archive",
-      ].join(" ")}
-    >
+    <div className="min-h-screen bg-canvas">
       {/* Mode-adaptive sidebar */}
       <Sidebar />
 
@@ -26,18 +29,22 @@ export function AppChrome({ children }: { children: ReactNode }) {
         {/* Top app bar */}
         <header
           className={[
-            "sticky top-0 z-30 flex items-center justify-between border-b border-whisper bg-archive",
+            "sticky top-0 z-30 flex items-center justify-between border-b border-hairline bg-canvas",
             isHearth ? "h-16 px-8" : "h-12 px-6",
           ].join(" ")}
         >
-          {/* Left: page title slot (filled by page via <title> or a context — kept minimal here) */}
+          {/* Left: current page title, derived from the active route */}
           <div className="flex items-center gap-3">
             {isHearth ? (
-              <span className="font-heading text-lg text-dust tracking-tight">Archive Overview</span>
+              <span className="font-heading text-lg text-ink tracking-tight">
+                {currentPageTitle(pathname)}
+              </span>
             ) : (
               <>
-                <span className="font-heading text-base text-dust tracking-tight">LociGraph</span>
-                <span className="px-2 py-0.5 bg-chamber border border-whisper font-mono text-[10px] uppercase tracking-widest text-ash rounded-meridian">
+                <span className="font-heading text-base text-ink tracking-tight">
+                  {currentPageTitle(pathname)}
+                </span>
+                <span className="px-2 py-0.5 bg-surface border border-hairline font-mono text-[10px] uppercase tracking-widest text-muted rounded-meridian">
                   Meridian Deck
                 </span>
               </>

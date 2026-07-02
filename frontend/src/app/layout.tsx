@@ -16,7 +16,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       className={`${outfit.variable} ${GeistSans.variable} ${GeistMono.variable}`}
       style={{ ["--font-geist" as string]: GeistSans.style.fontFamily, ["--font-geist-mono" as string]: GeistMono.style.fontFamily }}
     >
-      <body>{children}</body>
+      {/* data-mode="meridian" is the fallback for anything rendered outside the
+          (app) route group's ThemeProvider (e.g. /login, which is always dark
+          and has no mode toggle) — ThemeProvider's own wrapper overrides this
+          for actual app pages. */}
+      <body data-mode="meridian">{children}</body>
     </html>
   )
 }

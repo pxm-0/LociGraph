@@ -14,7 +14,7 @@ function SkeletonRows() {
   return (
     <>
       {Array.from({ length: 5 }).map((_, i) => (
-        <tr key={i} className="border-t border-whisper">
+        <tr key={i} className="border-t border-hairline">
           <td className="px-5 py-3" colSpan={7}>
             <Skeleton className="h-5 w-full" />
           </td>
@@ -94,9 +94,9 @@ export default function SourcesPage() {
     <div className="space-y-6 p-8">
       {/* Page heading */}
       <div className="flex items-baseline gap-3">
-        <h1 className="font-heading text-2xl font-medium text-dust">Sources</h1>
+        <h1 className="font-heading text-2xl font-medium text-ink">Sources</h1>
         {sources !== null && (
-          <span className="font-mono text-xs text-ember bg-chamber border border-whisper rounded-meridian px-2 py-0.5">
+          <span className="font-mono text-xs text-accent bg-surface border border-hairline rounded-meridian px-2 py-0.5">
             {sources.length}
           </span>
         )}
@@ -111,8 +111,8 @@ export default function SourcesPage() {
             aria-pressed={activeFilter === pill}
             className={
               activeFilter === pill
-                ? "rounded-meridian bg-ember px-3 py-1.5 font-mono text-xs uppercase tracking-widest text-archive transition-colors"
-                : "rounded-meridian px-3 py-1.5 font-mono text-xs uppercase tracking-widest text-ash transition-colors hover:text-dust"
+                ? "rounded-meridian bg-ember px-3 py-1.5 font-mono text-xs uppercase tracking-widest text-void transition-colors"
+                : "rounded-meridian px-3 py-1.5 font-mono text-xs uppercase tracking-widest text-muted transition-colors hover:text-ink"
             }
           >
             {pill === "ALL" ? "All" : pill.charAt(0) + pill.slice(1).toLowerCase()}
@@ -124,7 +124,7 @@ export default function SourcesPage() {
       {error !== null && (
         <div
           role="alert"
-          className="rounded-hearth border border-whisper bg-chamber px-6 py-4 text-sm text-ash"
+          className="rounded-hearth border border-hairline bg-surface px-6 py-4 text-sm text-muted"
         >
           Could not load sources: {error}
         </div>
@@ -133,26 +133,26 @@ export default function SourcesPage() {
       {/* Table — no outer card border, border-top dividers per row */}
       <table className="w-full border-collapse text-left text-sm">
         <thead>
-          <tr className="border-b border-whisper">
-            <th className="px-5 py-3 font-mono text-[11px] uppercase tracking-widest text-ash">
+          <tr className="border-b border-hairline">
+            <th className="px-5 py-3 font-mono text-[11px] uppercase tracking-widest text-muted">
               Filename
             </th>
-            <th className="px-5 py-3 font-mono text-[11px] uppercase tracking-widest text-ash">
+            <th className="px-5 py-3 font-mono text-[11px] uppercase tracking-widest text-muted">
               Type
             </th>
-            <th className="px-5 py-3 font-mono text-[11px] uppercase tracking-widest text-ash">
+            <th className="px-5 py-3 font-mono text-[11px] uppercase tracking-widest text-muted">
               Status
             </th>
-            <th className="px-5 py-3 font-mono text-[11px] uppercase tracking-widest text-ash">
+            <th className="px-5 py-3 font-mono text-[11px] uppercase tracking-widest text-muted">
               Size
             </th>
-            <th className="px-5 py-3 font-mono text-[11px] uppercase tracking-widest text-ash">
+            <th className="px-5 py-3 font-mono text-[11px] uppercase tracking-widest text-muted">
               Obs
             </th>
-            <th className="px-5 py-3 font-mono text-[11px] uppercase tracking-widest text-ash">
+            <th className="px-5 py-3 font-mono text-[11px] uppercase tracking-widest text-muted">
               Claims
             </th>
-            <th className="px-5 py-3 text-right font-mono text-[11px] uppercase tracking-widest text-ash">
+            <th className="px-5 py-3 text-right font-mono text-[11px] uppercase tracking-widest text-muted">
               Extract
             </th>
           </tr>
@@ -174,7 +174,7 @@ export default function SourcesPage() {
       </table>
 
       {!isLoading && error === null && filtered.length === 0 && (
-        <p className="px-5 text-sm text-ash">No sources match this filter.</p>
+        <p className="px-5 text-sm text-muted">No sources match this filter.</p>
       )}
     </div>
   )

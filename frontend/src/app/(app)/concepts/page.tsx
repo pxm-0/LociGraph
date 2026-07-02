@@ -24,7 +24,7 @@ function SkeletonRows() {
   return (
     <>
       {Array.from({ length: 5 }).map((_, i) => (
-        <tr key={i} className="border-t border-whisper">
+        <tr key={i} className="border-t border-hairline">
           <td className="px-5 py-3" colSpan={3}>
             <Skeleton className="h-5 w-full" />
           </td>
@@ -63,9 +63,9 @@ export default function ConceptsPage() {
   return (
     <div className="space-y-6 p-8">
       <div className="flex items-baseline gap-3">
-        <h1 className="font-heading text-2xl font-medium text-dust">Concepts</h1>
+        <h1 className="font-heading text-2xl font-medium text-ink">Concepts</h1>
         {concepts !== null && (
-          <span className="rounded-meridian border border-whisper bg-chamber px-2 py-0.5 font-mono text-xs text-ember">
+          <span className="rounded-meridian border border-hairline bg-surface px-2 py-0.5 font-mono text-xs text-accent">
             {concepts.length}
           </span>
         )}
@@ -77,8 +77,8 @@ export default function ConceptsPage() {
             aria-pressed={conceptType === item}
             className={
               conceptType === item
-                ? "rounded-meridian bg-ember px-3 py-1.5 font-mono text-xs uppercase tracking-widest text-archive transition-colors"
-                : "rounded-meridian px-3 py-1.5 font-mono text-xs uppercase tracking-widest text-ash transition-colors hover:text-dust"
+                ? "rounded-meridian bg-ember px-3 py-1.5 font-mono text-xs uppercase tracking-widest text-void transition-colors"
+                : "rounded-meridian px-3 py-1.5 font-mono text-xs uppercase tracking-widest text-muted transition-colors hover:text-ink"
             }
             key={item}
             onClick={() => setConceptType(item)}
@@ -92,7 +92,7 @@ export default function ConceptsPage() {
       {error !== null && (
         <div
           role="alert"
-          className="rounded-hearth border border-whisper bg-chamber px-6 py-4 text-sm text-ash"
+          className="rounded-hearth border border-hairline bg-surface px-6 py-4 text-sm text-muted"
         >
           Could not load concepts: {error}
         </div>
@@ -100,14 +100,14 @@ export default function ConceptsPage() {
 
       <table className="w-full border-collapse text-left text-sm">
         <thead>
-          <tr className="border-b border-whisper">
-            <th className="px-5 py-3 font-mono text-[11px] uppercase tracking-widest text-ash">
+          <tr className="border-b border-hairline">
+            <th className="px-5 py-3 font-mono text-[11px] uppercase tracking-widest text-muted">
               Name
             </th>
-            <th className="px-5 py-3 font-mono text-[11px] uppercase tracking-widest text-ash">
+            <th className="px-5 py-3 font-mono text-[11px] uppercase tracking-widest text-muted">
               Type
             </th>
-            <th className="px-5 py-3 font-mono text-[11px] uppercase tracking-widest text-ash">
+            <th className="px-5 py-3 font-mono text-[11px] uppercase tracking-widest text-muted">
               Claims
             </th>
           </tr>
@@ -117,12 +117,12 @@ export default function ConceptsPage() {
             <SkeletonRows />
           ) : (
             filtered.map((concept) => (
-              <tr className="border-t border-whisper transition-colors hover:bg-chamber-hover" key={concept.id}>
-                <td className="px-5 py-3 font-heading text-dust">{concept.conceptName}</td>
+              <tr className="border-t border-hairline transition-colors hover:bg-surface-hover" key={concept.id}>
+                <td className="px-5 py-3 font-heading text-ink">{concept.conceptName}</td>
                 <td className="px-5 py-3">
                   <Badge className="font-mono text-xs uppercase">{concept.conceptType}</Badge>
                 </td>
-                <td className="px-5 py-3 font-mono text-xs text-ash">{concept.claimCount}</td>
+                <td className="px-5 py-3 font-mono text-xs text-muted">{concept.claimCount}</td>
               </tr>
             ))
           )}
@@ -130,7 +130,7 @@ export default function ConceptsPage() {
       </table>
 
       {!isLoading && error === null && filtered.length === 0 && (
-        <p className="px-5 text-sm text-ash">No concepts match this filter.</p>
+        <p className="px-5 text-sm text-muted">No concepts match this filter.</p>
       )}
     </div>
   )

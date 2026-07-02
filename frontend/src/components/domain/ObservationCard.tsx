@@ -43,16 +43,16 @@ export function ObservationCard({ observation, selected = false, onClick }: Obse
       className={[
         "rounded-hearth border-l-4 p-6 transition-colors cursor-pointer",
         selected
-          ? "border-l-hearth-accent bg-chamber-hover"
-          : "border-l-transparent bg-chamber hover:bg-chamber-hover",
+          ? "border-l-accent bg-surface-hover"
+          : "border-l-transparent bg-surface hover:bg-surface-hover",
       ].join(" ")}
     >
-      <p className="font-heading text-[15px] leading-[1.7] text-dust max-w-[65ch]">{content}</p>
+      <p className="font-heading text-[15px] leading-[1.7] text-ink max-w-[65ch]">{content}</p>
 
-      <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] text-ash opacity-70">
+      <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] text-muted">
         {metaParts.map((part, i) => (
           <span key={part.key} className="flex items-center gap-1">
-            {i > 0 && <span aria-hidden="true" className="w-1 h-1 rounded-full bg-whisper inline-block" />}
+            {i > 0 && <span aria-hidden="true" className="w-1 h-1 rounded-full bg-hairline inline-block" />}
             {part.value}
           </span>
         ))}

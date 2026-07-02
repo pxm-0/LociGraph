@@ -22,7 +22,7 @@ export function ModeToggle() {
       onClick={toggle}
       title={NEXT_MODE_LABELS[mode]}
       aria-label={NEXT_MODE_LABELS[mode]}
-      className="flex items-center gap-2 px-3 py-1.5 rounded-meridian border border-whisper bg-chamber text-ash hover:text-dust hover:border-ash transition-all duration-200 font-ui text-xs font-medium tracking-wide uppercase"
+      className="flex items-center gap-2 px-3 py-1.5 rounded-meridian border border-hairline bg-surface text-muted hover:text-ink hover:border-accent transition-all duration-200 font-ui text-xs font-medium tracking-wide uppercase"
     >
       <NavIcon
         name={mode === "hearth" ? "toggle_off" : "toggle_on"}

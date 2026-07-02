@@ -62,11 +62,11 @@ export default function DashboardPage() {
     <div className="space-y-10 p-8">
       {/* Page heading */}
       <div className="flex items-baseline justify-between">
-        <h1 className="font-heading text-2xl font-medium text-dust">
+        <h1 className="font-heading text-2xl font-medium text-ink">
           Archive Overview
         </h1>
         {sources !== null && (
-          <span className="font-mono text-xs text-ash">
+          <span className="font-mono text-xs text-muted">
             {sources.length} source{sources.length !== 1 ? "s" : ""} indexed
           </span>
         )}
@@ -77,7 +77,7 @@ export default function DashboardPage() {
       ) : error !== null ? (
         <div
           role="alert"
-          className="rounded-hearth border border-whisper bg-chamber px-6 py-4 text-sm text-ash"
+          className="rounded-hearth border border-hairline bg-surface px-6 py-4 text-sm text-muted"
         >
           Could not load sources: {error}
         </div>
@@ -95,47 +95,47 @@ export default function DashboardPage() {
           {/* Recent activity */}
           <section aria-label="Recent ingestions">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="font-heading text-base font-medium text-dust">
+              <h2 className="font-heading text-base font-medium text-ink">
                 Recent Ingestions
               </h2>
-              <span className="font-mono text-[11px] uppercase tracking-widest text-ash">
+              <span className="font-mono text-[11px] uppercase tracking-widest text-muted">
                 Latest {Math.min(RECENT_COUNT, recent.length)}
               </span>
             </div>
 
             {recent.length === 0 ? (
-              <p className="text-sm text-ash">No sources ingested yet.</p>
+              <p className="text-sm text-muted">No sources ingested yet.</p>
             ) : (
-              <div className="rounded-hearth border border-whisper overflow-hidden">
+              <div className="rounded-hearth border border-hairline overflow-hidden">
                 <table className="w-full border-collapse text-left text-sm">
                   <thead>
-                    <tr className="border-b border-whisper bg-whisper-faint">
-                      <th className="px-5 py-3 font-mono text-[11px] uppercase tracking-widest text-ash">
+                    <tr className="border-b border-hairline bg-surface-hover">
+                      <th className="px-5 py-3 font-mono text-[11px] uppercase tracking-widest text-muted">
                         Source
                       </th>
-                      <th className="px-5 py-3 font-mono text-[11px] uppercase tracking-widest text-ash">
+                      <th className="px-5 py-3 font-mono text-[11px] uppercase tracking-widest text-muted">
                         Status
                       </th>
-                      <th className="px-5 py-3 font-mono text-[11px] uppercase tracking-widest text-ash">
+                      <th className="px-5 py-3 font-mono text-[11px] uppercase tracking-widest text-muted">
                         Type
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-whisper">
+                  <tbody className="divide-y divide-hairline">
                     {recent.map((source) => (
                       <tr
                         key={source.id}
-                        className="transition-colors hover:bg-chamber-hover"
+                        className="transition-colors hover:bg-surface-hover"
                       >
-                        <td className="px-5 py-3 font-ui text-dust">
+                        <td className="px-5 py-3 font-ui text-ink">
                           {source.originalFilename ?? (
-                            <span className="text-ash">—</span>
+                            <span className="text-muted">—</span>
                           )}
                         </td>
                         <td className="px-5 py-3">
                           <StatusBadge status={source.importStatus} />
                         </td>
-                        <td className="px-5 py-3 font-mono text-xs uppercase tracking-wide text-ash">
+                        <td className="px-5 py-3 font-mono text-xs uppercase tracking-wide text-muted">
                           {source.sourceType}
                         </td>
                       </tr>

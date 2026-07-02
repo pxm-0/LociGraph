@@ -58,16 +58,16 @@ export default function ClaimsPage() {
     <div className="space-y-6 p-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex items-baseline gap-3">
-          <h1 className="font-heading text-2xl font-medium text-dust">Claims</h1>
+          <h1 className="font-heading text-2xl font-medium text-ink">Claims</h1>
           {claims !== null && (
-            <span className="rounded-meridian border border-whisper bg-chamber px-2 py-0.5 font-mono text-xs text-ember">
+            <span className="rounded-meridian border border-hairline bg-surface px-2 py-0.5 font-mono text-xs text-accent">
               {claims.length}
             </span>
           )}
         </div>
         <input
           aria-label="Filter claims"
-          className="w-full rounded-hearth border border-whisper bg-archive px-3 py-2 text-sm text-dust outline-none transition-colors placeholder:text-ash focus:border-ash sm:w-72"
+          className="w-full rounded-hearth border border-hairline bg-canvas px-3 py-2 text-sm text-ink outline-none transition-colors placeholder:text-muted focus:border-accent sm:w-72"
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Filter claims"
           value={query}
@@ -80,8 +80,8 @@ export default function ClaimsPage() {
             aria-pressed={claimType === item}
             className={
               claimType === item
-                ? "rounded-meridian bg-ember px-3 py-1.5 font-mono text-xs uppercase tracking-widest text-archive transition-colors"
-                : "rounded-meridian px-3 py-1.5 font-mono text-xs uppercase tracking-widest text-ash transition-colors hover:text-dust"
+                ? "rounded-meridian bg-ember px-3 py-1.5 font-mono text-xs uppercase tracking-widest text-void transition-colors"
+                : "rounded-meridian px-3 py-1.5 font-mono text-xs uppercase tracking-widest text-muted transition-colors hover:text-ink"
             }
             key={item}
             onClick={() => setClaimType(item)}
@@ -95,7 +95,7 @@ export default function ClaimsPage() {
       {error !== null && (
         <div
           role="alert"
-          className="rounded-hearth border border-whisper bg-chamber px-6 py-4 text-sm text-ash"
+          className="rounded-hearth border border-hairline bg-surface px-6 py-4 text-sm text-muted"
         >
           Could not load claims: {error}
         </div>
@@ -108,20 +108,20 @@ export default function ClaimsPage() {
           ))}
         </div>
       ) : (
-        <div className="divide-y divide-whisper border-y border-whisper">
+        <div className="divide-y divide-hairline border-y border-hairline">
           {filtered.map((claim) => (
             <article className="grid gap-3 py-4 md:grid-cols-[1fr_160px_120px]" key={claim.id}>
-              <p className="text-sm leading-6 text-dust">{claim.claimText}</p>
+              <p className="text-sm leading-6 text-ink">{claim.claimText}</p>
               <div>
                 <Badge className="font-mono uppercase">{claim.claimType}</Badge>
               </div>
-              <div className="font-mono text-xs text-ash">
+              <div className="font-mono text-xs text-muted">
                 {Math.round(claim.confidence * 100)}% / {claim.status}
               </div>
             </article>
           ))}
           {filtered.length === 0 && error === null ? (
-            <p className="py-8 text-sm text-ash">No claims match this filter.</p>
+            <p className="py-8 text-sm text-muted">No claims match this filter.</p>
           ) : null}
         </div>
       )}

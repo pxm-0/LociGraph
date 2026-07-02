@@ -75,9 +75,9 @@ export function ConceptCandidateReview() {
   return (
     <section className="space-y-4">
       <div className="flex items-baseline gap-3">
-        <h2 className="font-heading text-xl font-medium text-dust">Review</h2>
+        <h2 className="font-heading text-xl font-medium text-ink">Review</h2>
         {candidates !== null && (
-          <span className="rounded-meridian border border-whisper bg-chamber px-2 py-0.5 font-mono text-xs text-ember">
+          <span className="rounded-meridian border border-hairline bg-surface px-2 py-0.5 font-mono text-xs text-accent">
             {candidates.length}
           </span>
         )}
@@ -86,7 +86,7 @@ export function ConceptCandidateReview() {
       {error !== null && (
         <div
           role="alert"
-          className="rounded-hearth border border-whisper bg-chamber px-6 py-4 text-sm text-ash"
+          className="rounded-hearth border border-hairline bg-surface px-6 py-4 text-sm text-muted"
         >
           Could not process concept candidate: {error}
         </div>
@@ -99,16 +99,16 @@ export function ConceptCandidateReview() {
           ))}
         </div>
       ) : (
-        <div className="divide-y divide-whisper border-y border-whisper">
+        <div className="divide-y divide-hairline border-y border-hairline">
           {candidates?.map((candidate) => (
             <article
               className="grid gap-3 py-4 md:grid-cols-[1fr_140px_180px]"
               key={candidate.id}
             >
               <div>
-                <p className="text-sm leading-6 text-dust">{candidate.candidateName}</p>
+                <p className="text-sm leading-6 text-ink">{candidate.candidateName}</p>
                 {candidate.rationale && (
-                  <p className="mt-1 text-xs text-ash">{candidate.rationale}</p>
+                  <p className="mt-1 text-xs text-muted">{candidate.rationale}</p>
                 )}
               </div>
               <div>
@@ -137,7 +137,7 @@ export function ConceptCandidateReview() {
             </article>
           ))}
           {candidates?.length === 0 && error === null ? (
-            <p className="py-8 text-sm text-ash">No concept candidates awaiting review.</p>
+            <p className="py-8 text-sm text-muted">No concept candidates awaiting review.</p>
           ) : null}
         </div>
       )}

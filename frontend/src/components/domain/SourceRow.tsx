@@ -21,15 +21,15 @@ interface SourceRowProps {
 export function SourceRow({ source, isExtracting = false, onExtract }: SourceRowProps) {
   const isPurged = source.importStatus === "PURGED"
   const filenameClass = isPurged
-    ? "font-heading text-ash line-through"
-    : "font-heading text-dust"
+    ? "font-heading text-muted line-through"
+    : "font-heading text-ink"
   const canExtract = source.importStatus === "VERIFIED" && onExtract !== undefined
 
   return (
-    <tr className="border-t border-whisper transition-colors hover:bg-chamber-hover">
+    <tr className="border-t border-hairline transition-colors hover:bg-surface-hover">
       <td className="px-5 py-3">
         <span className={filenameClass}>
-          {source.originalFilename ?? <span className="text-ash">—</span>}
+          {source.originalFilename ?? <span className="text-muted">—</span>}
         </span>
       </td>
       <td className="px-5 py-3">
@@ -40,13 +40,13 @@ export function SourceRow({ source, isExtracting = false, onExtract }: SourceRow
       <td className="px-5 py-3">
         <StatusBadge status={source.importStatus} />
       </td>
-      <td className="px-5 py-3 font-mono text-xs text-ash">
+      <td className="px-5 py-3 font-mono text-xs text-muted">
         {formatBytes(source.fileSizeBytes)}
       </td>
-      <td className="px-5 py-3 font-mono text-xs text-ash">
+      <td className="px-5 py-3 font-mono text-xs text-muted">
         {source.observationCount}
       </td>
-      <td className="px-5 py-3 font-mono text-xs text-ash">
+      <td className="px-5 py-3 font-mono text-xs text-muted">
         {source.claimCount}
       </td>
       <td className="px-5 py-3 text-right">

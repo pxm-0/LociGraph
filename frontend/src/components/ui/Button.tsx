@@ -10,7 +10,7 @@ const VARIANT_CLASSES: Record<Variant, string> = {
   primary:
     "bg-ember text-void font-ui font-medium hover:opacity-90 active:opacity-75 disabled:opacity-40",
   ghost:
-    "bg-transparent text-ash border border-whisper font-ui font-medium hover:text-dust hover:border-ash disabled:opacity-40",
+    "bg-transparent text-muted border border-hairline font-ui font-medium hover:text-ink hover:border-accent disabled:opacity-40",
 }
 
 export function Button({
