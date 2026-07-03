@@ -139,7 +139,7 @@ export default function SourcesPage() {
           role="alert"
           className="rounded-hearth border border-hairline bg-surface px-6 py-4 text-sm text-muted"
         >
-          Could not load sources: {error}
+          {error}
         </div>
       )}
 
