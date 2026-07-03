@@ -191,6 +191,30 @@ async def test_purge_zero_claim_source_returns_200_and_shows_purged(  # type: ig
 
 
 @pytest.mark.asyncio
+async def test_purging_a_source_frees_its_checksum_for_reupload(  # type: ignore[no-untyped-def]
+    client, seeded_user, _no_broker
+):
+    await _login(client)
+    payload = {
+        "data": {"source_type": "json"},
+        "files": {"file": ("retry-me.json", b'[{"text":"retry"}]', "application/json")},
+    }
+    r1 = await client.post("/sources/upload", **payload)
+    assert r1.status_code == 202
+    source_id = r1.json()["source_id"]
+
+    purge_r = await client.post(f"/sources/{source_id}/purge")
+    assert purge_r.status_code == 200
+
+    r2 = await client.post("/sources/upload", **payload)
+    assert r2.status_code == 202, r2.json()
+
+    async with session(seeded_user) as conn:
+        await conn.execute(text("DELETE FROM jobs"))
+        await conn.execute(text("DELETE FROM sources"))
+
+
+@pytest.mark.asyncio
 async def test_purge_source_with_claims_returns_409_and_unchanged(client, seeded_user, _no_broker):  # type: ignore[no-untyped-def]
     async with session(seeded_user) as conn:
         source = await SourceRepository(conn).create(seeded_user, "json", "purge-with-claims")
