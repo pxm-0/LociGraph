@@ -57,11 +57,6 @@ describe("ImportForm", () => {
     vi.clearAllMocks()
   })
 
-  it("renders a source type selector", () => {
-    renderForm()
-    expect(screen.getByLabelText(/^source type$/i)).toBeInTheDocument()
-  })
-
   it("stages 2 files with correct pre-filled types on selection, including ambiguous .json defaulting to json", async () => {
     const user = userEvent.setup()
     const mdFile = makeFile("notes.md")

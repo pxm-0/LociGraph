@@ -49,7 +49,6 @@ function toStagedFile(file: File): StagedFile {
 }
 
 export default function ImportForm() {
-  const [sourceType, setSourceType] = useState<SourceType>("json")
   const [stagedFiles, setStagedFiles] = useState<StagedFile[]>([])
   const [dragState, setDragState] = useState<DragState>("idle")
   const [submitting, setSubmitting] = useState(false)
@@ -108,29 +107,6 @@ export default function ImportForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-10">
-      {/* ── Source type selector ── */}
-      <div className="space-y-2">
-        <label
-          htmlFor="source-type-select"
-          className="block font-ui text-xs uppercase tracking-widest text-muted"
-        >
-          Source Type
-        </label>
-        <select
-          id="source-type-select"
-          aria-label="Source Type"
-          value={sourceType}
-          onChange={(e) => setSourceType(e.target.value as SourceType)}
-          className="w-full max-w-xs rounded-meridian border border-hairline bg-canvas px-3 py-2 font-ui text-sm text-ink focus:outline-none focus:ring-1 focus:ring-ember"
-        >
-          {SOURCE_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {FORMAT_META[t].label} ({FORMAT_META[t].ext})
-            </option>
-          ))}
-        </select>
-      </div>
-
       {/* ── Drop zone ── */}
       <div
         role="region"
@@ -261,7 +237,7 @@ export default function ImportForm() {
         */}
         <div className="grid grid-cols-7 gap-3">
           {SOURCE_TYPES.slice(0, 3).map((t) => (
-            <FormatCard key={t} type={t} active={sourceType === t} />
+            <FormatCard key={t} type={t} />
           ))}
           {/* spacer to offset second row */}
           <div
@@ -269,7 +245,7 @@ export default function ImportForm() {
             aria-hidden="true"
           />
           {SOURCE_TYPES.slice(3).map((t) => (
-            <FormatCard key={t} type={t} active={sourceType === t} />
+            <FormatCard key={t} type={t} />
           ))}
         </div>
       </section>
@@ -334,23 +310,10 @@ function StagedFileRow({
 }
 
 // --- Format card sub-component ---
-function FormatCard({
-  type,
-  active,
-}: {
-  type: SourceType
-  active: boolean
-}) {
+function FormatCard({ type }: { type: SourceType }) {
   const meta = FORMAT_META[type]
   return (
-    <div
-      className={[
-        "col-span-2 rounded-hearth border p-4 transition-colors",
-        active
-          ? "border-ember bg-surface-hover"
-          : "border-hairline bg-surface hover:bg-surface-hover",
-      ].join(" ")}
-    >
+    <div className="col-span-2 rounded-hearth border border-hairline bg-surface p-4 transition-colors hover:bg-surface-hover">
       <svg
         className="mb-2 h-5 w-5 text-ember"
         fill="none"
