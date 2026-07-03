@@ -1,3 +1,4 @@
+import json
 import zipfile
 from datetime import UTC, datetime
 from pathlib import Path
@@ -67,3 +68,47 @@ def test_raises_a_clear_error_when_conversations_json_is_missing(tmp_path):
         ChatGptParser().parse(zip_path)
 
     assert "conversations.json" in str(exc_info.value)
+
+
+def test_merges_sharded_conversations_files_when_no_single_conversations_json(tmp_path):
+    # Large real exports (observed: ~1GB, 1000+ files) split conversations across
+    # conversations-000.json, conversations-001.json, ... instead of one
+    # conversations.json — each shard is a JSON array of conversations, same shape.
+    zip_path = tmp_path / "export.zip"
+    shard_0 = [
+        {
+            "title": "shard0",
+            "mapping": {
+                "a1": {
+                    "message": {
+                        "author": {"role": "user"},
+                        "content": {"parts": ["from shard zero"]},
+                        "create_time": 1700000000,
+                    }
+                },
+            },
+        }
+    ]
+    shard_1 = [
+        {
+            "title": "shard1",
+            "mapping": {
+                "b1": {
+                    "message": {
+                        "author": {"role": "assistant"},
+                        "content": {"parts": ["from shard one"]},
+                        "create_time": 1700000060,
+                    }
+                },
+            },
+        }
+    ]
+    with zipfile.ZipFile(zip_path, "w") as zf:
+        zf.writestr("conversations-000.json", json.dumps(shard_0))
+        zf.writestr("conversations-001.json", json.dumps(shard_1))
+        zf.writestr("shared_conversations.json", "[]")  # present in real exports, must be ignored
+
+    frags = ChatGptParser().parse(zip_path)
+
+    assert [f.extracted_text for f in frags] == ["from shard zero", "from shard one"]
+    assert [f.author for f in frags] == ["user", "assistant"]

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import zipfile
 from datetime import UTC, datetime
 from pathlib import Path
@@ -8,10 +9,12 @@ from typing import Any
 
 from kernel.ingestion.base import ParsedFragment
 
+_SHARD_NAME = re.compile(r"(^|/)conversations-\d+\.json$")
+
 
 class ChatGptParser:
     def parse(self, path: Path) -> list[ParsedFragment]:
-        conversations = json.loads(self._read_conversations_json(path))
+        conversations = self._read_conversations(path)
         messages: list[dict[str, Any]] = []
         for conversation in conversations:
             mapping = conversation.get("mapping", {})
@@ -47,21 +50,35 @@ class ChatGptParser:
         return fragments
 
     @staticmethod
-    def _read_conversations_json(path: Path) -> str:
+    def _read_conversations(path: Path) -> list[dict[str, Any]]:
         """OpenAI's real "Export data" download is a .zip containing
         conversations.json (plus files this parser doesn't need); detect by
         content rather than extension since the stored filename is whatever
-        the user uploaded it as."""
-        if zipfile.is_zipfile(path):
-            with zipfile.ZipFile(path) as zf:
-                try:
-                    return zf.read("conversations.json").decode("utf-8")
-                except KeyError:
-                    pass
-                nested = next(
-                    (n for n in zf.namelist() if n.endswith("/conversations.json")), None
-                )
-                if nested is None:
-                    raise ValueError("no conversations.json found in ChatGPT export zip")
-                return zf.read(nested).decode("utf-8")
-        return path.read_text(encoding="utf-8")
+        the user uploaded it as. Large exports instead shard conversations
+        across conversations-000.json, conversations-001.json, etc. — same
+        per-file shape (a JSON array of conversations), just split up."""
+        if not zipfile.is_zipfile(path):
+            result: list[dict[str, Any]] = json.loads(path.read_text(encoding="utf-8"))
+            return result
+
+        with zipfile.ZipFile(path) as zf:
+            try:
+                raw = zf.read("conversations.json").decode("utf-8")
+                exact: list[dict[str, Any]] = json.loads(raw)
+                return exact
+            except KeyError:
+                pass
+
+            nested = next((n for n in zf.namelist() if n.endswith("/conversations.json")), None)
+            if nested is not None:
+                found: list[dict[str, Any]] = json.loads(zf.read(nested).decode("utf-8"))
+                return found
+
+            shards = sorted(n for n in zf.namelist() if _SHARD_NAME.search(n))
+            if shards:
+                conversations: list[dict[str, Any]] = []
+                for shard in shards:
+                    conversations.extend(json.loads(zf.read(shard).decode("utf-8")))
+                return conversations
+
+            raise ValueError("no conversations.json found in ChatGPT export zip")
