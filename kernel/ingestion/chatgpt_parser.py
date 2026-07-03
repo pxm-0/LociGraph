@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import zipfile
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -10,7 +11,7 @@ from kernel.ingestion.base import ParsedFragment
 
 class ChatGptParser:
     def parse(self, path: Path) -> list[ParsedFragment]:
-        conversations = json.loads(path.read_text(encoding="utf-8"))
+        conversations = json.loads(self._read_conversations_json(path))
         messages: list[dict[str, Any]] = []
         for conversation in conversations:
             mapping = conversation.get("mapping", {})
@@ -44,3 +45,14 @@ class ChatGptParser:
                 )
             )
         return fragments
+
+    @staticmethod
+    def _read_conversations_json(path: Path) -> str:
+        """OpenAI's real "Export data" download is a .zip containing
+        conversations.json (plus files this parser doesn't need); detect by
+        content rather than extension since the stored filename is whatever
+        the user uploaded it as."""
+        if zipfile.is_zipfile(path):
+            with zipfile.ZipFile(path) as zf:
+                return zf.read("conversations.json").decode("utf-8")
+        return path.read_text(encoding="utf-8")
