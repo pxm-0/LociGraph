@@ -43,6 +43,8 @@ export interface Job {
   createdAt: string | null
   startedAt: string | null
   completedAt: string | null
+  itemsCompleted: number | null
+  itemsTotal: number | null
 }
 
 export interface Claim {

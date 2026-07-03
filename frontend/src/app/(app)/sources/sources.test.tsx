@@ -8,11 +8,15 @@ import SourcesPage from "./page"
 vi.mock("@/lib/api", () => ({
   listSources: vi.fn(),
   purgeSource: vi.fn(),
+  extractClaims: vi.fn(),
+  getJob: vi.fn(),
 }))
 
-import { listSources, purgeSource } from "@/lib/api"
+import { extractClaims, getJob, listSources, purgeSource } from "@/lib/api"
 const mockListSources = vi.mocked(listSources)
 const mockPurgeSource = vi.mocked(purgeSource)
+const mockExtractClaims = vi.mocked(extractClaims)
+const mockGetJob = vi.mocked(getJob)
 
 const MOCK_SOURCES: Source[] = [
   {
@@ -211,4 +215,61 @@ describe("SourcesPage", () => {
       confirmSpy.mockRestore()
     })
   })
+
+  describe("Extraction progress polling", () => {
+    it("updates progress numbers across successive poll ticks", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      mockListSources.mockResolvedValueOnce([MOCK_SOURCES[0]])
+      mockExtractClaims.mockResolvedValueOnce({ jobId: "job-1", status: "running" })
+      mockGetJob
+        .mockResolvedValueOnce({
+          id: "job-1",
+          jobType: "extract_claims",
+          status: "running",
+          attempts: 0,
+          error: null,
+          createdAt: null,
+          startedAt: null,
+          completedAt: null,
+          itemsCompleted: 4,
+          itemsTotal: 10,
+        })
+        .mockResolvedValueOnce({
+          id: "job-1",
+          jobType: "extract_claims",
+          status: "completed",
+          attempts: 0,
+          error: null,
+          createdAt: null,
+          startedAt: null,
+          completedAt: null,
+          itemsCompleted: 10,
+          itemsTotal: 10,
+        })
+      mockListSources.mockResolvedValueOnce([{ ...MOCK_SOURCES[0], claimCount: 3 }])
+      renderSources()
+
+      await vi.waitFor(() => {
+        expect(screen.getByText("archive_manifest.json")).toBeInTheDocument()
+      })
+
+      const extractButton = screen.getByRole("button", { name: "Extract" })
+      await userEvent.click(extractButton, { delay: null })
+
+      await vi.waitFor(() => expect(mockExtractClaims).toHaveBeenCalled())
+
+      await vi.advanceTimersByTimeAsync(1200)
+      await vi.waitFor(() => {
+        expect(screen.getByText("4 / 10 processed")).toBeInTheDocument()
+      })
+
+      await vi.advanceTimersByTimeAsync(1200)
+      await vi.waitFor(() => {
+        expect(mockListSources).toHaveBeenCalledTimes(2)
+      })
+
+      vi.useRealTimers()
+    })
+  })
+
 })

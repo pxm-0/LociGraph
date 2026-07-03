@@ -24,11 +24,17 @@ function SkeletonRows() {
   )
 }
 
+interface ExtractionProgress {
+  jobId: string
+  itemsCompleted: number | null
+  itemsTotal: number | null
+}
+
 export default function SourcesPage() {
   const [sources, setSources] = useState<Source[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [activeFilter, setActiveFilter] = useState<FilterPill>("ALL")
-  const [running, setRunning] = useState<Record<string, string>>({})
+  const [running, setRunning] = useState<Record<string, ExtractionProgress>>({})
 
   async function refreshSources() {
     await listSources()
@@ -60,7 +66,10 @@ export default function SourcesPage() {
     setError(null)
     try {
       const result = await extractClaims(source.id, source.claimCount > 0)
-      setRunning((current) => ({ ...current, [source.id]: result.jobId }))
+      setRunning((current) => ({
+        ...current,
+        [source.id]: { jobId: result.jobId, itemsCompleted: null, itemsTotal: null },
+      }))
 
       let active = true
       while (active) {
@@ -75,6 +84,15 @@ export default function SourcesPage() {
           })
           await refreshSources()
           if (job.status === "failed") setError(job.error ?? "Claim extraction failed")
+        } else {
+          setRunning((current) => ({
+            ...current,
+            [source.id]: {
+              jobId: result.jobId,
+              itemsCompleted: job.itemsCompleted,
+              itemsTotal: job.itemsTotal,
+            },
+          }))
         }
       }
     } catch (err: unknown) {
@@ -177,6 +195,8 @@ export default function SourcesPage() {
             filtered.map((source) => (
               <SourceRow
                 isExtracting={Boolean(running[source.id])}
+                itemsCompleted={running[source.id]?.itemsCompleted ?? null}
+                itemsTotal={running[source.id]?.itemsTotal ?? null}
                 key={source.id}
                 onDelete={deleteSource}
                 onExtract={startExtraction}

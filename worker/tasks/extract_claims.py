@@ -61,10 +61,16 @@ async def _extract_claims(
             )
         return
 
+    async with session(user_id) as conn:
+        await JobRepository(conn).update_progress(
+            job_id, items_completed=0, items_total=len(pending_observations)
+        )
+
     try:
         extractor = get_claim_extractor(settings)
         claim_count = 0
         candidate_count = 0
+        processed_count = 0
         for batch in batched(pending_observations, settings.claim_extraction_batch_size):
             result = await extractor.extract(batch)
             async with session(user_id) as conn:
@@ -101,6 +107,13 @@ async def _extract_claims(
                             metadata=candidate.metadata,
                         )
                         candidate_count += 1
+
+                processed_count += len(batch)
+                await JobRepository(conn).update_progress(
+                    job_id,
+                    items_completed=processed_count,
+                    items_total=len(pending_observations),
+                )
 
         async with session(user_id) as conn:
             await JobRepository(conn).mark_completed(

@@ -87,6 +87,24 @@ async def test_extract_claims_persists_claims_and_candidates(make_user, monkeypa
 
 
 @pytest.mark.asyncio
+async def test_extract_claims_tracks_progress(make_user, monkeypatch):
+    user_id = await make_user()
+    source, job = await _seed_verified_source(user_id)
+    monkeypatch.setattr(
+        "worker.tasks.extract_claims.get_claim_extractor",
+        lambda settings: FakeExtractor(),
+    )
+
+    await _extract_claims(str(source.id), str(user_id), str(job.id))
+
+    async with session(user_id) as conn:
+        done = await JobRepository(conn).get(job.id)
+
+    assert done.items_completed == 1
+    assert done.items_total == 1
+
+
+@pytest.mark.asyncio
 async def test_extract_claims_is_idempotent_by_default(make_user, monkeypatch):
     user_id = await make_user()
     source, job = await _seed_verified_source(user_id)

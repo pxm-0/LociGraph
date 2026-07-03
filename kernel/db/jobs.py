@@ -13,7 +13,7 @@ from kernel.models import Job
 
 _COLUMNS = (
     "id, user_id, job_type, status, attempts, error, "
-    "created_at, started_at, completed_at"
+    "created_at, started_at, completed_at, items_completed, items_total"
 )
 
 
@@ -65,6 +65,21 @@ class JobRepository(BaseRepository):
                 "result = CAST(:result AS JSONB) WHERE id = :id"
             ),
             {"id": str(job_id), "result": json.dumps(result or {})},
+        )
+
+    async def update_progress(
+        self, job_id: str | UUID, *, items_completed: int, items_total: int
+    ) -> None:
+        await self.conn.execute(
+            text(
+                "UPDATE jobs SET items_completed = :items_completed, "
+                "items_total = :items_total WHERE id = :id"
+            ),
+            {
+                "id": str(job_id),
+                "items_completed": items_completed,
+                "items_total": items_total,
+            },
         )
 
     async def record_attempt(self, job_id: str | UUID, error: str) -> None:
