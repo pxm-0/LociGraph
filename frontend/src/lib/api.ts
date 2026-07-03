@@ -70,6 +70,8 @@ function toJob(d: Record<string, unknown>): Job {
     createdAt: (d.created_at as string | null) ?? null,
     startedAt: (d.started_at as string | null) ?? null,
     completedAt: (d.completed_at as string | null) ?? null,
+    itemsCompleted: (d.items_completed as number | null) ?? null,
+    itemsTotal: (d.items_total as number | null) ?? null,
   }
 }
 

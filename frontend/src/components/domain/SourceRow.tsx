@@ -15,17 +15,27 @@ function formatBytes(bytes: number | null): string {
 interface SourceRowProps {
   source: Source
   isExtracting?: boolean
+  itemsCompleted?: number | null
+  itemsTotal?: number | null
   onExtract?: (source: Source) => void
   onDelete?: (source: Source) => void
 }
 
-export function SourceRow({ source, isExtracting = false, onExtract, onDelete }: SourceRowProps) {
+export function SourceRow({
+  source,
+  isExtracting = false,
+  itemsCompleted = null,
+  itemsTotal = null,
+  onExtract,
+  onDelete,
+}: SourceRowProps) {
   const isPurged = source.importStatus === "PURGED"
   const filenameClass = isPurged
     ? "font-heading text-muted line-through"
     : "font-heading text-ink"
   const canExtract = source.importStatus === "VERIFIED" && onExtract !== undefined
   const canDelete = source.claimCount === 0 && !isPurged
+  const showProgress = isExtracting && Boolean(itemsTotal)
 
   return (
     <tr className="border-t border-hairline transition-colors hover:bg-surface-hover">
@@ -70,6 +80,20 @@ export function SourceRow({ source, isExtracting = false, onExtract, onDelete }:
         >
           Delete
         </Button>
+        {showProgress && (
+          <div className="mt-2 space-y-1">
+            <p className="font-mono text-[10px] text-muted">
+              {itemsCompleted} / {itemsTotal} processed
+            </p>
+            <div className="h-0.5 w-full rounded-full bg-hairline">
+              <div
+                data-testid="extraction-progress-bar"
+                className="h-0.5 rounded-full bg-ember transition-all"
+                style={{ width: `${((itemsCompleted ?? 0) / (itemsTotal ?? 1)) * 100}%` }}
+              />
+            </div>
+          </div>
+        )}
       </td>
     </tr>
   )
