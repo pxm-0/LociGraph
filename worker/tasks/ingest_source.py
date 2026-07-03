@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 from pathlib import Path
 from typing import Any
 
@@ -14,7 +13,7 @@ from kernel.db.session import session
 from kernel.db.sources import SourceRepository
 from kernel.ingestion.normalizer import Normalizer
 from kernel.ingestion.registry import get_parser
-from worker.broker import get_broker
+from worker.broker import get_broker, run_actor
 from worker.tasks.extract_claims import extract_claims
 from worker.tasks.healing import HEAL_DELAY_MS, MAX_HEAL_GENERATIONS
 
@@ -70,7 +69,7 @@ async def _ingest(source_id: str, user_id: str, job_id: str) -> None:
     queue_name="ingestion", max_retries=3, on_retry_exhausted="heal_ingest_source"
 )
 def ingest_source(source_id: str, user_id: str, job_id: str) -> None:
-    asyncio.run(_ingest(source_id, user_id, job_id))
+    run_actor(_ingest(source_id, user_id, job_id))
 
 
 # Ingestion is idempotent: fragments/observations/mark_verified all commit in
@@ -95,4 +94,4 @@ async def _heal_ingest_source(original_message: dict[str, Any], stats: dict[str,
 
 @dramatiq.actor(queue_name="ingestion")
 def heal_ingest_source(original_message: dict[str, Any], stats: dict[str, Any]) -> None:
-    asyncio.run(_heal_ingest_source(original_message, stats))
+    run_actor(_heal_ingest_source(original_message, stats))

@@ -226,6 +226,13 @@ def test_extract_claims_wired_to_heal_on_retry_exhausted():
     assert extract_claims.options.get("on_retry_exhausted") == "heal_extract_claims"
 
 
+def test_extract_claims_has_a_generous_time_limit():
+    # dramatiq's default 10-minute limit can't fit thousands of sequential
+    # batches for a large source; must be raised well beyond the default.
+    ten_minutes_ms = 10 * 60 * 1000
+    assert extract_claims.options.get("time_limit", ten_minutes_ms) > ten_minutes_ms
+
+
 @pytest.mark.asyncio
 async def test_heal_extract_claims_starts_a_fresh_job(make_user, monkeypatch):
     user_id = await make_user()

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import re
 from itertools import batched
 from typing import Any
@@ -14,7 +13,7 @@ from kernel.db.jobs import JobRepository
 from kernel.db.observations import ObservationRepository
 from kernel.db.session import session
 from kernel.db.sources import SourceRepository
-from worker.broker import get_broker
+from worker.broker import get_broker, run_actor
 from worker.tasks.healing import HEAL_DELAY_MS, MAX_HEAL_GENERATIONS
 
 get_broker()
@@ -146,13 +145,24 @@ async def _extract_claims(
         raise
 
 
+# dramatiq's default 10-minute per-call time limit forcibly kills any single
+# invocation still running past it — for a source with tens of thousands of
+# observations (thousands of sequential batches, one OpenAI call each), that
+# guarantees the job never finishes in one call. 3 hours lets a single
+# invocation make real progress before needing to hand off via retry/heal.
+EXTRACT_CLAIMS_TIME_LIMIT_MS = 3 * 60 * 60 * 1000
+
+
 @dramatiq.actor(
-    queue_name="extraction", max_retries=3, on_retry_exhausted="heal_extract_claims"
+    queue_name="extraction",
+    max_retries=3,
+    on_retry_exhausted="heal_extract_claims",
+    time_limit=EXTRACT_CLAIMS_TIME_LIMIT_MS,
 )
 def extract_claims(
     source_id: str, user_id: str, job_id: str, force: bool = False
 ) -> None:
-    asyncio.run(_extract_claims(source_id, user_id, job_id, force))
+    run_actor(_extract_claims(source_id, user_id, job_id, force))
 
 
 # Extraction is idempotent (already-claimed observations are skipped via
@@ -177,4 +187,4 @@ async def _heal_extract_claims(original_message: dict[str, Any], stats: dict[str
 
 @dramatiq.actor(queue_name="extraction")
 def heal_extract_claims(original_message: dict[str, Any], stats: dict[str, Any]) -> None:
-    asyncio.run(_heal_extract_claims(original_message, stats))
+    run_actor(_heal_extract_claims(original_message, stats))
