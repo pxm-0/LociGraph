@@ -1,7 +1,6 @@
 "use client"
 
 import { useRef, useState } from "react"
-import Link from "next/link"
 import { detectSourceType, SOURCE_TYPES } from "@/lib/types"
 import type { SourceType } from "@/lib/types"
 import { Button } from "@/components/ui/Button"
@@ -22,12 +21,6 @@ const FORMAT_META: Record<
 
 // --- Drag-and-drop state type ---
 type DragState = "idle" | "over"
-
-// --- Success result type ---
-interface UploadResult {
-  sourceId: string
-  status: string
-}
 
 // --- Staged file awaiting upload ---
 interface StagedFile {
@@ -53,7 +46,6 @@ export default function ImportForm() {
   const [stagedFiles, setStagedFiles] = useState<StagedFile[]>([])
   const [dragState, setDragState] = useState<DragState>("idle")
   const [submitting, setSubmitting] = useState(false)
-  const [result, setResult] = useState<UploadResult | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -62,7 +54,6 @@ export default function ImportForm() {
     if (!incoming || incoming.length === 0) return
     setStagedFiles((prev) => [...prev, ...Array.from(incoming).map(toStagedFile)])
     setError(null)
-    setResult(null)
   }
 
   function onInputChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -270,28 +261,6 @@ export default function ImportForm() {
           className="rounded-hearth border border-hairline bg-surface px-5 py-3 font-ui text-sm text-muted"
         >
           {error}
-        </div>
-      )}
-
-      {/* ── Success state ── */}
-      {result !== null && (
-        <div className="rounded-hearth border border-hairline bg-surface px-5 py-4 space-y-2">
-          <p className="font-ui text-sm text-ink">
-            Import queued —{" "}
-            <span className="font-mono text-xs text-ember">{result.sourceId}</span>
-          </p>
-          <p className="font-ui text-sm text-muted">
-            Status:{" "}
-            <span className="font-mono text-xs uppercase tracking-wide text-status-ingesting">
-              {result.status}
-            </span>
-          </p>
-          <Link
-            href="/sources"
-            className="inline-block font-ui text-sm text-ember underline-offset-2 hover:underline"
-          >
-            View all sources
-          </Link>
         </div>
       )}
 
