@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { extractClaims, getJob, listSources } from "@/lib/api"
+import { extractClaims, getJob, listSources, purgeSource } from "@/lib/api"
 import { filterByStatus } from "@/lib/derive"
 import type { Source } from "@/lib/types"
 import { SourceRow } from "@/components/domain/SourceRow"
@@ -87,6 +87,19 @@ export default function SourcesPage() {
     }
   }
 
+  async function deleteSource(source: Source) {
+    if (!window.confirm(`Delete "${source.originalFilename ?? source.id}"? This cannot be undone.`)) {
+      return
+    }
+    setError(null)
+    try {
+      await purgeSource(source.id)
+      await refreshSources()
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to delete source")
+    }
+  }
+
   const isLoading = sources === null && error === null
   const filtered = sources ? filterByStatus(sources, activeFilter) : []
 
@@ -165,6 +178,7 @@ export default function SourcesPage() {
               <SourceRow
                 isExtracting={Boolean(running[source.id])}
                 key={source.id}
+                onDelete={deleteSource}
                 onExtract={startExtraction}
                 source={source}
               />

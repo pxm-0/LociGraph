@@ -7,10 +7,12 @@ import SourcesPage from "./page"
 
 vi.mock("@/lib/api", () => ({
   listSources: vi.fn(),
+  purgeSource: vi.fn(),
 }))
 
-import { listSources } from "@/lib/api"
+import { listSources, purgeSource } from "@/lib/api"
 const mockListSources = vi.mocked(listSources)
+const mockPurgeSource = vi.mocked(purgeSource)
 
 const MOCK_SOURCES: Source[] = [
   {
@@ -122,5 +124,91 @@ describe("SourcesPage", () => {
     mockListSources.mockImplementation(() => new Promise(() => {}))
     renderSources()
     expect(screen.getByText("Sources")).toBeInTheDocument()
+  })
+
+  describe("Delete button", () => {
+    it("is disabled when claimCount > 0 or status is already PURGED", async () => {
+      const sourcesWithClaims: Source[] = [
+        { ...MOCK_SOURCES[0], claimCount: 2 },
+        MOCK_SOURCES[3], // PURGED, claimCount 0
+      ]
+      mockListSources.mockResolvedValueOnce(sourcesWithClaims)
+      renderSources()
+
+      await waitFor(() => {
+        expect(screen.getByText("archive_manifest.json")).toBeInTheDocument()
+      })
+
+      const deleteButtons = screen.getAllByRole("button", { name: "Delete" })
+      expect(deleteButtons).toHaveLength(2)
+      for (const button of deleteButtons) {
+        expect(button).toBeDisabled()
+      }
+    })
+
+    it("does not call purgeSource when confirmation is cancelled", async () => {
+      const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false)
+      mockListSources.mockResolvedValueOnce(MOCK_SOURCES)
+      renderSources()
+
+      await waitFor(() => {
+        expect(screen.getByText("archive_manifest.json")).toBeInTheDocument()
+      })
+
+      const deleteButtons = screen.getAllByRole("button", { name: "Delete" })
+      await userEvent.click(deleteButtons[0])
+
+      expect(confirmSpy).toHaveBeenCalled()
+      expect(mockPurgeSource).not.toHaveBeenCalled()
+      confirmSpy.mockRestore()
+    })
+
+    it("calls purgeSource and refreshes the list when confirmed", async () => {
+      const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true)
+      mockListSources.mockResolvedValueOnce(MOCK_SOURCES)
+      mockPurgeSource.mockResolvedValueOnce(undefined)
+      const refreshedSources = MOCK_SOURCES.map((s) =>
+        s.id === "1" ? { ...s, importStatus: "PURGED" } : s,
+      )
+      mockListSources.mockResolvedValueOnce(refreshedSources)
+      renderSources()
+
+      await waitFor(() => {
+        expect(screen.getByText("archive_manifest.json")).toBeInTheDocument()
+      })
+
+      const deleteButtons = screen.getAllByRole("button", { name: "Delete" })
+      await userEvent.click(deleteButtons[0])
+
+      await waitFor(() => {
+        expect(mockPurgeSource).toHaveBeenCalledWith("1")
+      })
+      await waitFor(() => {
+        expect(mockListSources).toHaveBeenCalledTimes(2)
+      })
+      confirmSpy.mockRestore()
+    })
+
+    it("shows the error banner on a 409 without navigating away or crashing", async () => {
+      const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true)
+      mockListSources.mockResolvedValueOnce(MOCK_SOURCES)
+      mockPurgeSource.mockRejectedValueOnce(
+        new Error("source has claims — cannot delete after extraction"),
+      )
+      renderSources()
+
+      await waitFor(() => {
+        expect(screen.getByText("archive_manifest.json")).toBeInTheDocument()
+      })
+
+      const deleteButtons = screen.getAllByRole("button", { name: "Delete" })
+      await userEvent.click(deleteButtons[0])
+
+      await waitFor(() => {
+        expect(screen.getByRole("alert")).toBeInTheDocument()
+      })
+      expect(screen.getByText("archive_manifest.json")).toBeInTheDocument()
+      confirmSpy.mockRestore()
+    })
   })
 })

@@ -16,14 +16,16 @@ interface SourceRowProps {
   source: Source
   isExtracting?: boolean
   onExtract?: (source: Source) => void
+  onDelete?: (source: Source) => void
 }
 
-export function SourceRow({ source, isExtracting = false, onExtract }: SourceRowProps) {
+export function SourceRow({ source, isExtracting = false, onExtract, onDelete }: SourceRowProps) {
   const isPurged = source.importStatus === "PURGED"
   const filenameClass = isPurged
     ? "font-heading text-muted line-through"
     : "font-heading text-ink"
   const canExtract = source.importStatus === "VERIFIED" && onExtract !== undefined
+  const canDelete = source.claimCount === 0 && !isPurged
 
   return (
     <tr className="border-t border-hairline transition-colors hover:bg-surface-hover">
@@ -58,6 +60,15 @@ export function SourceRow({ source, isExtracting = false, onExtract }: SourceRow
           variant="ghost"
         >
           {isExtracting ? "Running" : source.claimCount > 0 ? "Retry" : "Extract"}
+        </Button>
+        <Button
+          className="ml-2 px-3 py-1.5 font-mono text-[11px] uppercase"
+          disabled={!canDelete}
+          onClick={() => onDelete?.(source)}
+          type="button"
+          variant="ghost"
+        >
+          Delete
         </Button>
       </td>
     </tr>
