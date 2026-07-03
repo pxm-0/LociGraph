@@ -5,6 +5,7 @@ import Link from "next/link"
 import { detectSourceType, SOURCE_TYPES } from "@/lib/types"
 import type { SourceType } from "@/lib/types"
 import { Button } from "@/components/ui/Button"
+import { ApiError, uploadSource } from "@/lib/api"
 
 // --- Source type metadata ---
 const FORMAT_META: Record<
@@ -99,11 +100,77 @@ export default function ImportForm() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    // Upload sequencing lands in a later task.
+    setSubmitting(true)
+    setError(null)
+
+    const pendingIds = stagedFiles.filter((f) => f.status === "pending").map((f) => f.id)
+
+    for (const id of pendingIds) {
+      const row = stagedFiles.find((f) => f.id === id)
+      if (!row) continue
+
+      setStagedFiles((prev) =>
+        prev.map((f) => (f.id === id ? { ...f, status: "uploading" } : f))
+      )
+
+      try {
+        const uploadResult = await uploadSource(row.sourceType, row.file)
+        setStagedFiles((prev) =>
+          prev.map((f) =>
+            f.id === id ? { ...f, status: "done", sourceId: uploadResult.sourceId } : f
+          )
+        )
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 401) {
+          setError("Session expired — please sign in again.")
+          break
+        }
+        if (err instanceof ApiError && err.status === 409) {
+          setStagedFiles((prev) =>
+            prev.map((f) =>
+              f.id === id
+                ? { ...f, status: "duplicate", error: err.message || "Duplicate source (already imported)." }
+                : f
+            )
+          )
+          continue
+        }
+        setStagedFiles((prev) =>
+          prev.map((f) =>
+            f.id === id
+              ? { ...f, status: "error", error: err instanceof Error ? err.message : "Upload failed." }
+              : f
+          )
+        )
+      }
+    }
+
+    setSubmitting(false)
   }
 
   const isOver = dragState === "over"
   const hasPending = stagedFiles.some((f) => f.status === "pending")
+
+  const totalCount = stagedFiles.length
+  const settledStatuses: StagedFile["status"][] = ["done", "duplicate", "error"]
+  const settledCount = stagedFiles.filter((f) => settledStatuses.includes(f.status)).length
+  const hasStartedUploading = stagedFiles.some(
+    (f) => f.status === "uploading" || settledStatuses.includes(f.status)
+  )
+  const doneCount = stagedFiles.filter((f) => f.status === "done").length
+  const duplicateCount = stagedFiles.filter((f) => f.status === "duplicate").length
+  const errorCount = stagedFiles.filter((f) => f.status === "error").length
+
+  const progressText =
+    settledCount < totalCount
+      ? `${settledCount} of ${totalCount} uploaded`
+      : [
+          doneCount > 0 && `${doneCount} uploaded`,
+          duplicateCount > 0 && `${duplicateCount} duplicate`,
+          errorCount > 0 && `${errorCount} failed`,
+        ]
+          .filter(Boolean)
+          .join(", ")
 
   return (
     <form onSubmit={handleSubmit} className="space-y-10">
@@ -167,6 +234,20 @@ export default function ImportForm() {
           </span>
         </div>
       </div>
+
+      {/* ── Progress bar ── */}
+      {hasStartedUploading && totalCount > 0 && (
+        <div className="space-y-2">
+          <p className="font-mono text-xs text-muted">{progressText}</p>
+          <div className="h-0.5 w-full rounded-full bg-hairline">
+            <div
+              data-testid="upload-progress-bar"
+              className="h-0.5 rounded-full bg-ember transition-all"
+              style={{ width: `${(settledCount / totalCount) * 100}%` }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* ── Staged file list ── */}
       {stagedFiles.length > 0 && (
