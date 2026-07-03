@@ -33,6 +33,17 @@ const MOCK_OBSERVATIONS: Observation[] = [
   },
 ]
 
+function makeObservations(count: number, offset = 0): Observation[] {
+  return Array.from({ length: count }, (_, i) => ({
+    id: `obs-${offset + i}`,
+    content: `obs ${offset + i}`,
+    speaker: null,
+    observedAt: "2024-05-12T14:32:01Z",
+    confidence: 0.9,
+    sourceId: null,
+  }))
+}
+
 function renderPage() {
   return render(
     <ThemeProvider>
@@ -104,6 +115,90 @@ describe("ObservationsPage", () => {
 
     await waitFor(() => {
       expect(screen.getByText(/no observations/i)).toBeInTheDocument()
+    })
+  })
+
+  it("loads the first page with limit/offset and no filters", async () => {
+    mockListObservations.mockResolvedValueOnce(MOCK_OBSERVATIONS)
+    renderPage()
+
+    await waitFor(() => {
+      expect(mockListObservations).toHaveBeenCalledWith({ limit: 100, offset: 0 })
+    })
+  })
+
+  it("shows Load more for a full page and appends next page with same filters", async () => {
+    const fullPage = makeObservations(100)
+    mockListObservations.mockResolvedValueOnce(fullPage)
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByText("obs 0")).toBeInTheDocument()
+    })
+
+    const speakerInput = screen.getByPlaceholderText(/speaker/i)
+    await userEvent.type(speakerInput, "x")
+    mockListObservations.mockResolvedValueOnce(fullPage)
+    await userEvent.click(screen.getByRole("button", { name: /apply/i }))
+
+    await waitFor(() => {
+      expect(mockListObservations).toHaveBeenLastCalledWith({
+        speaker: "x",
+        limit: 100,
+        offset: 0,
+      })
+    })
+
+    const loadMoreBtn = screen.getByRole("button", { name: /load more/i })
+    mockListObservations.mockResolvedValueOnce(makeObservations(50, 100))
+    await userEvent.click(loadMoreBtn)
+
+    await waitFor(() => {
+      expect(mockListObservations).toHaveBeenLastCalledWith({
+        speaker: "x",
+        limit: 100,
+        offset: 100,
+      })
+      expect(screen.getByText("obs 0")).toBeInTheDocument()
+      expect(screen.getByText("obs 100")).toBeInTheDocument()
+    })
+  })
+
+  it("does not show Load more for a short page", async () => {
+    mockListObservations.mockResolvedValueOnce(makeObservations(10))
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByText("obs 0")).toBeInTheDocument()
+    })
+
+    expect(screen.queryByRole("button", { name: /load more/i })).not.toBeInTheDocument()
+  })
+
+  it("resets to a fresh single page when a new filter is applied", async () => {
+    mockListObservations.mockResolvedValueOnce(makeObservations(100))
+    renderPage()
+
+    const loadMoreBtn = await screen.findByRole("button", { name: /load more/i })
+    mockListObservations.mockResolvedValueOnce(makeObservations(50, 100))
+    await userEvent.click(loadMoreBtn)
+
+    await waitFor(() => {
+      expect(screen.getByText("obs 100")).toBeInTheDocument()
+    })
+
+    const speakerInput = screen.getByPlaceholderText(/speaker/i)
+    await userEvent.type(speakerInput, "y")
+    mockListObservations.mockResolvedValueOnce(makeObservations(5))
+    await userEvent.click(screen.getByRole("button", { name: /apply/i }))
+
+    await waitFor(() => {
+      expect(mockListObservations).toHaveBeenLastCalledWith({
+        speaker: "y",
+        limit: 100,
+        offset: 0,
+      })
+      expect(screen.queryByText("obs 100")).not.toBeInTheDocument()
     })
   })
 })
