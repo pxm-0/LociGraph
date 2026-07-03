@@ -21,17 +21,24 @@ const CLAIM_TYPES = [
   "task",
 ] as const
 
+const PAGE_SIZE = 100
+
 export default function ClaimsPage() {
   const [claims, setClaims] = useState<Claim[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [claimType, setClaimType] = useState("ALL")
   const [query, setQuery] = useState("")
+  const [hasMore, setHasMore] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
 
   useEffect(() => {
     let cancelled = false
-    listClaims({ limit: 100 })
+    listClaims({ limit: PAGE_SIZE, offset: 0 })
       .then((data) => {
-        if (!cancelled) setClaims(data)
+        if (!cancelled) {
+          setClaims(data)
+          setHasMore(data.length === PAGE_SIZE)
+        }
       })
       .catch((err: unknown) => {
         if (!cancelled) {
@@ -42,6 +49,20 @@ export default function ClaimsPage() {
       cancelled = true
     }
   }, [])
+
+  async function loadMore() {
+    if (loadingMore || !hasMore || claims === null) return
+    setLoadingMore(true)
+    try {
+      const data = await listClaims({ limit: PAGE_SIZE, offset: claims.length })
+      setClaims((prev) => [...(prev ?? []), ...data])
+      setHasMore(data.length === PAGE_SIZE)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to load claims")
+    } finally {
+      setLoadingMore(false)
+    }
+  }
 
   const isLoading = claims === null && error === null
   const filtered = useMemo(() => {
@@ -124,6 +145,17 @@ export default function ClaimsPage() {
             <p className="py-8 text-sm text-muted">No claims match this filter.</p>
           ) : null}
         </div>
+      )}
+
+      {hasMore && claims !== null && error === null && (
+        <button
+          className="rounded-meridian bg-ember px-4 py-1.5 font-mono text-xs uppercase tracking-widest text-void transition-colors hover:opacity-90 disabled:opacity-50"
+          disabled={loadingMore}
+          onClick={loadMore}
+          type="button"
+        >
+          {loadingMore ? "Loading…" : "Load more"}
+        </button>
       )}
 
       <ConceptCandidateReview />

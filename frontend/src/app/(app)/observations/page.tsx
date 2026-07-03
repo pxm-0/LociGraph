@@ -7,6 +7,7 @@ import { ObservationCard } from "@/components/domain/ObservationCard"
 import { Skeleton } from "@/components/ui/Skeleton"
 
 const STATUS_OPTIONS = ["", "VERIFIED", "PENDING", "INGESTING", "QUARANTINED"] as const
+const PAGE_SIZE = 100
 
 function SkeletonCards() {
   return (
@@ -22,6 +23,8 @@ export default function ObservationsPage() {
   const [observations, setObservations] = useState<Observation[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [hasMore, setHasMore] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
 
   // Filter field state (uncommitted until Apply)
   const [sourceInput, setSourceInput] = useState("")
@@ -43,9 +46,14 @@ export default function ObservationsPage() {
         ...(src ? { sourceId: src } : {}),
         ...(spk ? { speaker: spk } : {}),
         ...(sts ? { status: sts } : {}),
+        limit: PAGE_SIZE,
+        offset: 0,
       })
         .then((data) => {
-          if (!cancelled) setObservations(data)
+          if (!cancelled) {
+            setObservations(data)
+            setHasMore(data.length === PAGE_SIZE)
+          }
         })
         .catch((err: unknown) => {
           if (!cancelled) {
@@ -64,6 +72,26 @@ export default function ObservationsPage() {
     const cancel = fetchObservations(activeSource, activeSpeaker, activeStatus)
     return cancel
   }, [activeSource, activeSpeaker, activeStatus, fetchObservations])
+
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore || observations === null) return
+    setLoadingMore(true)
+    try {
+      const data = await listObservations({
+        ...(activeSource ? { sourceId: activeSource } : {}),
+        ...(activeSpeaker ? { speaker: activeSpeaker } : {}),
+        ...(activeStatus ? { status: activeStatus } : {}),
+        limit: PAGE_SIZE,
+        offset: observations.length,
+      })
+      setObservations((prev) => [...(prev ?? []), ...data])
+      setHasMore(data.length === PAGE_SIZE)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to load observations")
+    } finally {
+      setLoadingMore(false)
+    }
+  }, [activeSource, activeSpeaker, activeStatus, hasMore, loadingMore, observations])
 
   function handleApply(e: React.FormEvent) {
     e.preventDefault()
@@ -164,6 +192,16 @@ export default function ObservationsPage() {
                 />
               ))}
             </div>
+          )}
+          {hasMore && (
+            <button
+              className="rounded-meridian bg-ember px-4 py-1.5 font-mono text-xs uppercase tracking-widest text-void transition-colors hover:opacity-90 disabled:opacity-50"
+              disabled={loadingMore}
+              onClick={loadMore}
+              type="button"
+            >
+              {loadingMore ? "Loading…" : "Load more"}
+            </button>
           )}
         </>
       )}
