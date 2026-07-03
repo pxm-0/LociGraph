@@ -15,7 +15,7 @@ from kernel.ingestion.normalizer import Normalizer
 from kernel.ingestion.registry import get_parser
 from worker.broker import get_broker, run_actor
 from worker.tasks.extract_claims import extract_claims
-from worker.tasks.healing import HEAL_DELAY_MS, MAX_HEAL_GENERATIONS
+from worker.tasks.healing import HEAL_DELAY_MS, next_heal_generation
 
 get_broker()  # ensure a broker is set before the actor is declared
 
@@ -77,10 +77,10 @@ def ingest_source(source_id: str, user_id: str, job_id: str) -> None:
 # attempt rolls back atomically and a fresh retry safely re-parses from
 # scratch. See worker/tasks/healing.py for the cap.
 async def _heal_ingest_source(original_message: dict[str, Any], stats: dict[str, Any]) -> None:
-    source_id, user_id, _old_job_id = original_message["args"]
-    heal_generation = original_message["options"].get("heal_generation", 0)
-    if heal_generation >= MAX_HEAL_GENERATIONS:
+    generation = next_heal_generation(original_message)
+    if generation is None:
         return
+    source_id, user_id, _old_job_id = original_message["args"]
     async with session(user_id) as conn:
         new_job = await JobRepository(conn).create(
             user_id, "ingest_source", payload={"source_id": source_id}
@@ -88,7 +88,7 @@ async def _heal_ingest_source(original_message: dict[str, Any], stats: dict[str,
     ingest_source.send_with_options(
         args=(source_id, user_id, str(new_job.id)),
         delay=HEAL_DELAY_MS,
-        heal_generation=heal_generation + 1,
+        heal_generation=generation,
     )
 
 

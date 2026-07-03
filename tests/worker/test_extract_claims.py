@@ -14,12 +14,12 @@ from kernel.db.observations import ObservationRepository
 from kernel.db.session import session
 from kernel.db.sources import SourceRepository
 from worker.tasks.extract_claims import (
-    MAX_HEAL_GENERATIONS,
     _extract_claims,
     _heal_extract_claims,
     _public_error,
     extract_claims,
 )
+from worker.tasks.healing import MAX_HEAL_GENERATIONS
 
 
 class FakeExtractor:

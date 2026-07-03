@@ -14,7 +14,7 @@ from kernel.db.observations import ObservationRepository
 from kernel.db.session import session
 from kernel.db.sources import SourceRepository
 from worker.broker import get_broker, run_actor
-from worker.tasks.healing import HEAL_DELAY_MS, MAX_HEAL_GENERATIONS
+from worker.tasks.healing import HEAL_DELAY_MS, next_heal_generation
 
 get_broker()
 
@@ -170,10 +170,10 @@ def extract_claims(
 # exhausted, it's safe to just start a fresh job for the same source rather
 # than leave it permanently failed. See worker/tasks/healing.py for the cap.
 async def _heal_extract_claims(original_message: dict[str, Any], stats: dict[str, Any]) -> None:
-    source_id, user_id, _old_job_id, force = original_message["args"]
-    heal_generation = original_message["options"].get("heal_generation", 0)
-    if heal_generation >= MAX_HEAL_GENERATIONS:
+    generation = next_heal_generation(original_message)
+    if generation is None:
         return
+    source_id, user_id, _old_job_id, force = original_message["args"]
     async with session(user_id) as conn:
         new_job = await JobRepository(conn).create(
             user_id, "extract_claims", payload={"source_id": source_id, "force": force}
@@ -181,7 +181,7 @@ async def _heal_extract_claims(original_message: dict[str, Any], stats: dict[str
     extract_claims.send_with_options(
         args=(source_id, user_id, str(new_job.id), force),
         delay=HEAL_DELAY_MS,
-        heal_generation=heal_generation + 1,
+        heal_generation=generation,
     )
 
 
