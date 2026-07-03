@@ -4,7 +4,8 @@ from kernel.db.jobs import JobRepository
 from kernel.db.observations import ObservationRepository
 from kernel.db.session import session
 from kernel.db.sources import SourceRepository
-from worker.tasks.ingest_source import _ingest
+from worker.tasks.healing import MAX_HEAL_GENERATIONS
+from worker.tasks.ingest_source import _heal_ingest_source, _ingest, ingest_source
 
 
 @pytest.mark.asyncio
@@ -96,3 +97,66 @@ async def test_ingest_is_idempotent(make_user, tmp_path):
     async with session(user_id) as conn:
         count = await ObservationRepository(conn).count_for_source(src.id)
     assert count == 1
+
+
+def test_ingest_source_wired_to_heal_on_retry_exhausted():
+    assert ingest_source.options.get("on_retry_exhausted") == "heal_ingest_source"
+
+
+@pytest.mark.asyncio
+async def test_heal_ingest_source_starts_a_fresh_job(make_user, tmp_path, monkeypatch):
+    user_id = await make_user()
+    raw = tmp_path / "s.json"
+    raw.write_text('["x"]', encoding="utf-8")
+    async with session(user_id) as conn:
+        src = await SourceRepository(conn).create(
+            user_id, "json", "heal-me", raw_storage_path=str(raw)
+        )
+        job = await JobRepository(conn).create(user_id, "ingest_source")
+
+    sent: dict = {}
+    monkeypatch.setattr(
+        "worker.tasks.ingest_source.ingest_source.send_with_options",
+        lambda **kwargs: sent.update(kwargs),
+    )
+
+    original_message = {"args": (str(src.id), str(user_id), str(job.id)), "options": {}}
+    await _heal_ingest_source(original_message, {"retries": 3, "max_retries": 3})
+
+    assert sent["heal_generation"] == 1
+    assert sent["delay"] > 0
+    new_source_id, new_user_id, new_job_id = sent["args"]
+    assert new_source_id == str(src.id)
+    assert new_user_id == str(user_id)
+    assert new_job_id != str(job.id)
+
+    async with session(user_id) as conn:
+        new_job = await JobRepository(conn).get(new_job_id)
+    assert new_job is not None
+    assert new_job.job_type == "ingest_source"
+
+
+@pytest.mark.asyncio
+async def test_heal_ingest_source_gives_up_after_max_generations(make_user, tmp_path, monkeypatch):
+    user_id = await make_user()
+    raw = tmp_path / "s.json"
+    raw.write_text('["x"]', encoding="utf-8")
+    async with session(user_id) as conn:
+        src = await SourceRepository(conn).create(
+            user_id, "json", "heal-cap", raw_storage_path=str(raw)
+        )
+        job = await JobRepository(conn).create(user_id, "ingest_source")
+
+    calls = []
+    monkeypatch.setattr(
+        "worker.tasks.ingest_source.ingest_source.send_with_options",
+        lambda **kwargs: calls.append(kwargs),
+    )
+
+    original_message = {
+        "args": (str(src.id), str(user_id), str(job.id)),
+        "options": {"heal_generation": MAX_HEAL_GENERATIONS},
+    }
+    await _heal_ingest_source(original_message, {"retries": 3, "max_retries": 3})
+
+    assert calls == []

@@ -15,6 +15,7 @@ from kernel.db.observations import ObservationRepository
 from kernel.db.session import session
 from kernel.db.sources import SourceRepository
 from worker.broker import get_broker
+from worker.tasks.healing import HEAL_DELAY_MS, MAX_HEAL_GENERATIONS
 
 get_broker()
 
@@ -145,13 +146,7 @@ def extract_claims(
 # Extraction is idempotent (already-claimed observations are skipped via
 # existing_observation_ids), so once dramatiq's own retries for one job are
 # exhausted, it's safe to just start a fresh job for the same source rather
-# than leave it permanently failed. Capped so a genuinely broken source
-# (bad API key, corrupted data) eventually surfaces as failed instead of
-# retrying forever.
-MAX_HEAL_GENERATIONS = 5
-HEAL_DELAY_MS = 30_000
-
-
+# than leave it permanently failed. See worker/tasks/healing.py for the cap.
 async def _heal_extract_claims(original_message: dict[str, Any], stats: dict[str, Any]) -> None:
     source_id, user_id, _old_job_id, force = original_message["args"]
     heal_generation = original_message["options"].get("heal_generation", 0)
