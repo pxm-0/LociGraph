@@ -2,6 +2,8 @@ import zipfile
 from datetime import UTC, datetime
 from pathlib import Path
 
+import pytest
+
 from kernel.ingestion.chatgpt_parser import ChatGptParser
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -29,3 +31,39 @@ def test_extracts_messages_from_a_real_export_zip(tmp_path):
 
     assert [f.extracted_text for f in frags] == ["hello there", "hi, how can I help?"]
     assert [f.author for f in frags] == ["user", "assistant"]
+
+
+def test_ignores_non_json_zip_members_like_dat_files(tmp_path):
+    # Real exports also include binary attachments (voice messages, images)
+    # with arbitrary, non-UTF-8 content — these must not affect parsing.
+    zip_path = tmp_path / "export.zip"
+    with zipfile.ZipFile(zip_path, "w") as zf:
+        zf.write(FIXTURES / "conversations.json", arcname="conversations.json")
+        zf.writestr("assets/voice-message-a1b2c3.dat", b"\x00\x01\xff\xfe not valid utf-8 \x80\x81")
+
+    frags = ChatGptParser().parse(zip_path)
+
+    assert [f.extracted_text for f in frags] == ["hello there", "hi, how can I help?"]
+    assert [f.author for f in frags] == ["user", "assistant"]
+
+
+def test_finds_conversations_json_nested_in_a_subdirectory(tmp_path):
+    zip_path = tmp_path / "export.zip"
+    with zipfile.ZipFile(zip_path, "w") as zf:
+        zf.write(FIXTURES / "conversations.json", arcname="chatgpt-export/conversations.json")
+
+    frags = ChatGptParser().parse(zip_path)
+
+    assert [f.extracted_text for f in frags] == ["hello there", "hi, how can I help?"]
+    assert [f.author for f in frags] == ["user", "assistant"]
+
+
+def test_raises_a_clear_error_when_conversations_json_is_missing(tmp_path):
+    zip_path = tmp_path / "export.zip"
+    with zipfile.ZipFile(zip_path, "w") as zf:
+        zf.writestr("user.json", "{}")
+
+    with pytest.raises(ValueError) as exc_info:
+        ChatGptParser().parse(zip_path)
+
+    assert "conversations.json" in str(exc_info.value)

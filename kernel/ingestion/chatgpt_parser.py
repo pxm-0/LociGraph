@@ -54,5 +54,14 @@ class ChatGptParser:
         the user uploaded it as."""
         if zipfile.is_zipfile(path):
             with zipfile.ZipFile(path) as zf:
-                return zf.read("conversations.json").decode("utf-8")
+                try:
+                    return zf.read("conversations.json").decode("utf-8")
+                except KeyError:
+                    pass
+                nested = next(
+                    (n for n in zf.namelist() if n.endswith("/conversations.json")), None
+                )
+                if nested is None:
+                    raise ValueError("no conversations.json found in ChatGPT export zip")
+                return zf.read(nested).decode("utf-8")
         return path.read_text(encoding="utf-8")
