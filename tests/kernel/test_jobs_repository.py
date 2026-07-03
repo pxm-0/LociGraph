@@ -20,6 +20,22 @@ async def test_job_lifecycle(make_user):
 
 
 @pytest.mark.asyncio
+async def test_update_progress_round_trips(make_user):
+    user_id = await make_user()
+    async with session(user_id) as conn:
+        repo = JobRepository(conn)
+        job = await repo.create(user_id, "extract_claims", payload={"source_id": "x"})
+        assert job.items_completed is None
+        assert job.items_total is None
+
+        await repo.update_progress(job.id, items_completed=5, items_total=20)
+        updated = await repo.get(job.id)
+    assert updated is not None
+    assert updated.items_completed == 5
+    assert updated.items_total == 20
+
+
+@pytest.mark.asyncio
 async def test_record_attempt_increments_and_fails(make_user):
     user_id = await make_user()
     async with session(user_id) as conn:

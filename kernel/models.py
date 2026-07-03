@@ -234,6 +234,8 @@ class Job:
     created_at: datetime | None = None
     started_at: datetime | None = None
     completed_at: datetime | None = None
+    items_completed: int | None = None
+    items_total: int | None = None
 
     @classmethod
     def from_row(cls, row: Mapping[str, Any]) -> Job:
@@ -247,4 +249,6 @@ class Job:
             created_at=row.get("created_at"),
             started_at=row.get("started_at"),
             completed_at=row.get("completed_at"),
+            items_completed=row.get("items_completed"),
+            items_total=row.get("items_total"),
         )
