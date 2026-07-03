@@ -100,6 +100,36 @@ class JobRepository(BaseRepository):
         ).mappings().first()
         return Job.from_row(_as_mapping(row)) if row else None
 
+    async def find_active_job_for_source(
+        self,
+        job_type: str,
+        source_id: str | UUID,
+        *,
+        exclude_job_id: str | UUID | None = None,
+    ) -> UUID | None:
+        """Id of a pending/running job of `job_type` for this source, if any.
+
+        Used to stop a second extraction/ingestion from starting on top of
+        one already in flight for the same source (e.g. a stale browser tab
+        that doesn't know a job was already triggered elsewhere).
+        """
+        clauses = [
+            "job_type = :job_type",
+            "status IN ('pending', 'running')",
+            "payload ->> 'source_id' = :source_id",
+        ]
+        params: dict[str, Any] = {"job_type": job_type, "source_id": str(source_id)}
+        if exclude_job_id is not None:
+            clauses.append("id != :exclude_job_id")
+            params["exclude_job_id"] = str(exclude_job_id)
+
+        result = await self.conn.execute(
+            text(f"SELECT id FROM jobs WHERE {' AND '.join(clauses)} LIMIT 1"),
+            params,
+        )
+        row = result.first()
+        return row[0] if row else None
+
     async def count_by_statuses(self, statuses: list[str]) -> int:
         if not statuses:
             return 0

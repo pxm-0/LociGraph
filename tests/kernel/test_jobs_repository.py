@@ -47,3 +47,49 @@ async def test_record_attempt_increments_and_fails(make_user):
     assert failed.attempts == 1
     assert failed.status == "failed"
     assert failed.error == "boom"
+
+
+@pytest.mark.asyncio
+async def test_find_active_job_for_source_finds_pending_or_running(make_user):
+    user_id = await make_user()
+    async with session(user_id) as conn:
+        repo = JobRepository(conn)
+        job = await repo.create(user_id, "extract_claims", payload={"source_id": "src-1"})
+        found = await repo.find_active_job_for_source("extract_claims", "src-1")
+    assert found == job.id
+
+
+@pytest.mark.asyncio
+async def test_find_active_job_for_source_ignores_completed_and_failed(make_user):
+    user_id = await make_user()
+    async with session(user_id) as conn:
+        repo = JobRepository(conn)
+        done = await repo.create(user_id, "extract_claims", payload={"source_id": "src-2"})
+        await repo.mark_completed(done.id)
+        failed = await repo.create(user_id, "extract_claims", payload={"source_id": "src-2"})
+        await repo.record_attempt(failed.id, error="boom")
+        found = await repo.find_active_job_for_source("extract_claims", "src-2")
+    assert found is None
+
+
+@pytest.mark.asyncio
+async def test_find_active_job_for_source_excludes_given_job_id(make_user):
+    user_id = await make_user()
+    async with session(user_id) as conn:
+        repo = JobRepository(conn)
+        job = await repo.create(user_id, "extract_claims", payload={"source_id": "src-3"})
+        found = await repo.find_active_job_for_source(
+            "extract_claims", "src-3", exclude_job_id=job.id
+        )
+    assert found is None
+
+
+@pytest.mark.asyncio
+async def test_find_active_job_for_source_scopes_by_job_type_and_source(make_user):
+    user_id = await make_user()
+    async with session(user_id) as conn:
+        repo = JobRepository(conn)
+        await repo.create(user_id, "ingest_source", payload={"source_id": "src-4"})
+        await repo.create(user_id, "extract_claims", payload={"source_id": "other-source"})
+        found = await repo.find_active_job_for_source("extract_claims", "src-4")
+    assert found is None

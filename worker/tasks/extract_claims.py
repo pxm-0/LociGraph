@@ -33,6 +33,18 @@ async def _extract_claims(
     settings = ClaimExtractionSettings.from_env()
     async with session(user_id) as conn:
         await JobRepository(conn).mark_running(job_id)
+        # Defense in depth: the API already rejects a second extraction while
+        # one is in flight, but a job enqueued before that guard existed (or
+        # from a stale browser tab that didn't know about it) could still
+        # land here — don't let it stomp on an already-running job's claims.
+        other_job_id = await JobRepository(conn).find_active_job_for_source(
+            "extract_claims", source_id, exclude_job_id=job_id
+        )
+        if other_job_id is not None:
+            await JobRepository(conn).mark_completed(
+                job_id, result={"skipped": f"duplicate of in-flight job {other_job_id}"}
+            )
+            return
         source = await SourceRepository(conn).get(source_id)
         if source is None:
             raise ValueError(f"source {source_id} not found")

@@ -123,6 +123,10 @@ async def extract_source_claims(
             raise HTTPException(status_code=404, detail="not found")
         if source.import_status != "VERIFIED":
             raise HTTPException(status_code=409, detail="source is not verified")
+        if await JobRepository(conn).find_active_job_for_source("extract_claims", source_id):
+            raise HTTPException(
+                status_code=409, detail="claim extraction already in progress for this source"
+            )
         job = await JobRepository(conn).create(
             user_id,
             "extract_claims",

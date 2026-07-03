@@ -149,6 +149,28 @@ async def test_manual_claim_extraction_creates_job(client, seeded_user, _no_extr
 
 
 @pytest.mark.asyncio
+async def test_manual_claim_extraction_rejects_when_already_in_progress(  # type: ignore[no-untyped-def]
+    client, seeded_user, _no_extraction_broker
+):
+    async with session(seeded_user) as conn:
+        source = await SourceRepository(conn).create(seeded_user, "json", "already-running")
+        await SourceRepository(conn).mark_verified(source.id)
+
+    await _login(client)
+    first = await client.post(f"/sources/{source.id}/extract-claims")
+    assert first.status_code == 202
+
+    second = await client.post(f"/sources/{source.id}/extract-claims")
+    assert second.status_code == 409
+    assert "already in progress" in second.json()["detail"]
+    assert len(_no_extraction_broker) == 1  # second attempt never enqueued
+
+    async with session(seeded_user) as conn:
+        await conn.execute(text("DELETE FROM jobs"))
+        await conn.execute(text("DELETE FROM sources"))
+
+
+@pytest.mark.asyncio
 async def test_manual_claim_extraction_rejects_inaccessible_source(
     client, seeded_user, make_user, _no_extraction_broker  # type: ignore[no-untyped-def]
 ):

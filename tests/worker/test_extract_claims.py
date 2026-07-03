@@ -196,6 +196,32 @@ async def test_extract_claims_provider_error_fails_job(make_user, monkeypatch):
     assert failed.status == "failed"
 
 
+@pytest.mark.asyncio
+async def test_extract_claims_skips_when_another_job_already_active(make_user, monkeypatch):
+    user_id = await make_user()
+    source, job = await _seed_verified_source(user_id)
+    extractor_calls = []
+    monkeypatch.setattr(
+        "worker.tasks.extract_claims.get_claim_extractor",
+        lambda settings: extractor_calls.append(1) or FakeExtractor(),
+    )
+
+    async with session(user_id) as conn:
+        other_job = await JobRepository(conn).create(
+            user_id, "extract_claims", payload={"source_id": str(source.id), "force": False}
+        )
+        await JobRepository(conn).mark_running(other_job.id)
+
+    await _extract_claims(str(source.id), str(user_id), str(job.id))
+
+    assert extractor_calls == []  # never attempted extraction
+    async with session(user_id) as conn:
+        done = await JobRepository(conn).get(job.id)
+        claims = await ClaimRepository(conn).list(source_id=source.id)
+    assert done.status == "completed"
+    assert claims == []
+
+
 def test_extract_claims_wired_to_heal_on_retry_exhausted():
     assert extract_claims.options.get("on_retry_exhausted") == "heal_extract_claims"
 
