@@ -1,6 +1,18 @@
 export const SOURCE_TYPES = ["json", "markdown", "html", "pdf", "chatgpt", "meta"] as const
 export type SourceType = (typeof SOURCE_TYPES)[number]
 
+const EXTENSION_TO_SOURCE_TYPE: Record<string, SourceType> = {
+  ".md": "markdown",
+  ".html": "html",
+  ".pdf": "pdf",
+  ".zip": "chatgpt",
+}
+
+export function detectSourceType(filename: string): SourceType | "ambiguous" {
+  const ext = filename.slice(filename.lastIndexOf(".")).toLowerCase()
+  return EXTENSION_TO_SOURCE_TYPE[ext] ?? "ambiguous"
+}
+
 export interface Source {
   id: string
   sourceType: string

@@ -1,10 +1,11 @@
-import { render, screen, waitFor } from "@testing-library/react"
+import { render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { expect, vi, describe, it, beforeEach } from "vitest"
 import ImportForm from "./import-form"
+import { detectSourceType } from "@/lib/types"
 
-// Use importActual so the component's `instanceof ApiError` checks work
-// against the same class reference that we throw in tests.
+// Use importActual so any `instanceof ApiError` checks elsewhere in the
+// component work against the same class reference tests would throw.
 vi.mock("@/lib/api", async (importActual) => {
   const actual = await importActual<typeof import("@/lib/api")>()
   return {
@@ -13,14 +14,43 @@ vi.mock("@/lib/api", async (importActual) => {
   }
 })
 
-import { ApiError } from "@/lib/api"
-
-import { uploadSource } from "@/lib/api"
-const mockUpload = vi.mocked(uploadSource)
-
 function renderForm() {
   return render(<ImportForm />)
 }
+
+function makeFile(name: string, contents = "content"): File {
+  return new File([contents], name)
+}
+
+describe("detectSourceType", () => {
+  it("detects markdown from .md", () => {
+    expect(detectSourceType("notes.md")).toBe("markdown")
+  })
+
+  it("detects html from .html", () => {
+    expect(detectSourceType("page.html")).toBe("html")
+  })
+
+  it("detects pdf from .pdf", () => {
+    expect(detectSourceType("doc.pdf")).toBe("pdf")
+  })
+
+  it("detects chatgpt from .zip", () => {
+    expect(detectSourceType("export.zip")).toBe("chatgpt")
+  })
+
+  it("treats .json as ambiguous", () => {
+    expect(detectSourceType("data.json")).toBe("ambiguous")
+  })
+
+  it("treats unrecognized extensions as ambiguous", () => {
+    expect(detectSourceType("mystery.xyz")).toBe("ambiguous")
+  })
+
+  it("is case-insensitive on the extension", () => {
+    expect(detectSourceType("NOTES.MD")).toBe("markdown")
+  })
+})
 
 describe("ImportForm", () => {
   beforeEach(() => {
@@ -29,85 +59,87 @@ describe("ImportForm", () => {
 
   it("renders a source type selector", () => {
     renderForm()
-    expect(screen.getByLabelText(/source type/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/^source type$/i)).toBeInTheDocument()
   })
 
-  it("calls uploadSource with selected type and file on submit, then shows success", async () => {
+  it("stages 2 files with correct pre-filled types on selection, including ambiguous .json defaulting to json", async () => {
     const user = userEvent.setup()
-    const file = new File(["{}"], "data.json", { type: "application/json" })
-    const sourceId = "src-abc-123"
-
-    mockUpload.mockResolvedValueOnce({ sourceId, status: "PENDING" })
+    const mdFile = makeFile("notes.md")
+    const jsonFile = makeFile("data.json")
 
     renderForm()
 
-    // Select source type
-    await user.selectOptions(screen.getByLabelText(/source type/i), "json")
-
-    // Attach a file via the file input
     const fileInput = screen.getByLabelText(/choose file/i)
-    await user.upload(fileInput, file)
+    await user.upload(fileInput, [mdFile, jsonFile])
 
-    // Submit
-    await user.click(screen.getByRole("button", { name: /import/i }))
+    const rows = screen.getByLabelText(/staged files/i)
+    expect(rows).toBeInTheDocument()
 
-    await waitFor(() => {
-      expect(mockUpload).toHaveBeenCalledWith("json", file)
-    })
+    expect(screen.getByText("notes.md")).toBeInTheDocument()
+    expect(screen.getByText("data.json")).toBeInTheDocument()
 
-    // Success state: show source id
-    await waitFor(() => {
-      expect(screen.getByText(sourceId)).toBeInTheDocument()
-    })
+    const mdSelect = screen.getByLabelText(/source type for notes\.md/i) as HTMLSelectElement
+    expect(mdSelect.value).toBe("markdown")
 
-    // Success state: link to /sources
-    expect(screen.getByRole("link", { name: /sources/i })).toHaveAttribute(
-      "href",
-      "/sources",
-    )
+    const jsonSelect = screen.getByLabelText(/source type for data\.json/i) as HTMLSelectElement
+    expect(jsonSelect.value).toBe("json")
+    // Still editable, not disabled just because it was ambiguous.
+    expect(jsonSelect).not.toBeDisabled()
   })
 
-  it("shows a duplicate alert when uploadSource rejects with 409", async () => {
+  it("appends dropped files to the existing staged list rather than replacing it", async () => {
     const user = userEvent.setup()
-    const file = new File(["{}"], "data.json", { type: "application/json" })
-
-    mockUpload.mockRejectedValueOnce(new ApiError(409, "duplicate"))
+    const fileA = makeFile("a.md")
+    const fileB = makeFile("b.pdf")
+    const fileC = makeFile("c.html")
 
     renderForm()
 
-    await user.selectOptions(screen.getByLabelText(/source type/i), "json")
-
     const fileInput = screen.getByLabelText(/choose file/i)
-    await user.upload(fileInput, file)
+    await user.upload(fileInput, [fileA, fileB])
 
-    await user.click(screen.getByRole("button", { name: /import/i }))
+    expect(screen.getByText("a.md")).toBeInTheDocument()
+    expect(screen.getByText("b.pdf")).toBeInTheDocument()
 
-    await waitFor(() => {
-      const alert = screen.getByRole("alert")
-      expect(alert).toBeInTheDocument()
-      expect(alert.textContent?.toLowerCase()).toContain("duplicate")
-    })
+    const dropZone = screen.getByLabelText(/file drop zone/i)
+    const dataTransfer = { files: [fileC] }
+    // fireEvent is more appropriate than userEvent for native DragEvent with dataTransfer
+    const { fireEvent } = await import("@testing-library/react")
+    fireEvent.drop(dropZone, { dataTransfer })
+
+    const staged = screen.getByLabelText(/staged files/i)
+    expect(staged.querySelectorAll("li")).toHaveLength(3)
+    expect(screen.getByText("c.html")).toBeInTheDocument()
   })
 
-  it("shows an invalid type alert when uploadSource rejects with 400", async () => {
+  it("removes only the clicked row when its status is pending", async () => {
     const user = userEvent.setup()
-    const file = new File(["bad"], "bad.txt", { type: "text/plain" })
-
-    mockUpload.mockRejectedValueOnce(new ApiError(400, "invalid type"))
+    const fileA = makeFile("a.md")
+    const fileB = makeFile("b.pdf")
 
     renderForm()
 
-    await user.selectOptions(screen.getByLabelText(/source type/i), "json")
+    const fileInput = screen.getByLabelText(/choose file/i)
+    await user.upload(fileInput, [fileA, fileB])
+
+    await user.click(screen.getByLabelText(/remove a\.md/i))
+
+    expect(screen.queryByText("a.md")).not.toBeInTheDocument()
+    expect(screen.getByText("b.pdf")).toBeInTheDocument()
+  })
+
+  it("disables Upload All when the staged list is empty", () => {
+    renderForm()
+    expect(screen.getByRole("button", { name: /upload all/i })).toBeDisabled()
+  })
+
+  it("enables Upload All once a file is staged", async () => {
+    const user = userEvent.setup()
+    renderForm()
 
     const fileInput = screen.getByLabelText(/choose file/i)
-    await user.upload(fileInput, file)
+    await user.upload(fileInput, makeFile("a.md"))
 
-    await user.click(screen.getByRole("button", { name: /import/i }))
-
-    await waitFor(() => {
-      const alert = screen.getByRole("alert")
-      expect(alert).toBeInTheDocument()
-      expect(alert.textContent?.toLowerCase()).toMatch(/invalid|unsupported/)
-    })
+    expect(screen.getByRole("button", { name: /upload all/i })).toBeEnabled()
   })
 })
