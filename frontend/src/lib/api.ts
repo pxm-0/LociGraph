@@ -248,6 +248,11 @@ export async function extractClaims(
   return { jobId: d.job_id, status: d.status }
 }
 
+export async function purgeSource(sourceId: string): Promise<void> {
+  const r = await req(`/sources/${sourceId}/purge`, { method: "POST" })
+  if (!r.ok) throw await readError(r, "purgeSource failed")
+}
+
 export async function approveConceptCandidate(candidateId: string): Promise<Concept> {
   const r = await req(`/concept-candidates/${candidateId}/approve`, { method: "POST" })
   if (!r.ok) throw await readError(r, "approveConceptCandidate failed")

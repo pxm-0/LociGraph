@@ -1,5 +1,8 @@
+import uuid
+
 import pytest
 import sqlalchemy.exc
+from sqlalchemy import text
 
 from kernel.db.session import session
 from kernel.db.sources import SourceRepository
@@ -54,3 +57,37 @@ async def test_duplicate_checksum_rejected(make_user):
         await repo.create(user_id, "json", "dupe")
         with pytest.raises(sqlalchemy.exc.IntegrityError):
             await repo.create(user_id, "json", "dupe")
+
+
+@pytest.mark.asyncio
+async def test_purge_transitions_status_and_clears_storage_path(make_user):
+    user_id = await make_user()
+    async with session(user_id) as conn:
+        repo = SourceRepository(conn)
+        src = await repo.create(user_id, "pdf", "checksum-purge")
+        await repo.update_storage_path(src.id, "/tmp/test/purge.pdf")
+
+        purged = await repo.purge(src.id)
+        fetched = await repo.get(src.id)
+
+        # Verify purged_at was actually set in the database
+        row = (await conn.execute(
+            text("SELECT purged_at FROM sources WHERE id = :id"),
+            {"id": str(src.id)},
+        )).mappings().first()
+
+    assert purged is True
+    assert fetched is not None
+    assert fetched.import_status == "PURGED"
+    assert fetched.raw_storage_path is None
+    assert row is not None
+    assert row["purged_at"] is not None
+
+
+@pytest.mark.asyncio
+async def test_purge_returns_false_for_nonexistent_id(make_user):
+    user_id = await make_user()
+    async with session(user_id) as conn:
+        repo = SourceRepository(conn)
+        purged = await repo.purge(uuid.uuid4())
+    assert purged is False

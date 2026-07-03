@@ -28,6 +28,16 @@ async def test_user_b_cannot_read_user_a_sources(make_user):
         leaked = await SourceRepository(conn).get(src_a.id)
     assert leaked is None
 
+    # User B tries to purge A's source — RLS hides the row, no error, no-op.
+    async with session(user_b) as conn:
+        purged = await SourceRepository(conn).purge(src_a.id)
+    assert purged is False
+
+    async with session(user_a) as conn:
+        still_there = await SourceRepository(conn).get(src_a.id)
+    assert still_there is not None
+    assert still_there.import_status != "PURGED"
+
 
 @pytest.mark.asyncio
 async def test_user_b_cannot_insert_rows_owned_by_user_a(make_user):

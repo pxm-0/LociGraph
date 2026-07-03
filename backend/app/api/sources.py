@@ -18,7 +18,7 @@ from kernel.db.session import session
 from kernel.db.sources import SourceRepository
 from kernel.ingestion.base import SourceType
 from kernel.models import Source
-from kernel.storage import save_raw
+from kernel.storage import delete_raw, save_raw
 
 router = APIRouter()
 
@@ -130,3 +130,22 @@ async def extract_source_claims(
         )
     submit_claim_extraction(source_id, user_id, str(job.id), force=force)
     return {"job_id": str(job.id), "status": "pending"}
+
+
+@router.post("/sources/{source_id}/purge")
+async def purge_source(
+    source_id: str,
+    user_id: str = Depends(get_current_user),
+) -> dict[str, Any]:
+    async with session(user_id) as conn:
+        source = await SourceRepository(conn).get(source_id)
+        if source is None:
+            raise HTTPException(status_code=404, detail="not found")
+        if await ClaimRepository(conn).count_for_source(source_id) > 0:
+            raise HTTPException(
+                status_code=409, detail="source has claims — cannot delete after extraction"
+            )
+        if source.raw_storage_path:
+            delete_raw(source.raw_storage_path)
+        await SourceRepository(conn).purge(source_id)
+    return {"status": "purged"}
