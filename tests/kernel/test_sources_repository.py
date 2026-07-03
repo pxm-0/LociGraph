@@ -1,3 +1,5 @@
+import uuid
+
 import pytest
 import sqlalchemy.exc
 
@@ -54,3 +56,29 @@ async def test_duplicate_checksum_rejected(make_user):
         await repo.create(user_id, "json", "dupe")
         with pytest.raises(sqlalchemy.exc.IntegrityError):
             await repo.create(user_id, "json", "dupe")
+
+
+@pytest.mark.asyncio
+async def test_purge_transitions_status_and_clears_storage_path(make_user):
+    user_id = await make_user()
+    async with session(user_id) as conn:
+        repo = SourceRepository(conn)
+        src = await repo.create(user_id, "pdf", "checksum-purge")
+        await repo.update_storage_path(src.id, "/tmp/test/purge.pdf")
+
+        purged = await repo.purge(src.id)
+        fetched = await repo.get(src.id)
+
+    assert purged is True
+    assert fetched is not None
+    assert fetched.import_status == "PURGED"
+    assert fetched.raw_storage_path is None
+
+
+@pytest.mark.asyncio
+async def test_purge_returns_false_for_nonexistent_id(make_user):
+    user_id = await make_user()
+    async with session(user_id) as conn:
+        repo = SourceRepository(conn)
+        purged = await repo.purge(uuid.uuid4())
+    assert purged is False

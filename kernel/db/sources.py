@@ -91,6 +91,18 @@ class SourceRepository(BaseRepository):
             {"p": path, "id": str(source_id)},
         )
 
+    async def purge(self, source_id: str | UUID) -> bool:
+        row = (
+            await self.conn.execute(
+                text(
+                    "UPDATE sources SET import_status = 'PURGED', purged_at = now(), "
+                    "raw_storage_path = NULL WHERE id = :id RETURNING id"
+                ),
+                {"id": str(source_id)},
+            )
+        ).mappings().first()
+        return row is not None
+
     async def list(self, limit: int = 50, offset: int = 0) -> list[Source]:
         rows = (
             await self.conn.execute(

@@ -13,3 +13,7 @@ def save_raw(root: Path, user_id: str | UUID, source_id: str | UUID,
     target = target_dir / safe
     target.write_bytes(data)
     return str(target)
+
+
+def delete_raw(path: str) -> None:
+    Path(path).unlink(missing_ok=True)
