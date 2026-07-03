@@ -1,11 +1,10 @@
 "use client"
 
 import { useRef, useState } from "react"
-import Link from "next/link"
-import { uploadSource, ApiError } from "@/lib/api"
-import { SOURCE_TYPES } from "@/lib/types"
+import { detectSourceType, SOURCE_TYPES } from "@/lib/types"
 import type { SourceType } from "@/lib/types"
 import { Button } from "@/components/ui/Button"
+import { ApiError, uploadSource } from "@/lib/api"
 
 // --- Source type metadata ---
 const FORMAT_META: Record<
@@ -23,31 +22,42 @@ const FORMAT_META: Record<
 // --- Drag-and-drop state type ---
 type DragState = "idle" | "over"
 
-// --- Success result type ---
-interface UploadResult {
-  sourceId: string
-  status: string
+// --- Staged file awaiting upload ---
+interface StagedFile {
+  id: string
+  file: File
+  sourceType: SourceType
+  status: "pending" | "uploading" | "done" | "duplicate" | "error"
+  error?: string
+  sourceId?: string
+}
+
+function toStagedFile(file: File): StagedFile {
+  const detected = detectSourceType(file.name)
+  return {
+    id: crypto.randomUUID(),
+    file,
+    sourceType: detected === "ambiguous" ? "json" : detected,
+    status: "pending",
+  }
 }
 
 export default function ImportForm() {
-  const [sourceType, setSourceType] = useState<SourceType>("json")
-  const [file, setFile] = useState<File | null>(null)
+  const [stagedFiles, setStagedFiles] = useState<StagedFile[]>([])
   const [dragState, setDragState] = useState<DragState>("idle")
   const [submitting, setSubmitting] = useState(false)
-  const [result, setResult] = useState<UploadResult | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  function handleFileChange(incoming: File | null) {
-    if (!incoming) return
-    setFile(incoming)
+  function handleFilesChange(incoming: FileList | File[] | null) {
+    if (!incoming || incoming.length === 0) return
+    setStagedFiles((prev) => [...prev, ...Array.from(incoming).map(toStagedFile)])
     setError(null)
-    setResult(null)
   }
 
   function onInputChange(e: React.ChangeEvent<HTMLInputElement>) {
-    handleFileChange(e.target.files?.[0] ?? null)
+    handleFilesChange(e.target.files)
   }
 
   function onDragOver(e: React.DragEvent<HTMLDivElement>) {
@@ -66,66 +76,95 @@ export default function ImportForm() {
     e.preventDefault()
     e.stopPropagation()
     setDragState("idle")
-    handleFileChange(e.dataTransfer.files[0] ?? null)
+    handleFilesChange(e.dataTransfer.files)
+  }
+
+  function updateStagedType(id: string, newType: SourceType) {
+    setStagedFiles((prev) =>
+      prev.map((f) => (f.id === id ? { ...f, sourceType: newType } : f))
+    )
+  }
+
+  function removeStagedFile(id: string) {
+    setStagedFiles((prev) => prev.filter((f) => f.id !== id))
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!file) return
-
     setSubmitting(true)
     setError(null)
-    setResult(null)
 
-    try {
-      const res = await uploadSource(sourceType, file)
-      setResult(res)
-    } catch (err) {
-      if (err instanceof ApiError) {
-        if (err.status === 409) {
-          setError("Duplicate source — this file has already been imported.")
-        } else if (err.status === 400) {
-          setError("Invalid or unsupported source type for this file.")
-        } else if (err.status === 401) {
-          setError("Not authorised. Please sign in and try again.")
-        } else {
-          setError(`Upload failed (${err.status}).`)
+    const pendingIds = stagedFiles.filter((f) => f.status === "pending").map((f) => f.id)
+
+    for (const id of pendingIds) {
+      const row = stagedFiles.find((f) => f.id === id)
+      if (!row) continue
+
+      setStagedFiles((prev) =>
+        prev.map((f) => (f.id === id ? { ...f, status: "uploading" } : f))
+      )
+
+      try {
+        const uploadResult = await uploadSource(row.sourceType, row.file)
+        setStagedFiles((prev) =>
+          prev.map((f) =>
+            f.id === id ? { ...f, status: "done", sourceId: uploadResult.sourceId } : f
+          )
+        )
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 401) {
+          setError("Session expired — please sign in again.")
+          break
         }
-      } else {
-        setError("An unexpected error occurred. Please try again.")
+        if (err instanceof ApiError && err.status === 409) {
+          setStagedFiles((prev) =>
+            prev.map((f) =>
+              f.id === id
+                ? { ...f, status: "duplicate", error: err.message || "Duplicate source (already imported)." }
+                : f
+            )
+          )
+          continue
+        }
+        setStagedFiles((prev) =>
+          prev.map((f) =>
+            f.id === id
+              ? { ...f, status: "error", error: err instanceof Error ? err.message : "Upload failed." }
+              : f
+          )
+        )
       }
-    } finally {
-      setSubmitting(false)
     }
+
+    setSubmitting(false)
   }
 
   const isOver = dragState === "over"
+  const hasPending = stagedFiles.some((f) => f.status === "pending")
+
+  const totalCount = stagedFiles.length
+  const settledStatuses: StagedFile["status"][] = ["done", "duplicate", "error"]
+  const settledCount = stagedFiles.filter((f) => settledStatuses.includes(f.status)).length
+  const hasStartedUploading = stagedFiles.some(
+    (f) => f.status === "uploading" || settledStatuses.includes(f.status)
+  )
+  const doneCount = stagedFiles.filter((f) => f.status === "done").length
+  const duplicateCount = stagedFiles.filter((f) => f.status === "duplicate").length
+  const errorCount = stagedFiles.filter((f) => f.status === "error").length
+
+  const progressText =
+    settledCount < totalCount
+      ? `${settledCount} of ${totalCount} uploaded`
+      : [
+          doneCount > 0 && `${doneCount} uploaded`,
+          duplicateCount > 0 && `${duplicateCount} duplicate`,
+          errorCount > 0 && `${errorCount} failed`,
+        ]
+          .filter(Boolean)
+          .join(", ")
 
   return (
     <form onSubmit={handleSubmit} className="space-y-10">
-      {/* ── Source type selector ── */}
-      <div className="space-y-2">
-        <label
-          htmlFor="source-type-select"
-          className="block font-ui text-xs uppercase tracking-widest text-muted"
-        >
-          Source Type
-        </label>
-        <select
-          id="source-type-select"
-          aria-label="Source Type"
-          value={sourceType}
-          onChange={(e) => setSourceType(e.target.value as SourceType)}
-          className="w-full max-w-xs rounded-meridian border border-hairline bg-canvas px-3 py-2 font-ui text-sm text-ink focus:outline-none focus:ring-1 focus:ring-ember"
-        >
-          {SOURCE_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {FORMAT_META[t].label} ({FORMAT_META[t].ext})
-            </option>
-          ))}
-        </select>
-      </div>
-
       {/* ── Drop zone ── */}
       <div
         role="region"
@@ -147,6 +186,7 @@ export default function ImportForm() {
           id="file-input"
           aria-label="Choose file"
           type="file"
+          multiple
           className="absolute inset-0 cursor-pointer opacity-0"
           onChange={onInputChange}
         />
@@ -171,7 +211,9 @@ export default function ImportForm() {
 
           <div className="space-y-1">
             <p className="font-heading text-lg font-medium text-ink">
-              {file ? file.name : "Drop file here"}
+              {stagedFiles.length > 0
+                ? `${stagedFiles.length} file${stagedFiles.length === 1 ? "" : "s"} staged`
+                : "Drop files here"}
             </p>
             <p className="font-mono text-xs text-muted">
               JSON · PDF · HTML · Markdown · ChatGPT export · Meta export
@@ -184,6 +226,34 @@ export default function ImportForm() {
         </div>
       </div>
 
+      {/* ── Progress bar ── */}
+      {hasStartedUploading && totalCount > 0 && (
+        <div className="space-y-2">
+          <p className="font-mono text-xs text-muted">{progressText}</p>
+          <div className="h-0.5 w-full rounded-full bg-hairline">
+            <div
+              data-testid="upload-progress-bar"
+              className="h-0.5 rounded-full bg-ember transition-all"
+              style={{ width: `${(settledCount / totalCount) * 100}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ── Staged file list ── */}
+      {stagedFiles.length > 0 && (
+        <ul aria-label="Staged files" className="divide-y divide-hairline rounded-hearth border border-hairline bg-surface">
+          {stagedFiles.map((staged) => (
+            <StagedFileRow
+              key={staged.id}
+              staged={staged}
+              onTypeChange={(newType) => updateStagedType(staged.id, newType)}
+              onRemove={() => removeStagedFile(staged.id)}
+            />
+          ))}
+        </ul>
+      )}
+
       {/* ── Error alert ── */}
       {error !== null && (
         <div
@@ -194,36 +264,14 @@ export default function ImportForm() {
         </div>
       )}
 
-      {/* ── Success state ── */}
-      {result !== null && (
-        <div className="rounded-hearth border border-hairline bg-surface px-5 py-4 space-y-2">
-          <p className="font-ui text-sm text-ink">
-            Import queued —{" "}
-            <span className="font-mono text-xs text-ember">{result.sourceId}</span>
-          </p>
-          <p className="font-ui text-sm text-muted">
-            Status:{" "}
-            <span className="font-mono text-xs uppercase tracking-wide text-status-ingesting">
-              {result.status}
-            </span>
-          </p>
-          <Link
-            href="/sources"
-            className="inline-block font-ui text-sm text-ember underline-offset-2 hover:underline"
-          >
-            View all sources
-          </Link>
-        </div>
-      )}
-
       {/* ── Submit ── */}
       <div>
         <Button
           type="submit"
-          disabled={!file || submitting}
+          disabled={!hasPending || submitting}
           className="min-w-[120px]"
         >
-          {submitting ? "Importing…" : "Import File"}
+          {submitting ? "Uploading…" : "Upload All"}
         </Button>
       </div>
 
@@ -239,7 +287,7 @@ export default function ImportForm() {
         */}
         <div className="grid grid-cols-7 gap-3">
           {SOURCE_TYPES.slice(0, 3).map((t) => (
-            <FormatCard key={t} type={t} active={sourceType === t} />
+            <FormatCard key={t} type={t} />
           ))}
           {/* spacer to offset second row */}
           <div
@@ -247,7 +295,7 @@ export default function ImportForm() {
             aria-hidden="true"
           />
           {SOURCE_TYPES.slice(3).map((t) => (
-            <FormatCard key={t} type={t} active={sourceType === t} />
+            <FormatCard key={t} type={t} />
           ))}
         </div>
       </section>
@@ -255,24 +303,67 @@ export default function ImportForm() {
   )
 }
 
-// --- Format card sub-component ---
-function FormatCard({
-  type,
-  active,
+// --- Status indicator colors for staged rows ---
+const STAGED_STATUS_COLORS: Record<StagedFile["status"], string> = {
+  pending: "text-muted",
+  uploading: "text-status-ingesting",
+  done: "text-status-verified",
+  duplicate: "text-status-quarantined",
+  error: "text-status-quarantined",
+}
+
+// --- Staged file row sub-component ---
+function StagedFileRow({
+  staged,
+  onTypeChange,
+  onRemove,
 }: {
-  type: SourceType
-  active: boolean
+  staged: StagedFile
+  onTypeChange: (newType: SourceType) => void
+  onRemove: () => void
 }) {
+  return (
+    <li className="flex items-center gap-4 px-5 py-3">
+      <span className="flex-1 truncate font-ui text-sm text-ink">
+        {staged.file.name}
+      </span>
+      <select
+        aria-label={`Source type for ${staged.file.name}`}
+        value={staged.sourceType}
+        onChange={(e) => onTypeChange(e.target.value as SourceType)}
+        disabled={staged.status !== "pending"}
+        className="rounded-meridian border border-hairline bg-canvas px-2 py-1 font-ui text-xs text-ink focus:outline-none focus:ring-1 focus:ring-ember disabled:opacity-40"
+      >
+        {SOURCE_TYPES.map((t) => (
+          <option key={t} value={t}>
+            {FORMAT_META[t].label}
+          </option>
+        ))}
+      </select>
+      <span
+        className={`font-mono text-xs uppercase tracking-wide ${STAGED_STATUS_COLORS[staged.status]}`}
+      >
+        {staged.status}
+      </span>
+      <Button
+        type="button"
+        variant="ghost"
+        disabled={staged.status !== "pending"}
+        onClick={onRemove}
+        aria-label={`Remove ${staged.file.name}`}
+        className="px-3 py-1.5 font-mono text-[11px] uppercase"
+      >
+        Remove
+      </Button>
+    </li>
+  )
+}
+
+// --- Format card sub-component ---
+function FormatCard({ type }: { type: SourceType }) {
   const meta = FORMAT_META[type]
   return (
-    <div
-      className={[
-        "col-span-2 rounded-hearth border p-4 transition-colors",
-        active
-          ? "border-ember bg-surface-hover"
-          : "border-hairline bg-surface hover:bg-surface-hover",
-      ].join(" ")}
-    >
+    <div className="col-span-2 rounded-hearth border border-hairline bg-surface p-4 transition-colors hover:bg-surface-hover">
       <svg
         className="mb-2 h-5 w-5 text-ember"
         fill="none"
