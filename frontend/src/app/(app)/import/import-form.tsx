@@ -32,10 +32,17 @@ interface StagedFile {
   sourceId?: string
 }
 
+// crypto.randomUUID() requires a secure context (HTTPS/localhost); this id is only
+// a local React key, so a plain random fallback is fine when served over HTTP.
+function generateId(): string {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID()
+  return Math.random().toString(36).slice(2)
+}
+
 function toStagedFile(file: File): StagedFile {
   const detected = detectSourceType(file.name)
   return {
-    id: crypto.randomUUID(),
+    id: generateId(),
     file,
     sourceType: detected === "ambiguous" ? "json" : detected,
     status: "pending",
