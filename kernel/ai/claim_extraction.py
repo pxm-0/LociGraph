@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from collections.abc import Sequence
 from dataclasses import dataclass, field
@@ -8,6 +9,8 @@ from typing import Any
 from uuid import UUID
 
 from kernel.models import Observation
+
+logger = logging.getLogger(__name__)
 
 PROMPT_VERSION = "claim-extraction-v1"
 CLAIM_TYPES = {
@@ -95,6 +98,52 @@ def _as_float(value: object, field_name: str) -> float:
     raise ValueError(f"{field_name} must be numeric")
 
 
+def _parse_claim(raw_claim: object, observation_ids: set[UUID]) -> ExtractedClaim:
+    if not isinstance(raw_claim, dict):
+        raise ValueError("each claim must be an object")
+    observation_id = UUID(str(raw_claim.get("observation_id")))
+    if observation_id not in observation_ids:
+        raise ValueError(f"unknown observation_id in extraction: {observation_id}")
+    claim_text = str(raw_claim.get("claim_text", "")).strip()
+    if not claim_text:
+        raise ValueError("claim_text cannot be empty")
+    claim_type = str(raw_claim.get("claim_type", "")).strip()
+    if claim_type not in CLAIM_TYPES:
+        raise ValueError(f"invalid claim_type: {claim_type}")
+
+    candidates: list[ExtractedConceptCandidate] = []
+    raw_candidates = raw_claim.get("concept_candidates", [])
+    if not isinstance(raw_candidates, list):
+        raise ValueError("concept_candidates must be an array")
+    for raw_candidate in raw_candidates:
+        if not isinstance(raw_candidate, dict):
+            raise ValueError("each concept candidate must be an object")
+        candidate_name = str(raw_candidate.get("candidate_name", "")).strip()
+        if not candidate_name:
+            raise ValueError("candidate_name cannot be empty")
+        concept_type = str(raw_candidate.get("concept_type", "")).strip()
+        if concept_type not in CONCEPT_TYPES:
+            raise ValueError(f"invalid concept_type: {concept_type}")
+        candidates.append(
+            ExtractedConceptCandidate(
+                candidate_name=candidate_name,
+                concept_type=concept_type,
+                rationale=raw_candidate.get("rationale"),
+                confidence=_as_float(raw_candidate.get("confidence"), "confidence"),
+                metadata={"raw": raw_candidate},
+            )
+        )
+
+    return ExtractedClaim(
+        observation_id=observation_id,
+        claim_text=claim_text,
+        claim_type=claim_type,
+        confidence=_as_float(raw_claim.get("confidence"), "confidence"),
+        concept_candidates=candidates,
+        metadata={"raw": raw_claim},
+    )
+
+
 def _parse_extraction_payload(
     payload: str,
     observation_ids: set[UUID],
@@ -109,53 +158,16 @@ def _parse_extraction_payload(
     if not isinstance(raw_claims, list):
         raise ValueError("claim extraction response must include claims[]")
 
+    # A single malformed claim (most commonly a hallucinated observation_id
+    # the model failed to echo back verbatim) must not discard the rest of an
+    # otherwise-valid batch or abort the whole extraction job — skip just
+    # that claim and keep going.
     claims: list[ExtractedClaim] = []
     for raw_claim in raw_claims:
-        if not isinstance(raw_claim, dict):
-            raise ValueError("each claim must be an object")
-        observation_id = UUID(str(raw_claim.get("observation_id")))
-        if observation_id not in observation_ids:
-            raise ValueError(f"unknown observation_id in extraction: {observation_id}")
-        claim_text = str(raw_claim.get("claim_text", "")).strip()
-        if not claim_text:
-            raise ValueError("claim_text cannot be empty")
-        claim_type = str(raw_claim.get("claim_type", "")).strip()
-        if claim_type not in CLAIM_TYPES:
-            raise ValueError(f"invalid claim_type: {claim_type}")
-
-        candidates: list[ExtractedConceptCandidate] = []
-        raw_candidates = raw_claim.get("concept_candidates", [])
-        if not isinstance(raw_candidates, list):
-            raise ValueError("concept_candidates must be an array")
-        for raw_candidate in raw_candidates:
-            if not isinstance(raw_candidate, dict):
-                raise ValueError("each concept candidate must be an object")
-            candidate_name = str(raw_candidate.get("candidate_name", "")).strip()
-            if not candidate_name:
-                raise ValueError("candidate_name cannot be empty")
-            concept_type = str(raw_candidate.get("concept_type", "")).strip()
-            if concept_type not in CONCEPT_TYPES:
-                raise ValueError(f"invalid concept_type: {concept_type}")
-            candidates.append(
-                ExtractedConceptCandidate(
-                    candidate_name=candidate_name,
-                    concept_type=concept_type,
-                    rationale=raw_candidate.get("rationale"),
-                    confidence=_as_float(raw_candidate.get("confidence"), "confidence"),
-                    metadata={"raw": raw_candidate},
-                )
-            )
-
-        claims.append(
-            ExtractedClaim(
-                observation_id=observation_id,
-                claim_text=claim_text,
-                claim_type=claim_type,
-                confidence=_as_float(raw_claim.get("confidence"), "confidence"),
-                concept_candidates=candidates,
-                metadata={"raw": raw_claim},
-            )
-        )
+        try:
+            claims.append(_parse_claim(raw_claim, observation_ids))
+        except ValueError as exc:
+            logger.warning("skipping malformed claim in extraction response: %s", exc)
     return ClaimExtractionResult(
         claims=claims,
         extraction_method=extraction_method,
