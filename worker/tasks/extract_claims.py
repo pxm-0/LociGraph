@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import re
 from itertools import batched
+from typing import Any
 
 import dramatiq
 
@@ -132,8 +133,41 @@ async def _extract_claims(
         raise
 
 
-@dramatiq.actor(queue_name="extraction", max_retries=3)
+@dramatiq.actor(
+    queue_name="extraction", max_retries=3, on_retry_exhausted="heal_extract_claims"
+)
 def extract_claims(
     source_id: str, user_id: str, job_id: str, force: bool = False
 ) -> None:
     asyncio.run(_extract_claims(source_id, user_id, job_id, force))
+
+
+# Extraction is idempotent (already-claimed observations are skipped via
+# existing_observation_ids), so once dramatiq's own retries for one job are
+# exhausted, it's safe to just start a fresh job for the same source rather
+# than leave it permanently failed. Capped so a genuinely broken source
+# (bad API key, corrupted data) eventually surfaces as failed instead of
+# retrying forever.
+MAX_HEAL_GENERATIONS = 5
+HEAL_DELAY_MS = 30_000
+
+
+async def _heal_extract_claims(original_message: dict[str, Any], stats: dict[str, Any]) -> None:
+    source_id, user_id, _old_job_id, force = original_message["args"]
+    heal_generation = original_message["options"].get("heal_generation", 0)
+    if heal_generation >= MAX_HEAL_GENERATIONS:
+        return
+    async with session(user_id) as conn:
+        new_job = await JobRepository(conn).create(
+            user_id, "extract_claims", payload={"source_id": source_id, "force": force}
+        )
+    extract_claims.send_with_options(
+        args=(source_id, user_id, str(new_job.id), force),
+        delay=HEAL_DELAY_MS,
+        heal_generation=heal_generation + 1,
+    )
+
+
+@dramatiq.actor(queue_name="extraction")
+def heal_extract_claims(original_message: dict[str, Any], stats: dict[str, Any]) -> None:
+    asyncio.run(_heal_extract_claims(original_message, stats))

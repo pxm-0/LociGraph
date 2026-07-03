@@ -13,7 +13,13 @@ from kernel.db.jobs import JobRepository
 from kernel.db.observations import ObservationRepository
 from kernel.db.session import session
 from kernel.db.sources import SourceRepository
-from worker.tasks.extract_claims import _extract_claims, _public_error
+from worker.tasks.extract_claims import (
+    MAX_HEAL_GENERATIONS,
+    _extract_claims,
+    _heal_extract_claims,
+    _public_error,
+    extract_claims,
+)
 
 
 class FakeExtractor:
@@ -188,3 +194,81 @@ async def test_extract_claims_provider_error_fails_job(make_user, monkeypatch):
     async with session(user_id) as conn:
         failed = await JobRepository(conn).get(job.id)
     assert failed.status == "failed"
+
+
+def test_extract_claims_wired_to_heal_on_retry_exhausted():
+    assert extract_claims.options.get("on_retry_exhausted") == "heal_extract_claims"
+
+
+@pytest.mark.asyncio
+async def test_heal_extract_claims_starts_a_fresh_job(make_user, monkeypatch):
+    user_id = await make_user()
+    source, job = await _seed_verified_source(user_id)
+    sent: dict = {}
+
+    def fake_send_with_options(*, args, delay, heal_generation):
+        sent["args"] = args
+        sent["delay"] = delay
+        sent["heal_generation"] = heal_generation
+
+    monkeypatch.setattr(
+        "worker.tasks.extract_claims.extract_claims.send_with_options",
+        fake_send_with_options,
+    )
+
+    original_message = {
+        "args": (str(source.id), str(user_id), str(job.id), False),
+        "options": {},
+    }
+    await _heal_extract_claims(original_message, {"retries": 3, "max_retries": 3})
+
+    assert sent["heal_generation"] == 1
+    assert sent["delay"] > 0
+    new_source_id, new_user_id, new_job_id, new_force = sent["args"]
+    assert new_source_id == str(source.id)
+    assert new_user_id == str(user_id)
+    assert new_job_id != str(job.id)
+    assert new_force is False
+
+    async with session(user_id) as conn:
+        new_job = await JobRepository(conn).get(new_job_id)
+    assert new_job is not None
+    assert new_job.job_type == "extract_claims"
+
+
+@pytest.mark.asyncio
+async def test_heal_extract_claims_increments_generation_each_time(make_user, monkeypatch):
+    user_id = await make_user()
+    source, job = await _seed_verified_source(user_id)
+    sent: dict = {}
+    monkeypatch.setattr(
+        "worker.tasks.extract_claims.extract_claims.send_with_options",
+        lambda **kwargs: sent.update(kwargs),
+    )
+
+    original_message = {
+        "args": (str(source.id), str(user_id), str(job.id), False),
+        "options": {"heal_generation": 2},
+    }
+    await _heal_extract_claims(original_message, {"retries": 3, "max_retries": 3})
+
+    assert sent["heal_generation"] == 3
+
+
+@pytest.mark.asyncio
+async def test_heal_extract_claims_gives_up_after_max_generations(make_user, monkeypatch):
+    user_id = await make_user()
+    source, job = await _seed_verified_source(user_id)
+    calls = []
+    monkeypatch.setattr(
+        "worker.tasks.extract_claims.extract_claims.send_with_options",
+        lambda **kwargs: calls.append(kwargs),
+    )
+
+    original_message = {
+        "args": (str(source.id), str(user_id), str(job.id), False),
+        "options": {"heal_generation": MAX_HEAL_GENERATIONS},
+    }
+    await _heal_extract_claims(original_message, {"retries": 3, "max_retries": 3})
+
+    assert calls == []
