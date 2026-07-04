@@ -140,7 +140,11 @@ class JobRepository(BaseRepository):
                 f"error = 'auto-recovered: no heartbeat for over "
                 f"{STALE_JOB_THRESHOLD_SECONDS} seconds (worker likely crashed or restarted)' "
                 f"WHERE {where} AND status = 'running' "
-                f"AND heartbeat_at < now() - interval '{STALE_JOB_THRESHOLD_SECONDS} seconds'"
+                # COALESCE to started_at covers jobs from before heartbeat_at
+                # existed (or any 'running' row a heartbeat write somehow
+                # missed) — heartbeat_at < ... is never true against NULL.
+                f"AND COALESCE(heartbeat_at, started_at) "
+                f"< now() - interval '{STALE_JOB_THRESHOLD_SECONDS} seconds'"
             ),
             params,
         )

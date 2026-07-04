@@ -139,6 +139,32 @@ async def test_find_active_job_for_source_reclaims_a_stale_running_job(make_user
 
 
 @pytest.mark.asyncio
+async def test_find_active_job_for_source_reclaims_a_legacy_job_with_no_heartbeat(make_user):
+    # Jobs created before heartbeat_at existed (or any 'running' row a
+    # heartbeat write somehow missed) have heartbeat_at = NULL forever;
+    # heartbeat_at < ... never matches NULL, so staleness must fall back
+    # to started_at for these.
+    user_id = await make_user()
+    async with session(user_id) as conn:
+        repo = JobRepository(conn)
+        job = await repo.create(user_id, "extract_claims", payload={"source_id": "hb-4"})
+        await repo.mark_running(job.id)
+        await conn.execute(
+            text(
+                "UPDATE jobs SET heartbeat_at = NULL, started_at = now() - interval "
+                f"'{STALE_JOB_THRESHOLD_SECONDS + 60} seconds' WHERE id = :id"
+            ),
+            {"id": str(job.id)},
+        )
+
+        found = await repo.find_active_job_for_source("extract_claims", "hb-4")
+        reclaimed = await repo.get(job.id)
+
+    assert found is None
+    assert reclaimed.status == "failed"
+
+
+@pytest.mark.asyncio
 async def test_find_active_job_for_source_keeps_a_fresh_running_job(make_user):
     user_id = await make_user()
     async with session(user_id) as conn:
