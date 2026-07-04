@@ -1,6 +1,7 @@
 import pytest
+from sqlalchemy import text
 
-from kernel.db.jobs import JobRepository
+from kernel.db.jobs import STALE_JOB_THRESHOLD_SECONDS, JobRepository
 from kernel.db.session import session
 
 
@@ -93,3 +94,60 @@ async def test_find_active_job_for_source_scopes_by_job_type_and_source(make_use
         await repo.create(user_id, "extract_claims", payload={"source_id": "other-source"})
         found = await repo.find_active_job_for_source("extract_claims", "src-4")
     assert found is None
+
+
+@pytest.mark.asyncio
+async def test_mark_running_and_update_progress_set_heartbeat(make_user):
+    user_id = await make_user()
+    async with session(user_id) as conn:
+        repo = JobRepository(conn)
+        job = await repo.create(user_id, "extract_claims", payload={"source_id": "hb-1"})
+        assert (await repo.get(job.id)).heartbeat_at is None
+
+        await repo.mark_running(job.id)
+        after_running = await repo.get(job.id)
+        assert after_running.heartbeat_at is not None
+
+        await repo.update_progress(job.id, items_completed=1, items_total=10)
+        after_progress = await repo.get(job.id)
+    assert after_progress.heartbeat_at is not None
+    assert after_progress.heartbeat_at >= after_running.heartbeat_at
+
+
+@pytest.mark.asyncio
+async def test_find_active_job_for_source_reclaims_a_stale_running_job(make_user):
+    user_id = await make_user()
+    async with session(user_id) as conn:
+        repo = JobRepository(conn)
+        job = await repo.create(user_id, "extract_claims", payload={"source_id": "hb-2"})
+        await repo.mark_running(job.id)
+        # Simulate a worker that crashed a long time ago: backdate the heartbeat.
+        await conn.execute(
+            text(
+                "UPDATE jobs SET heartbeat_at = now() - interval "
+                f"'{STALE_JOB_THRESHOLD_SECONDS + 60} seconds' WHERE id = :id"
+            ),
+            {"id": str(job.id)},
+        )
+
+        found = await repo.find_active_job_for_source("extract_claims", "hb-2")
+        reclaimed = await repo.get(job.id)
+
+    assert found is None
+    assert reclaimed.status == "failed"
+    assert "auto-recovered" in reclaimed.error
+
+
+@pytest.mark.asyncio
+async def test_find_active_job_for_source_keeps_a_fresh_running_job(make_user):
+    user_id = await make_user()
+    async with session(user_id) as conn:
+        repo = JobRepository(conn)
+        job = await repo.create(user_id, "extract_claims", payload={"source_id": "hb-3"})
+        await repo.mark_running(job.id)
+
+        found = await repo.find_active_job_for_source("extract_claims", "hb-3")
+        untouched = await repo.get(job.id)
+
+    assert found == job.id
+    assert untouched.status == "running"

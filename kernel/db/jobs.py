@@ -13,8 +13,16 @@ from kernel.models import Job
 
 _COLUMNS = (
     "id, user_id, job_type, status, attempts, error, "
-    "created_at, started_at, completed_at, items_completed, items_total"
+    "created_at, started_at, completed_at, items_completed, items_total, heartbeat_at"
 )
+
+# dramatiq's own dead-worker detection is unreliable for a long-running,
+# low-traffic queue like this one (see worker/tasks/healing.py) — a crashed
+# or restarted worker can leave a job stuck "running" forever with no
+# automatic recovery. A "running" job that hasn't updated its heartbeat in
+# this long is treated as dead; comfortably longer than any single batch
+# should ever take, far shorter than a job's own time limit.
+STALE_JOB_THRESHOLD_SECONDS = 600
 
 
 def _as_mapping(row: RowMapping) -> Mapping[str, Any]:
@@ -51,7 +59,8 @@ class JobRepository(BaseRepository):
     async def mark_running(self, job_id: str | UUID) -> None:
         await self.conn.execute(
             text(
-                "UPDATE jobs SET status = 'running', started_at = now() WHERE id = :id"
+                "UPDATE jobs SET status = 'running', started_at = now(), "
+                "heartbeat_at = now() WHERE id = :id"
             ),
             {"id": str(job_id)},
         )
@@ -73,7 +82,7 @@ class JobRepository(BaseRepository):
         await self.conn.execute(
             text(
                 "UPDATE jobs SET items_completed = :items_completed, "
-                "items_total = :items_total WHERE id = :id"
+                "items_total = :items_total, heartbeat_at = now() WHERE id = :id"
             ),
             {
                 "id": str(job_id),
@@ -111,20 +120,33 @@ class JobRepository(BaseRepository):
 
         Used to stop a second extraction/ingestion from starting on top of
         one already in flight for the same source (e.g. a stale browser tab
-        that doesn't know a job was already triggered elsewhere).
+        that doesn't know a job was already triggered elsewhere). A
+        "running" job whose heartbeat has gone stale (worker crashed or was
+        restarted mid-job — dramatiq's own dead-worker reclaim isn't
+        reliable for this queue, see worker/tasks/healing.py) is reclaimed
+        as failed here, as a side effect of the check, so it stops blocking
+        future attempts for this source.
         """
-        clauses = [
-            "job_type = :job_type",
-            "status IN ('pending', 'running')",
-            "payload ->> 'source_id' = :source_id",
-        ]
+        clauses = ["job_type = :job_type", "payload ->> 'source_id' = :source_id"]
         params: dict[str, Any] = {"job_type": job_type, "source_id": str(source_id)}
         if exclude_job_id is not None:
             clauses.append("id != :exclude_job_id")
             params["exclude_job_id"] = str(exclude_job_id)
+        where = " AND ".join(clauses)
+
+        await self.conn.execute(
+            text(
+                f"UPDATE jobs SET status = 'failed', "
+                f"error = 'auto-recovered: no heartbeat for over "
+                f"{STALE_JOB_THRESHOLD_SECONDS} seconds (worker likely crashed or restarted)' "
+                f"WHERE {where} AND status = 'running' "
+                f"AND heartbeat_at < now() - interval '{STALE_JOB_THRESHOLD_SECONDS} seconds'"
+            ),
+            params,
+        )
 
         result = await self.conn.execute(
-            text(f"SELECT id FROM jobs WHERE {' AND '.join(clauses)} LIMIT 1"),
+            text(f"SELECT id FROM jobs WHERE {where} AND status IN ('pending', 'running') LIMIT 1"),
             params,
         )
         row = result.first()
