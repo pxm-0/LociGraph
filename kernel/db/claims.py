@@ -8,7 +8,7 @@ from uuid import UUID
 from sqlalchemy import text
 from sqlalchemy.engine import RowMapping
 
-from kernel.db.base_repository import BaseRepository
+from kernel.db.base_repository import BaseRepository, strip_nul_bytes
 from kernel.models import Claim
 
 _COLUMNS = (
@@ -55,13 +55,13 @@ class ClaimRepository(BaseRepository):
                     "user_id": str(user_id),
                     "source_id": str(source_id),
                     "observation_id": str(observation_id),
-                    "claim_text": claim_text,
+                    "claim_text": strip_nul_bytes(claim_text),
                     "claim_type": claim_type,
                     "confidence": confidence,
                     "extraction_method": extraction_method,
                     "model_name": model_name,
                     "prompt_version": prompt_version,
-                    "metadata": json.dumps(metadata or {}),
+                    "metadata": json.dumps(strip_nul_bytes(metadata or {})),
                 },
             )
         ).mappings().first()

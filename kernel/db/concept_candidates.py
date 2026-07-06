@@ -8,7 +8,7 @@ from uuid import UUID
 from sqlalchemy import text
 from sqlalchemy.engine import RowMapping
 
-from kernel.db.base_repository import BaseRepository
+from kernel.db.base_repository import BaseRepository, strip_nul_bytes
 from kernel.models import ConceptCandidate
 
 _COLUMNS = (
@@ -56,14 +56,14 @@ class ConceptCandidateRepository(BaseRepository):
                     "user_id": str(user_id),
                     "source_id": str(source_id),
                     "claim_id": str(claim_id),
-                    "candidate_name": candidate_name,
+                    "candidate_name": strip_nul_bytes(candidate_name),
                     "concept_type": concept_type,
-                    "rationale": rationale,
+                    "rationale": strip_nul_bytes(rationale),
                     "confidence": confidence,
                     "extraction_method": extraction_method,
                     "model_name": model_name,
                     "prompt_version": prompt_version,
-                    "metadata": json.dumps(metadata or {}),
+                    "metadata": json.dumps(strip_nul_bytes(metadata or {})),
                 },
             )
         ).mappings().one()

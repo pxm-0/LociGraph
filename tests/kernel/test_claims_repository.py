@@ -76,3 +76,47 @@ async def test_claim_create_is_idempotent_for_live_text(make_user):
     assert first is not None
     assert second is None
     assert len(claims) == 1
+
+
+@pytest.mark.asyncio
+async def test_claim_and_candidate_create_strip_nul_bytes(make_user):
+    """Postgres rejects embedded NUL bytes; LLM extraction output occasionally
+    contains them (garbled source text) and must not crash the insert."""
+    user_id = await make_user()
+    async with session(user_id) as conn:
+        source = await SourceRepository(conn).create(user_id, "json", "claims-repo-3")
+        [observation_id] = await ObservationRepository(conn).bulk_insert(
+            [{"content": "Beta"}], source.id, user_id
+        )
+        claim_repo = ClaimRepository(conn)
+        candidate_repo = ConceptCandidateRepository(conn)
+        claim = await claim_repo.create(
+            user_id=user_id,
+            source_id=source.id,
+            observation_id=observation_id,
+            claim_text="Beta has a \x00 embedded byte.",
+            claim_type="fact",
+            confidence=0.8,
+            extraction_method="test",
+            model_name="fake",
+            prompt_version="v1",
+            metadata={"snippet": "trailing\x00garbage"},
+        )
+        assert claim is not None
+        assert "\x00" not in claim.claim_text
+        assert "\x00" not in claim.metadata["snippet"]
+
+        candidate = await candidate_repo.create(
+            user_id=user_id,
+            source_id=source.id,
+            claim_id=claim.id,
+            candidate_name="Bad\x00Name",
+            concept_type="idea",
+            rationale="Rationale\x00text",
+            confidence=0.7,
+            extraction_method="test",
+            model_name="fake",
+            prompt_version="v1",
+        )
+        assert "\x00" not in candidate.candidate_name
+        assert "\x00" not in candidate.rationale
