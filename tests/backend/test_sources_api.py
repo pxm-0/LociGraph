@@ -26,7 +26,7 @@ def _no_broker(monkeypatch):  # type: ignore[no-untyped-def]
 def _no_extraction_broker(monkeypatch):  # type: ignore[no-untyped-def]
     calls: list[tuple[object, ...]] = []
     monkeypatch.setattr(
-        "backend.app.api.sources.submit_claim_extraction",
+        "backend.app.api.sources.dispatch_claim_extraction_jobs",
         lambda *a, **k: calls.append(a),
     )
     return calls
@@ -140,7 +140,8 @@ async def test_manual_claim_extraction_creates_job(client, seeded_user, _no_extr
     r = await client.post(f"/sources/{source.id}/extract-claims")
 
     assert r.status_code == 202
-    assert "job_id" in r.json()
+    assert "job_ids" in r.json()
+    assert len(r.json()["job_ids"]) == 1
     assert len(_no_extraction_broker) == 1
 
     async with session(seeded_user) as conn:

@@ -241,13 +241,13 @@ export async function getJob(jobId: string): Promise<Job> {
 export async function extractClaims(
   sourceId: string,
   force = false
-): Promise<{ jobId: string; status: string }> {
+): Promise<{ jobIds: string[]; status: string }> {
   const r = await req(`/sources/${sourceId}/extract-claims${force ? "?force=true" : ""}`, {
     method: "POST",
   })
   if (!r.ok) throw await readError(r, "extractClaims failed")
   const d = await r.json()
-  return { jobId: d.job_id, status: d.status }
+  return { jobIds: d.job_ids, status: d.status }
 }
 
 export async function purgeSource(sourceId: string): Promise<void> {

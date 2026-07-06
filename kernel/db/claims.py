@@ -134,6 +134,18 @@ class ClaimRepository(BaseRepository):
         return {row[0] for row in rows}
 
     async def delete_proposed_for_source(self, source_id: str | UUID) -> None:
+        # Candidates get auto-promoted (see worker/tasks/extract_claims.py),
+        # which links them into claim_concept_edges — those edges must go
+        # first, or the FK from claim_concept_edges to claims/concept_candidates
+        # blocks the deletes below. The linked concepts themselves are left
+        # alone: find_or_create may have reused one across other claims/sources.
+        await self.conn.execute(
+            text(
+                "DELETE FROM claim_concept_edges WHERE claim_id IN "
+                "(SELECT id FROM claims WHERE source_id = :source_id AND status = 'proposed')"
+            ),
+            {"source_id": str(source_id)},
+        )
         await self.conn.execute(
             text(
                 "DELETE FROM concept_candidates WHERE claim_id IN "

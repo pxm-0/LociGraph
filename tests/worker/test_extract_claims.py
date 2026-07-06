@@ -9,6 +9,7 @@ from kernel.ai.claim_extraction import (
 )
 from kernel.db.claims import ClaimRepository
 from kernel.db.concept_candidates import ConceptCandidateRepository
+from kernel.db.concepts import ConceptRepository
 from kernel.db.jobs import JobRepository
 from kernel.db.observations import ObservationRepository
 from kernel.db.session import session
@@ -17,7 +18,9 @@ from worker.tasks.extract_claims import (
     _extract_claims,
     _heal_extract_claims,
     _public_error,
+    dispatch_claim_extraction_jobs,
     extract_claims,
+    plan_claim_extraction_jobs,
 )
 from worker.tasks.healing import MAX_HEAL_GENERATIONS
 
@@ -257,16 +260,40 @@ async def test_heal_extract_claims_starts_a_fresh_job(make_user, monkeypatch):
 
     assert sent["heal_generation"] == 1
     assert sent["delay"] > 0
-    new_source_id, new_user_id, new_job_id, new_force = sent["args"]
+    new_source_id, new_user_id, new_job_id, new_force, new_observation_ids = sent["args"]
     assert new_source_id == str(source.id)
     assert new_user_id == str(user_id)
     assert new_job_id != str(job.id)
     assert new_force is False
+    # legacy 4-arg message (pre-dating chunking) carries no observation_ids;
+    # None routes the healed job back through the full-source legacy path.
+    assert new_observation_ids is None
 
     async with session(user_id) as conn:
         new_job = await JobRepository(conn).get(new_job_id)
     assert new_job is not None
     assert new_job.job_type == "extract_claims"
+
+
+@pytest.mark.asyncio
+async def test_heal_extract_claims_preserves_the_chunk_observation_ids(make_user, monkeypatch):
+    user_id = await make_user()
+    source, job = await _seed_verified_source(user_id)
+    sent: dict = {}
+    monkeypatch.setattr(
+        "worker.tasks.extract_claims.extract_claims.send_with_options",
+        lambda **kwargs: sent.update(kwargs),
+    )
+
+    chunk = ["11111111-1111-1111-1111-111111111111"]
+    original_message = {
+        "args": (str(source.id), str(user_id), str(job.id), False, chunk),
+        "options": {},
+    }
+    await _heal_extract_claims(original_message, {"retries": 3, "max_retries": 3})
+
+    *_, new_observation_ids = sent["args"]
+    assert new_observation_ids == chunk
 
 
 @pytest.mark.asyncio
@@ -305,3 +332,169 @@ async def test_heal_extract_claims_gives_up_after_max_generations(make_user, mon
     await _heal_extract_claims(original_message, {"retries": 3, "max_retries": 3})
 
     assert calls == []
+
+
+@pytest.mark.asyncio
+async def test_plan_claim_extraction_jobs_splits_into_chunks(make_user, monkeypatch):
+    monkeypatch.setattr("worker.tasks.extract_claims.MAX_OBSERVATIONS_PER_JOB", 3)
+    user_id = await make_user()
+    async with session(user_id) as conn:
+        source = await SourceRepository(conn).create(user_id, "json", "chunk-source")
+        await SourceRepository(conn).mark_verified(source.id)
+        await ObservationRepository(conn).bulk_insert(
+            [{"content": f"obs {i}"} for i in range(7)], source.id, user_id
+        )
+        jobs = await plan_claim_extraction_jobs(conn, str(source.id), str(user_id))
+
+    assert [len(ids) for _, ids in jobs] == [3, 3, 1]
+    assert len({job_id for job_id, _ in jobs}) == 3  # one distinct job per chunk
+    all_ids = {oid for _, ids in jobs for oid in ids}
+    assert len(all_ids) == 7  # every observation covered exactly once, no overlap
+
+
+@pytest.mark.asyncio
+async def test_plan_claim_extraction_jobs_single_chunk_when_under_the_limit(make_user):
+    user_id = await make_user()
+    async with session(user_id) as conn:
+        source = await SourceRepository(conn).create(user_id, "json", "small-source")
+        await SourceRepository(conn).mark_verified(source.id)
+        await ObservationRepository(conn).bulk_insert([{"content": "only one"}], source.id, user_id)
+        jobs = await plan_claim_extraction_jobs(conn, str(source.id), str(user_id))
+
+    assert len(jobs) == 1
+    assert len(jobs[0][1]) == 1
+
+
+@pytest.mark.asyncio
+async def test_plan_claim_extraction_jobs_creates_a_noop_job_when_nothing_pending(
+    make_user, monkeypatch
+):
+    user_id = await make_user()
+    source, job = await _seed_verified_source(user_id)
+    monkeypatch.setattr(
+        "worker.tasks.extract_claims.get_claim_extractor",
+        lambda settings: FakeExtractor(),
+    )
+    await _extract_claims(str(source.id), str(user_id), str(job.id))  # claims the only observation
+
+    async with session(user_id) as conn:
+        jobs = await plan_claim_extraction_jobs(conn, str(source.id), str(user_id))
+
+    assert len(jobs) == 1
+    assert jobs[0][1] == []
+
+
+@pytest.mark.asyncio
+async def test_plan_claim_extraction_jobs_force_wipes_claims_once_up_front(make_user, monkeypatch):
+    user_id = await make_user()
+    source, job = await _seed_verified_source(user_id)
+    monkeypatch.setattr(
+        "worker.tasks.extract_claims.get_claim_extractor",
+        lambda settings: FakeExtractor(),
+    )
+    await _extract_claims(str(source.id), str(user_id), str(job.id))
+
+    async with session(user_id) as conn:
+        jobs = await plan_claim_extraction_jobs(conn, str(source.id), str(user_id), force=True)
+        claims = await ClaimRepository(conn).list(source_id=source.id)
+
+    assert claims == []  # wiped once at plan time, not deferred to a chunk job
+    assert len(jobs[0][1]) == 1  # the one observation is pending again under force
+
+
+@pytest.mark.asyncio
+async def test_dispatch_claim_extraction_jobs_sends_one_message_per_chunk(make_user, monkeypatch):
+    user_id = await make_user()
+    async with session(user_id) as conn:
+        source = await SourceRepository(conn).create(user_id, "json", "dispatch-source")
+        await SourceRepository(conn).mark_verified(source.id)
+        await ObservationRepository(conn).bulk_insert(
+            [{"content": "x"}, {"content": "y"}], source.id, user_id
+        )
+        jobs = await plan_claim_extraction_jobs(conn, str(source.id), str(user_id))
+
+    sent: list[tuple[object, ...]] = []
+    monkeypatch.setattr(
+        "worker.tasks.extract_claims.extract_claims.send",
+        lambda *args: sent.append(args),
+    )
+    dispatch_claim_extraction_jobs(jobs, str(source.id), str(user_id), False)
+
+    assert len(sent) == len(jobs)
+
+
+@pytest.mark.asyncio
+async def test_extract_claims_with_explicit_ids_only_processes_that_chunk(make_user, monkeypatch):
+    user_id = await make_user()
+    async with session(user_id) as conn:
+        source = await SourceRepository(conn).create(user_id, "json", "chunk-isolation")
+        await SourceRepository(conn).mark_verified(source.id)
+        obs_ids = await ObservationRepository(conn).bulk_insert(
+            [{"content": "in chunk"}, {"content": "not in chunk"}], source.id, user_id
+        )
+        job = await JobRepository(conn).create(
+            user_id, "extract_claims", payload={"source_id": str(source.id)}
+        )
+    monkeypatch.setattr(
+        "worker.tasks.extract_claims.get_claim_extractor",
+        lambda settings: FakeExtractor(),
+    )
+
+    await _extract_claims(
+        str(source.id), str(user_id), str(job.id), observation_ids=[str(obs_ids[0])]
+    )
+
+    async with session(user_id) as conn:
+        claims = await ClaimRepository(conn).list(source_id=source.id)
+        done = await JobRepository(conn).get(job.id)
+
+    assert [c.observation_id for c in claims] == [obs_ids[0]]
+    assert done.status == "completed"
+
+
+@pytest.mark.asyncio
+async def test_extract_claims_with_explicit_ids_ignores_sibling_jobs(make_user, monkeypatch):
+    # Chunked jobs for the same source run concurrently by design — the
+    # duplicate-in-progress guard only applies to the legacy full-source path.
+    user_id = await make_user()
+    source, job = await _seed_verified_source(user_id)
+    monkeypatch.setattr(
+        "worker.tasks.extract_claims.get_claim_extractor",
+        lambda settings: FakeExtractor(),
+    )
+    async with session(user_id) as conn:
+        sibling = await JobRepository(conn).create(
+            user_id, "extract_claims", payload={"source_id": str(source.id)}
+        )
+        await JobRepository(conn).mark_running(sibling.id)
+        observations = await ObservationRepository(conn).list_for_source(source.id)
+
+    await _extract_claims(
+        str(source.id), str(user_id), str(job.id), observation_ids=[str(observations[0].id)]
+    )
+
+    async with session(user_id) as conn:
+        done = await JobRepository(conn).get(job.id)
+        claims = await ClaimRepository(conn).list(source_id=source.id)
+
+    assert done.status == "completed"
+    assert len(claims) == 1  # ran for real, wasn't skipped as a "duplicate"
+
+
+@pytest.mark.asyncio
+async def test_extract_claims_auto_promotes_candidates_to_concepts(make_user, monkeypatch):
+    user_id = await make_user()
+    source, job = await _seed_verified_source(user_id)
+    monkeypatch.setattr(
+        "worker.tasks.extract_claims.get_claim_extractor",
+        lambda settings: FakeExtractor(),
+    )
+
+    await _extract_claims(str(source.id), str(user_id), str(job.id))
+
+    async with session(user_id) as conn:
+        candidates = await ConceptCandidateRepository(conn).list(source_id=source.id)
+        concepts = await ConceptRepository(conn).list()
+
+    assert candidates[0].status == "accepted"
+    assert any(c.concept_name == "Alpha" for c in concepts)

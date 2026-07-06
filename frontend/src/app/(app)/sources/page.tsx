@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { extractClaims, getJob, listSources, purgeSource } from "@/lib/api"
 import { filterByStatus } from "@/lib/derive"
-import type { Source } from "@/lib/types"
+import type { Job, Source } from "@/lib/types"
 import { SourceRow } from "@/components/domain/SourceRow"
 import { Skeleton } from "@/components/ui/Skeleton"
 
@@ -25,9 +25,23 @@ function SkeletonRows() {
 }
 
 interface ExtractionProgress {
-  jobId: string
+  jobIds: string[]
   itemsCompleted: number | null
   itemsTotal: number | null
+}
+
+const TERMINAL_JOB_STATUSES = new Set(["completed", "failed"])
+
+// A source's extraction may be split across several chunk jobs running in
+// parallel; the UI shows one progress bar summing across all of them and
+// waits for every chunk to finish before refreshing.
+function sumJobProgress(jobs: Job[]): { itemsCompleted: number | null; itemsTotal: number | null } {
+  const withTotals = jobs.filter((j) => j.itemsCompleted != null && j.itemsTotal != null)
+  if (withTotals.length === 0) return { itemsCompleted: null, itemsTotal: null }
+  return {
+    itemsCompleted: withTotals.reduce((sum, j) => sum + (j.itemsCompleted ?? 0), 0),
+    itemsTotal: withTotals.reduce((sum, j) => sum + (j.itemsTotal ?? 0), 0),
+  }
 }
 
 export default function SourcesPage() {
@@ -68,14 +82,14 @@ export default function SourcesPage() {
       const result = await extractClaims(source.id, source.claimCount > 0)
       setRunning((current) => ({
         ...current,
-        [source.id]: { jobId: result.jobId, itemsCompleted: null, itemsTotal: null },
+        [source.id]: { jobIds: result.jobIds, itemsCompleted: null, itemsTotal: null },
       }))
 
       let active = true
       while (active) {
         await new Promise((resolve) => window.setTimeout(resolve, 1200))
-        const job = await getJob(result.jobId)
-        if (job.status === "completed" || job.status === "failed") {
+        const jobs = await Promise.all(result.jobIds.map((jobId) => getJob(jobId)))
+        if (jobs.every((job) => TERMINAL_JOB_STATUSES.has(job.status))) {
           active = false
           setRunning((current) => {
             const next = { ...current }
@@ -83,15 +97,12 @@ export default function SourcesPage() {
             return next
           })
           await refreshSources()
-          if (job.status === "failed") setError(job.error ?? "Claim extraction failed")
+          const failed = jobs.find((job) => job.status === "failed")
+          if (failed) setError(failed.error ?? "Claim extraction failed")
         } else {
           setRunning((current) => ({
             ...current,
-            [source.id]: {
-              jobId: result.jobId,
-              itemsCompleted: job.itemsCompleted,
-              itemsTotal: job.itemsTotal,
-            },
+            [source.id]: { jobIds: result.jobIds, ...sumJobProgress(jobs) },
           }))
         }
       }

@@ -63,7 +63,7 @@ async def test_ingest_auto_enqueues_claim_extraction(make_user, tmp_path, monkey
     sent: list[tuple[object, ...]] = []
     monkeypatch.setenv("CLAIM_EXTRACTION_AUTORUN", "true")
     monkeypatch.setattr(
-        "worker.tasks.ingest_source.extract_claims.send",
+        "worker.tasks.ingest_source.dispatch_claim_extraction_jobs",
         lambda *args: sent.append(args),
     )
 

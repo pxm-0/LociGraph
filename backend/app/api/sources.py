@@ -10,7 +10,7 @@ from sqlalchemy.exc import IntegrityError
 
 from backend.app.auth.dependencies import get_current_user
 from backend.app.config import Settings
-from backend.app.jobs.submit import submit_claim_extraction, submit_ingest
+from backend.app.jobs.submit import submit_ingest
 from kernel.db.claims import ClaimRepository
 from kernel.db.jobs import JobRepository
 from kernel.db.observations import ObservationRepository
@@ -19,6 +19,7 @@ from kernel.db.sources import SourceRepository
 from kernel.ingestion.base import SourceType
 from kernel.models import Source
 from kernel.storage import delete_raw, save_raw
+from worker.tasks.extract_claims import dispatch_claim_extraction_jobs, plan_claim_extraction_jobs
 
 router = APIRouter()
 
@@ -127,13 +128,9 @@ async def extract_source_claims(
             raise HTTPException(
                 status_code=409, detail="claim extraction already in progress for this source"
             )
-        job = await JobRepository(conn).create(
-            user_id,
-            "extract_claims",
-            payload={"source_id": source_id, "force": force},
-        )
-    submit_claim_extraction(source_id, user_id, str(job.id), force=force)
-    return {"job_id": str(job.id), "status": "pending"}
+        jobs = await plan_claim_extraction_jobs(conn, source_id, user_id, force=force)
+    dispatch_claim_extraction_jobs(jobs, source_id, user_id, force)
+    return {"job_ids": [str(job_id) for job_id, _ in jobs], "status": "pending"}
 
 
 @router.post("/sources/{source_id}/purge")

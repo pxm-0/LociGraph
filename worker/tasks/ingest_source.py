@@ -14,7 +14,7 @@ from kernel.db.sources import SourceRepository
 from kernel.ingestion.normalizer import Normalizer
 from kernel.ingestion.registry import get_parser
 from worker.broker import get_broker, run_actor
-from worker.tasks.extract_claims import extract_claims
+from worker.tasks.extract_claims import dispatch_claim_extraction_jobs, plan_claim_extraction_jobs
 from worker.tasks.healing import HEAL_DELAY_MS, next_heal_generation
 
 get_broker()  # ensure a broker is set before the actor is declared
@@ -25,6 +25,7 @@ async def _ingest(source_id: str, user_id: str, job_id: str) -> None:
         await JobRepository(conn).mark_running(job_id)
         await SourceRepository(conn).set_status(source_id, "INGESTING")
 
+    extraction_jobs: list[tuple[Any, list[str]]] = []
     try:
         async with session(user_id) as conn:
             source = await SourceRepository(conn).get(source_id)
@@ -48,16 +49,16 @@ async def _ingest(source_id: str, user_id: str, job_id: str) -> None:
             result: dict[str, Any] = {"observations": len(rows)}
             settings = ClaimExtractionSettings.from_env()
             if settings.claim_extraction_autorun and rows:
-                extraction_job = await JobRepository(conn).create(
-                    user_id,
-                    "extract_claims",
-                    payload={"source_id": str(source.id), "force": False},
+                extraction_jobs = await plan_claim_extraction_jobs(
+                    conn, str(source.id), str(user_id), force=False
                 )
-                extract_claims.send(
-                    str(source.id), str(user_id), str(extraction_job.id), False
-                )
-                result["extract_claims_job_id"] = str(extraction_job.id)
+                result["extract_claims_job_ids"] = [str(jid) for jid, _ in extraction_jobs]
             await JobRepository(conn).mark_completed(job_id, result=result)
+        # Dispatch only after the above transaction (which created the job
+        # rows) has committed — sending first risks a worker picking up the
+        # message before the job row it needs is visible.
+        if extraction_jobs:
+            dispatch_claim_extraction_jobs(extraction_jobs, str(source_id), str(user_id), False)
     except Exception as exc:
         async with session(user_id) as conn:
             await JobRepository(conn).record_attempt(job_id, error=str(exc))

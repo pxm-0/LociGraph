@@ -220,7 +220,7 @@ describe("SourcesPage", () => {
     it("updates progress numbers across successive poll ticks", async () => {
       vi.useFakeTimers({ shouldAdvanceTime: true })
       mockListSources.mockResolvedValueOnce([MOCK_SOURCES[0]])
-      mockExtractClaims.mockResolvedValueOnce({ jobId: "job-1", status: "running" })
+      mockExtractClaims.mockResolvedValueOnce({ jobIds: ["job-1"], status: "running" })
       mockGetJob
         .mockResolvedValueOnce({
           id: "job-1",
