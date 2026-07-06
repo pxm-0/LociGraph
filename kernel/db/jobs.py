@@ -125,7 +125,10 @@ class JobRepository(BaseRepository):
         restarted mid-job — dramatiq's own dead-worker reclaim isn't
         reliable for this queue, see worker/tasks/healing.py) is reclaimed
         as failed here, as a side effect of the check, so it stops blocking
-        future attempts for this source.
+        future attempts for this source. Same for a "pending" job whose
+        dramatiq message was lost or dead-lettered before a worker ever
+        picked it up — it never gets a started_at/heartbeat_at to go by, so
+        staleness is measured from created_at instead.
         """
         clauses = ["job_type = :job_type", "payload ->> 'source_id' = :source_id"]
         params: dict[str, Any] = {"job_type": job_type, "source_id": str(source_id)}
@@ -145,6 +148,16 @@ class JobRepository(BaseRepository):
                 # missed) — heartbeat_at < ... is never true against NULL.
                 f"AND COALESCE(heartbeat_at, started_at) "
                 f"< now() - interval '{STALE_JOB_THRESHOLD_SECONDS} seconds'"
+            ),
+            params,
+        )
+        await self.conn.execute(
+            text(
+                f"UPDATE jobs SET status = 'failed', "
+                f"error = 'auto-recovered: stuck pending for over "
+                f"{STALE_JOB_THRESHOLD_SECONDS} seconds (message lost before a worker started it)' "
+                f"WHERE {where} AND status = 'pending' "
+                f"AND created_at < now() - interval '{STALE_JOB_THRESHOLD_SECONDS} seconds'"
             ),
             params,
         )

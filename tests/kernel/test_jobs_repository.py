@@ -177,3 +177,42 @@ async def test_find_active_job_for_source_keeps_a_fresh_running_job(make_user):
 
     assert found == job.id
     assert untouched.status == "running"
+
+
+@pytest.mark.asyncio
+async def test_find_active_job_for_source_reclaims_a_stale_pending_job(make_user):
+    # A job whose dramatiq message was lost or dead-lettered before any
+    # worker picked it up never gets started_at/heartbeat_at, so staleness
+    # for 'pending' rows must fall back to created_at.
+    user_id = await make_user()
+    async with session(user_id) as conn:
+        repo = JobRepository(conn)
+        job = await repo.create(user_id, "extract_claims", payload={"source_id": "hb-5"})
+        await conn.execute(
+            text(
+                "UPDATE jobs SET created_at = now() - interval "
+                f"'{STALE_JOB_THRESHOLD_SECONDS + 60} seconds' WHERE id = :id"
+            ),
+            {"id": str(job.id)},
+        )
+
+        found = await repo.find_active_job_for_source("extract_claims", "hb-5")
+        reclaimed = await repo.get(job.id)
+
+    assert found is None
+    assert reclaimed.status == "failed"
+    assert "auto-recovered" in reclaimed.error
+
+
+@pytest.mark.asyncio
+async def test_find_active_job_for_source_keeps_a_fresh_pending_job(make_user):
+    user_id = await make_user()
+    async with session(user_id) as conn:
+        repo = JobRepository(conn)
+        job = await repo.create(user_id, "extract_claims", payload={"source_id": "hb-6"})
+
+        found = await repo.find_active_job_for_source("extract_claims", "hb-6")
+        untouched = await repo.get(job.id)
+
+    assert found == job.id
+    assert untouched.status == "pending"
