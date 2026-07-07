@@ -13,7 +13,7 @@ from kernel.models import Job
 
 _COLUMNS = (
     "id, user_id, job_type, status, attempts, error, "
-    "created_at, started_at, completed_at, items_completed, items_total, heartbeat_at"
+    "created_at, started_at, completed_at, items_completed, items_total, heartbeat_at, result"
 )
 
 # dramatiq's own dead-worker detection is unreliable for a long-running,

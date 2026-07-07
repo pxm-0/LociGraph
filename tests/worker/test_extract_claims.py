@@ -498,3 +498,46 @@ async def test_extract_claims_auto_promotes_candidates_to_concepts(make_user, mo
 
     assert candidates[0].status == "accepted"
     assert any(c.concept_name == "Alpha" for c in concepts)
+
+
+@pytest.mark.asyncio
+async def test_extract_claims_auto_enqueues_embedding_when_flag_set(make_user, monkeypatch):
+    user_id = await make_user()
+    source, job = await _seed_verified_source(user_id)
+    monkeypatch.setenv("EMBEDDING_AUTORUN", "true")
+    monkeypatch.setattr(
+        "worker.tasks.extract_claims.get_claim_extractor",
+        lambda settings: FakeExtractor(),
+    )
+    sent: list[tuple[object, ...]] = []
+    monkeypatch.setattr(
+        "worker.tasks.extract_claims.embed_claims.send",
+        lambda *args: sent.append(args),
+    )
+
+    await _extract_claims(str(source.id), str(user_id), str(job.id))
+
+    assert len(sent) == 1
+    sent_source_id, sent_user_id, _sent_job_id = sent[0]
+    assert sent_source_id == str(source.id)
+    assert sent_user_id == str(user_id)
+
+
+@pytest.mark.asyncio
+async def test_extract_claims_does_not_enqueue_embedding_when_flag_unset(make_user, monkeypatch):
+    user_id = await make_user()
+    source, job = await _seed_verified_source(user_id)
+    monkeypatch.delenv("EMBEDDING_AUTORUN", raising=False)
+    monkeypatch.setattr(
+        "worker.tasks.extract_claims.get_claim_extractor",
+        lambda settings: FakeExtractor(),
+    )
+    sent: list[tuple[object, ...]] = []
+    monkeypatch.setattr(
+        "worker.tasks.extract_claims.embed_claims.send",
+        lambda *args: sent.append(args),
+    )
+
+    await _extract_claims(str(source.id), str(user_id), str(job.id))
+
+    assert sent == []

@@ -3,4 +3,4 @@ from worker.broker import get_broker
 
 get_broker()
 
-from worker.tasks import extract_claims, ingest_source  # noqa: E402,F401  (registers actors)
+from worker.tasks import embed_claims, extract_claims, ingest_source  # noqa: E402,F401

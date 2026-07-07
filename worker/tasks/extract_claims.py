@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 from itertools import batched
 from typing import Any
 from uuid import UUID
@@ -9,6 +8,7 @@ import dramatiq
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from kernel.ai.claim_extraction import ClaimExtractionSettings, get_claim_extractor
+from kernel.ai.embeddings import EmbeddingSettings
 from kernel.concepts_promotion import approve_candidate
 from kernel.db.claims import ClaimRepository
 from kernel.db.concept_candidates import ConceptCandidateRepository
@@ -17,6 +17,8 @@ from kernel.db.observations import ObservationRepository
 from kernel.db.session import session
 from kernel.db.sources import SourceRepository
 from worker.broker import get_broker, run_actor
+from worker.tasks.embed_claims import embed_claims
+from worker.tasks.errors import public_error as _public_error
 from worker.tasks.healing import HEAL_DELAY_MS, next_heal_generation
 
 get_broker()
@@ -27,13 +29,6 @@ get_broker()
 # blast radius of a failure to one chunk and lets independent chunks run
 # concurrently instead of strictly one after another.
 MAX_OBSERVATIONS_PER_JOB = 5000
-
-
-def _public_error(message: str) -> str:
-    redacted = re.sub(r"sk-[A-Za-z0-9_*\\-]+", "sk-REDACTED", message)
-    if "Incorrect API key provided" in redacted:
-        return "OpenAI rejected the configured API key"
-    return redacted
 
 
 async def plan_claim_extraction_jobs(
@@ -217,6 +212,7 @@ async def _extract_claims(
                     items_total=len(pending_observations),
                 )
 
+        embed_job_id = None
         async with session(user_id) as conn:
             await JobRepository(conn).mark_completed(
                 job_id,
@@ -227,6 +223,17 @@ async def _extract_claims(
                     "skipped_observations": len(all_observations) - len(pending_observations),
                 },
             )
+            # Auto-enqueue embedding for this chunk's claims. Sibling chunks
+            # for the same source may fire this too — claim_ids_without_vector
+            # makes each embed_claims run a no-op once nothing is pending, so
+            # redundant triggers are harmless rather than duplicating work.
+            if claim_count > 0 and EmbeddingSettings.from_env().embedding_autorun:
+                embed_job = await JobRepository(conn).create(
+                    user_id, "embed_claims", payload={"source_id": source_id}
+                )
+                embed_job_id = embed_job.id
+        if embed_job_id is not None:
+            embed_claims.send(source_id, user_id, str(embed_job_id))
     except Exception as exc:
         async with session(user_id) as conn:
             await JobRepository(conn).record_attempt(job_id, error=_public_error(str(exc)))
