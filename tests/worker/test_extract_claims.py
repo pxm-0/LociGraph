@@ -541,3 +541,33 @@ async def test_extract_claims_does_not_enqueue_embedding_when_flag_unset(make_us
     await _extract_claims(str(source.id), str(user_id), str(job.id))
 
     assert sent == []
+
+
+@pytest.mark.asyncio
+async def test_extract_claims_stays_completed_when_embed_enqueue_fails(make_user, monkeypatch):
+    # A broker/config failure while auto-enqueuing embed_claims must not
+    # corrupt the extraction job's already-committed 'completed' state or
+    # lose its real result counts — regression test for a bug where the
+    # enqueue lived inside the extraction's own try/except.
+    user_id = await make_user()
+    source, job = await _seed_verified_source(user_id)
+    monkeypatch.setenv("EMBEDDING_AUTORUN", "true")
+    monkeypatch.setattr(
+        "worker.tasks.extract_claims.get_claim_extractor",
+        lambda settings: FakeExtractor(),
+    )
+    monkeypatch.setattr(
+        "worker.tasks.extract_claims.embed_claims.send",
+        lambda *args: (_ for _ in ()).throw(RuntimeError("broker unavailable")),
+    )
+
+    await _extract_claims(str(source.id), str(user_id), str(job.id))
+
+    async with session(user_id) as conn:
+        done = await JobRepository(conn).get(job.id)
+        claims = await ClaimRepository(conn).list(source_id=source.id)
+
+    assert done.status == "completed"
+    assert done.result["claims"] == 1
+    assert done.error is None
+    assert len(claims) == 1

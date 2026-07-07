@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from itertools import batched
 from typing import Any
 from uuid import UUID
@@ -20,6 +21,8 @@ from worker.broker import get_broker, run_actor
 from worker.tasks.embed_claims import embed_claims
 from worker.tasks.errors import public_error as _public_error
 from worker.tasks.healing import HEAL_DELAY_MS, next_heal_generation
+
+logger = logging.getLogger(__name__)
 
 get_broker()
 
@@ -212,7 +215,6 @@ async def _extract_claims(
                     items_total=len(pending_observations),
                 )
 
-        embed_job_id = None
         async with session(user_id) as conn:
             await JobRepository(conn).mark_completed(
                 job_id,
@@ -223,21 +225,32 @@ async def _extract_claims(
                     "skipped_observations": len(all_observations) - len(pending_observations),
                 },
             )
-            # Auto-enqueue embedding for this chunk's claims. Sibling chunks
-            # for the same source may fire this too — claim_ids_without_vector
-            # makes each embed_claims run a no-op once nothing is pending, so
-            # redundant triggers are harmless rather than duplicating work.
-            if claim_count > 0 and EmbeddingSettings.from_env().embedding_autorun:
-                embed_job = await JobRepository(conn).create(
-                    user_id, "embed_claims", payload={"source_id": source_id}
-                )
-                embed_job_id = embed_job.id
-        if embed_job_id is not None:
-            embed_claims.send(source_id, user_id, str(embed_job_id))
     except Exception as exc:
         async with session(user_id) as conn:
             await JobRepository(conn).record_attempt(job_id, error=_public_error(str(exc)))
         raise
+
+    # Auto-enqueue embedding for this chunk's claims, deliberately OUTSIDE the
+    # extraction try/except above and in its own try/except: a failure here
+    # (malformed embedding env var, broker hiccup sending the message) must
+    # never flip the already-completed extraction job back to failed, or
+    # trigger a dramatiq retry that silently overwrites its real result
+    # counts with a placeholder on re-completion. Sibling chunks for the same
+    # source may also trigger this — claim_ids_without_vector makes each
+    # embed_claims run a no-op once nothing is pending, so redundant triggers
+    # are harmless rather than duplicating work.
+    if claim_count > 0:
+        try:
+            if EmbeddingSettings.from_env().embedding_autorun:
+                async with session(user_id) as conn:
+                    embed_job = await JobRepository(conn).create(
+                        user_id, "embed_claims", payload={"source_id": source_id}
+                    )
+                embed_claims.send(source_id, user_id, str(embed_job.id))
+        except Exception as exc:
+            logger.warning(
+                "failed to auto-enqueue embed_claims for source %s: %s", source_id, exc
+            )
 
 
 # dramatiq's default 10-minute per-call time limit forcibly kills any single
