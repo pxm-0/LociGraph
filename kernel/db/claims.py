@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
-from typing import Any, List
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import text
@@ -121,7 +121,7 @@ class ClaimRepository(BaseRepository):
         ).scalar_one()
         return result
 
-    async def list_for_source(self, source_id: str | UUID) -> List[Claim]:
+    async def list_for_source(self, source_id: str | UUID) -> list[Claim]:
         rows = (
             await self.conn.execute(
                 text(
