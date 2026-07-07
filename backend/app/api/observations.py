@@ -39,3 +39,17 @@ async def list_observations(
         }
         for o in obs
     ]
+
+
+@router.get("/observations/count")
+async def count_observations(
+    source_id: str | None = None,
+    speaker: str | None = None,
+    status: str | None = None,
+    user_id: str = Depends(get_current_user),
+) -> dict[str, int]:
+    async with session(user_id) as conn:
+        total = await ObservationRepository(conn).count(
+            source_id=source_id, speaker=speaker, status=status
+        )
+    return {"total": total}

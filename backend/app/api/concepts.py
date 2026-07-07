@@ -72,6 +72,17 @@ async def list_concepts(
         return [await serialize_concept(concept, concepts) for concept in rows]
 
 
+@router.get("/concepts/count")
+async def count_concepts(
+    concept_type: str | None = None,
+    status: str | None = None,
+    user_id: str = Depends(get_current_user),
+) -> dict[str, int]:
+    async with session(user_id) as conn:
+        total = await ConceptRepository(conn).count(concept_type=concept_type, status=status)
+    return {"total": total}
+
+
 @router.get("/concepts/{concept_id}")
 async def get_concept(
     concept_id: str,

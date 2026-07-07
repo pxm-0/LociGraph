@@ -37,3 +37,27 @@ async def test_list_observations_for_current_user(client, seeded_user):  # type:
 async def test_observations_requires_auth(client):  # type: ignore[no-untyped-def]
     r = await client.get("/observations")
     assert r.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_observations_count_reflects_total_not_just_the_page(client, seeded_user):  # type: ignore[no-untyped-def]
+    async with session(str(seeded_user)) as conn:
+        src = await SourceRepository(conn).create(str(seeded_user), "json", "obs-count-api")
+        await ObservationRepository(conn).bulk_insert(
+            [{"content": "one"}, {"content": "two"}, {"content": "three"}],
+            src.id,
+            str(seeded_user),
+        )
+    await _login(client)
+    total = await client.get("/observations/count", params={"source_id": str(src.id)})
+    paged = await client.get(
+        "/observations", params={"source_id": str(src.id), "limit": 1}
+    )
+
+    assert total.status_code == 200
+    assert total.json() == {"total": 3}
+    assert len(paged.json()) == 1
+
+    async with session(str(seeded_user)) as conn:
+        await conn.execute(text("DELETE FROM observations"))
+        await conn.execute(text("DELETE FROM sources"))

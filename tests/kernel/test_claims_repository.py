@@ -120,3 +120,44 @@ async def test_claim_and_candidate_create_strip_nul_bytes(make_user):
         )
         assert "\x00" not in candidate.candidate_name
         assert "\x00" not in candidate.rationale
+
+
+@pytest.mark.asyncio
+async def test_count_respects_filters(make_user):
+    user_id = await make_user()
+    async with session(user_id) as conn:
+        source = await SourceRepository(conn).create(user_id, "json", "claims-count")
+        [obs_id] = await ObservationRepository(conn).bulk_insert(
+            [{"content": "Gamma"}], source.id, user_id
+        )
+        repo = ClaimRepository(conn)
+        await repo.create(
+            user_id=user_id,
+            source_id=source.id,
+            observation_id=obs_id,
+            claim_text="Gamma is present.",
+            claim_type="fact",
+            confidence=0.8,
+            extraction_method="test",
+            model_name="fake",
+            prompt_version="v1",
+        )
+        await repo.create(
+            user_id=user_id,
+            source_id=source.id,
+            observation_id=obs_id,
+            claim_text="Gamma matters.",
+            claim_type="preference",
+            confidence=0.6,
+            extraction_method="test",
+            model_name="fake",
+            prompt_version="v1",
+        )
+
+        total = await repo.count(source_id=source.id)
+        by_type = await repo.count(source_id=source.id, claim_type="preference")
+        none_match = await repo.count(source_id=source.id, claim_type="event")
+
+    assert total == 2
+    assert by_type == 1
+    assert none_match == 0

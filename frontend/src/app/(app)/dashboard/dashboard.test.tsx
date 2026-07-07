@@ -1,16 +1,34 @@
 import { render, screen, waitFor } from "@testing-library/react"
 import { expect, vi, describe, it, beforeEach } from "vitest"
 import { ThemeProvider } from "@/lib/theme"
-import type { Source } from "@/lib/types"
+import type { DashboardSummary, Source } from "@/lib/types"
 import DashboardPage from "./page"
 
 // Mock the api module
 vi.mock("@/lib/api", () => ({
   listSources: vi.fn(),
+  getDashboardSummary: vi.fn().mockResolvedValue({
+    sourceCount: 0,
+    observationCount: 0,
+    claimCount: 0,
+    conceptCount: 0,
+    pendingJobCount: 0,
+    recentSources: [],
+  }),
 }))
 
-import { listSources } from "@/lib/api"
+import { getDashboardSummary, listSources } from "@/lib/api"
 const mockListSources = vi.mocked(listSources)
+const mockGetDashboardSummary = vi.mocked(getDashboardSummary)
+
+const EMPTY_SUMMARY: DashboardSummary = {
+  sourceCount: 0,
+  observationCount: 0,
+  claimCount: 0,
+  conceptCount: 0,
+  pendingJobCount: 0,
+  recentSources: [],
+}
 
 const MOCK_SOURCES: Source[] = [
   {
@@ -73,6 +91,23 @@ describe("DashboardPage", () => {
       expect(screen.getByLabelText("Verified: 2")).toBeInTheDocument()
       // In-flight = 1 (PENDING)
       expect(screen.getByLabelText("In-flight: 1")).toBeInTheDocument()
+    })
+  })
+
+  it("renders real observation/claim/concept totals from the summary endpoint", async () => {
+    mockListSources.mockResolvedValueOnce(MOCK_SOURCES)
+    mockGetDashboardSummary.mockResolvedValueOnce({
+      ...EMPTY_SUMMARY,
+      observationCount: 39721,
+      claimCount: 17676,
+      conceptCount: 412,
+    })
+    renderDashboard()
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Observations: 39721")).toBeInTheDocument()
+      expect(screen.getByLabelText("Claims: 17676")).toBeInTheDocument()
+      expect(screen.getByLabelText("Concepts: 412")).toBeInTheDocument()
     })
   })
 

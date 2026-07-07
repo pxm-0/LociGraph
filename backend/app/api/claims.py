@@ -55,6 +55,24 @@ async def list_claims(
     return [serialize_claim(claim) for claim in claims]
 
 
+@router.get("/claims/count")
+async def count_claims(
+    source_id: str | None = None,
+    observation_id: str | None = None,
+    claim_type: str | None = None,
+    status: str | None = None,
+    user_id: str = Depends(get_current_user),
+) -> dict[str, int]:
+    async with session(user_id) as conn:
+        total = await ClaimRepository(conn).count(
+            source_id=source_id,
+            observation_id=observation_id,
+            claim_type=claim_type,
+            status=status,
+        )
+    return {"total": total}
+
+
 @router.get("/claims/{claim_id}")
 async def get_claim(
     claim_id: str,

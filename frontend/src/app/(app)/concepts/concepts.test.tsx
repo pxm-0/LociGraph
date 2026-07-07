@@ -6,10 +6,12 @@ import ConceptsPage from "./page"
 
 vi.mock("@/lib/api", () => ({
   listConcepts: vi.fn(),
+  getConceptsCount: vi.fn().mockResolvedValue(0),
 }))
 
-import { listConcepts } from "@/lib/api"
+import { getConceptsCount, listConcepts } from "@/lib/api"
 const mockListConcepts = vi.mocked(listConcepts)
+const mockGetConceptsCount = vi.mocked(getConceptsCount)
 
 const MOCK_CONCEPTS: Concept[] = [
   {
@@ -43,6 +45,7 @@ describe("ConceptsPage", () => {
 
   it("renders all concepts with type badge and claim count after load", async () => {
     mockListConcepts.mockResolvedValueOnce(MOCK_CONCEPTS)
+    mockGetConceptsCount.mockResolvedValueOnce(MOCK_CONCEPTS.length)
     renderConcepts()
 
     await waitFor(() => {
@@ -58,6 +61,7 @@ describe("ConceptsPage", () => {
 
   it("filters to only person rows when the Person pill is clicked", async () => {
     mockListConcepts.mockResolvedValueOnce(MOCK_CONCEPTS)
+    mockGetConceptsCount.mockResolvedValueOnce(MOCK_CONCEPTS.length)
     renderConcepts()
 
     await waitFor(() => {
@@ -81,11 +85,23 @@ describe("ConceptsPage", () => {
 
   it("shows count badge after load", async () => {
     mockListConcepts.mockResolvedValueOnce(MOCK_CONCEPTS)
+    mockGetConceptsCount.mockResolvedValueOnce(MOCK_CONCEPTS.length)
     renderConcepts()
 
     await waitFor(() => {
       expect(screen.getAllByText("2").length).toBeGreaterThan(0)
     })
+  })
+
+  it("shows a partial-progress badge and a Load more button when more exist than loaded", async () => {
+    mockListConcepts.mockResolvedValueOnce(MOCK_CONCEPTS)
+    mockGetConceptsCount.mockResolvedValueOnce(50)
+    renderConcepts()
+
+    await waitFor(() => {
+      expect(screen.getByText("2 of 50")).toBeInTheDocument()
+    })
+    expect(screen.getByRole("button", { name: "Load more" })).toBeInTheDocument()
   })
 
   it("shows page title Concepts", () => {

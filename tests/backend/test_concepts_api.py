@@ -181,6 +181,27 @@ async def test_list_concepts_filters_by_type_and_status(client, seeded_user):  #
 
 
 @pytest.mark.asyncio
+async def test_concepts_count_reflects_total_not_just_the_page(client, seeded_user):  # type: ignore[no-untyped-def]
+    # seeded_user accrues concepts across tests with no cleanup, so scope the
+    # assertion to a concept_type unique to this test rather than the total.
+    async with session(seeded_user) as conn:
+        await ConceptRepository(conn).create(
+            user_id=seeded_user, concept_name="Zeta", concept_type="event"
+        )
+        await ConceptRepository(conn).create(
+            user_id=seeded_user, concept_name="Eta", concept_type="event"
+        )
+
+    await _login(client)
+    total = await client.get("/concepts/count", params={"concept_type": "event"})
+    paged = await client.get("/concepts", params={"concept_type": "event", "limit": 1})
+
+    assert total.status_code == 200
+    assert total.json() == {"total": 2}
+    assert len(paged.json()) == 1
+
+
+@pytest.mark.asyncio
 async def test_get_concept_returns_claim_count(client, seeded_user):  # type: ignore[no-untyped-def]
     async with session(seeded_user) as conn:
         source = await SourceRepository(conn).create(seeded_user, "json", "concepts-api-8")

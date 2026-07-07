@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
-import { listObservations } from "@/lib/api"
+import { getObservationsCount, listObservations } from "@/lib/api"
 import type { Observation } from "@/lib/types"
 import { ObservationCard } from "@/components/domain/ObservationCard"
 import { Skeleton } from "@/components/ui/Skeleton"
@@ -21,9 +21,9 @@ function SkeletonCards() {
 
 export default function ObservationsPage() {
   const [observations, setObservations] = useState<Observation[] | null>(null)
+  const [total, setTotal] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [hasMore, setHasMore] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
 
   // Filter field state (uncommitted until Apply)
@@ -39,20 +39,23 @@ export default function ObservationsPage() {
   const fetchObservations = useCallback(
     (src: string, spk: string, sts: string) => {
       setObservations(null)
+      setTotal(null)
       setError(null)
       let cancelled = false
-
-      listObservations({
+      const filters = {
         ...(src ? { sourceId: src } : {}),
         ...(spk ? { speaker: spk } : {}),
         ...(sts ? { status: sts } : {}),
-        limit: PAGE_SIZE,
-        offset: 0,
-      })
-        .then((data) => {
+      }
+
+      Promise.all([
+        listObservations({ ...filters, limit: PAGE_SIZE, offset: 0 }),
+        getObservationsCount(filters),
+      ])
+        .then(([data, count]) => {
           if (!cancelled) {
             setObservations(data)
-            setHasMore(data.length === PAGE_SIZE)
+            setTotal(count)
           }
         })
         .catch((err: unknown) => {
@@ -73,6 +76,8 @@ export default function ObservationsPage() {
     return cancel
   }, [activeSource, activeSpeaker, activeStatus, fetchObservations])
 
+  const hasMore = observations !== null && total !== null && observations.length < total
+
   const loadMore = useCallback(async () => {
     if (loadingMore || !hasMore || observations === null) return
     setLoadingMore(true)
@@ -85,7 +90,6 @@ export default function ObservationsPage() {
         offset: observations.length,
       })
       setObservations((prev) => [...(prev ?? []), ...data])
-      setHasMore(data.length === PAGE_SIZE)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load observations")
     } finally {
@@ -105,7 +109,14 @@ export default function ObservationsPage() {
   return (
     <div className="space-y-6 p-8">
       {/* Page heading */}
-      <h1 className="font-heading text-2xl font-medium text-ink">Observations</h1>
+      <div className="flex items-baseline gap-3">
+        <h1 className="font-heading text-2xl font-medium text-ink">Observations</h1>
+        {observations !== null && total !== null && (
+          <span className="rounded-meridian border border-hairline bg-surface px-2 py-0.5 font-mono text-xs text-accent">
+            {observations.length < total ? `${observations.length} of ${total}` : total}
+          </span>
+        )}
+      </div>
 
       {/* Filter bar */}
       <form

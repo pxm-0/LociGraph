@@ -91,3 +91,41 @@ async def test_claim_get_is_tenant_scoped(client, seeded_user, make_user):  # ty
     await _login(client)
     assert (await client.get(f"/claims/{claim.id}")).status_code == 404
     assert (await client.get("/claims", params={"source_id": str(source.id)})).json() == []
+
+
+@pytest.mark.asyncio
+async def test_claims_count_reflects_total_not_just_the_page(client, seeded_user):  # type: ignore[no-untyped-def]
+    async with session(seeded_user) as conn:
+        source = await SourceRepository(conn).create(seeded_user, "json", "claims-count-api")
+        obs_ids = await ObservationRepository(conn).bulk_insert(
+            [{"content": "one"}, {"content": "two"}], source.id, seeded_user
+        )
+        for i, obs_id in enumerate(obs_ids):
+            await ClaimRepository(conn).create(
+                user_id=seeded_user,
+                source_id=source.id,
+                observation_id=obs_id,
+                claim_text=f"Claim {i}.",
+                claim_type="fact",
+                confidence=0.9,
+                extraction_method="test",
+                model_name="fake",
+                prompt_version="v1",
+            )
+
+    await _login(client)
+    r = await client.get(
+        "/claims/count", params={"source_id": str(source.id)}
+    )
+    paged = await client.get(
+        "/claims", params={"source_id": str(source.id), "limit": 1}
+    )
+
+    assert r.status_code == 200
+    assert r.json() == {"total": 2}
+    assert len(paged.json()) == 1  # the page is smaller than the real total
+
+    async with session(seeded_user) as conn:
+        await conn.execute(text("DELETE FROM claims"))
+        await conn.execute(text("DELETE FROM observations"))
+        await conn.execute(text("DELETE FROM sources"))

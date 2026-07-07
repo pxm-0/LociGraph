@@ -128,3 +128,20 @@ async def test_edge_create_is_idempotent_for_same_claim_and_concept(make_user):
     assert first is not None
     assert second is None
     assert len(edges) == 1
+
+
+@pytest.mark.asyncio
+async def test_count_respects_filters(make_user):
+    user_id = await make_user()
+    async with session(user_id) as conn:
+        repo = ConceptRepository(conn)
+        await repo.create(user_id=user_id, concept_name="Careful Plans", concept_type="idea")
+        await repo.create(user_id=user_id, concept_name="Bob", concept_type="person")
+
+        total = await repo.count()
+        ideas = await repo.count(concept_type="idea")
+        none_match = await repo.count(concept_type="place")
+
+    assert total == 2  # noqa: PLR2004
+    assert ideas == 1
+    assert none_match == 0

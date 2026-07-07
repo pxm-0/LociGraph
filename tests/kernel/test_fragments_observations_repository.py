@@ -103,3 +103,8 @@ async def test_filtered_list_by_source_and_speaker(make_user):
         # limit / offset
         paged = await ObservationRepository(conn).list(limit=2, offset=0)
         assert len(paged) == 2
+
+        # count() mirrors list()'s filters
+        assert await ObservationRepository(conn).count(source_id=src_a.id) == 2
+        assert await ObservationRepository(conn).count(source_id=src_a.id, speaker="alice") == 1
+        assert await ObservationRepository(conn).count(speaker="nobody") == 0

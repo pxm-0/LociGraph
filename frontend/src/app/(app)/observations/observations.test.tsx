@@ -7,10 +7,12 @@ import ObservationsPage from "./page"
 
 vi.mock("@/lib/api", () => ({
   listObservations: vi.fn(),
+  getObservationsCount: vi.fn().mockResolvedValue(0),
 }))
 
-import { listObservations } from "@/lib/api"
+import { getObservationsCount, listObservations } from "@/lib/api"
 const mockListObservations = vi.mocked(listObservations)
+const mockGetObservationsCount = vi.mocked(getObservationsCount)
 
 const MOCK_OBSERVATIONS: Observation[] = [
   {
@@ -139,6 +141,7 @@ describe("ObservationsPage", () => {
     const speakerInput = screen.getByPlaceholderText(/speaker/i)
     await userEvent.type(speakerInput, "x")
     mockListObservations.mockResolvedValueOnce(fullPage)
+    mockGetObservationsCount.mockResolvedValueOnce(150)
     await userEvent.click(screen.getByRole("button", { name: /apply/i }))
 
     await waitFor(() => {
@@ -166,6 +169,7 @@ describe("ObservationsPage", () => {
 
   it("does not show Load more for a short page", async () => {
     mockListObservations.mockResolvedValueOnce(makeObservations(10))
+    mockGetObservationsCount.mockResolvedValueOnce(10)
     renderPage()
 
     await waitFor(() => {
@@ -177,6 +181,7 @@ describe("ObservationsPage", () => {
 
   it("resets to a fresh single page when a new filter is applied", async () => {
     mockListObservations.mockResolvedValueOnce(makeObservations(100))
+    mockGetObservationsCount.mockResolvedValueOnce(150)
     renderPage()
 
     const loadMoreBtn = await screen.findByRole("button", { name: /load more/i })
@@ -190,6 +195,7 @@ describe("ObservationsPage", () => {
     const speakerInput = screen.getByPlaceholderText(/speaker/i)
     await userEvent.type(speakerInput, "y")
     mockListObservations.mockResolvedValueOnce(makeObservations(5))
+    mockGetObservationsCount.mockResolvedValueOnce(5)
     await userEvent.click(screen.getByRole("button", { name: /apply/i }))
 
     await waitFor(() => {

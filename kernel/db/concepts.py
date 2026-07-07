@@ -113,6 +113,23 @@ class ConceptRepository(BaseRepository):
         ).scalar_one()
         return result
 
+    async def count(
+        self, *, concept_type: str | None = None, status: str | None = None
+    ) -> int:
+        clauses = []
+        params: dict[str, Any] = {}
+        if concept_type is not None:
+            clauses.append("concept_type = :concept_type")
+            params["concept_type"] = concept_type
+        if status is not None:
+            clauses.append("status = :status")
+            params["status"] = status
+        where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
+        result: int = (
+            await self.conn.execute(text(f"SELECT count(*) FROM concepts {where}"), params)
+        ).scalar_one()
+        return result
+
     async def list(
         self,
         *,

@@ -1,9 +1,9 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { listSources } from "@/lib/api"
+import { getDashboardSummary, listSources } from "@/lib/api"
 import { summarize } from "@/lib/derive"
-import type { Source } from "@/lib/types"
+import type { DashboardSummary, Source } from "@/lib/types"
 import { Skeleton } from "@/components/ui/Skeleton"
 import { StatusBadge } from "@/components/ui/StatusBadge"
 import { StatCard } from "@/components/domain/StatCard"
@@ -15,6 +15,11 @@ function DashboardSkeletons() {
     <>
       {/* Stat area skeletons — asymmetric: one wide + two narrow */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-[2fr_1fr_1fr]">
+        <Skeleton className="h-28" />
+        <Skeleton className="h-28" />
+        <Skeleton className="h-28" />
+      </div>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <Skeleton className="h-28" />
         <Skeleton className="h-28" />
         <Skeleton className="h-28" />
@@ -31,13 +36,17 @@ function DashboardSkeletons() {
 
 export default function DashboardPage() {
   const [sources, setSources] = useState<Source[] | null>(null)
+  const [summary, setSummary] = useState<DashboardSummary | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
-    listSources()
-      .then((data) => {
-        if (!cancelled) setSources(data)
+    Promise.all([listSources(), getDashboardSummary()])
+      .then(([sourceData, summaryData]) => {
+        if (!cancelled) {
+          setSources(sourceData)
+          setSummary(summaryData)
+        }
       })
       .catch((err: unknown) => {
         if (!cancelled) {
@@ -91,6 +100,17 @@ export default function DashboardPage() {
               <StatCard value={stats.inFlight} label="In-flight" />
             </div>
           </section>
+
+          {/* Knowledge extracted — real totals across the whole archive, not just what's loaded on a page */}
+          {summary !== null && (
+            <section aria-label="Extraction statistics">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <StatCard value={summary.observationCount} label="Observations" />
+                <StatCard value={summary.claimCount} label="Claims" />
+                <StatCard value={summary.conceptCount} label="Concepts" />
+              </div>
+            </section>
+          )}
 
           {/* Recent activity */}
           <section aria-label="Recent ingestions">

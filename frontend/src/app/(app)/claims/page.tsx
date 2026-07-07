@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { listClaims } from "@/lib/api"
+import { getClaimsCount, listClaims } from "@/lib/api"
 import type { Claim } from "@/lib/types"
 import { ConceptCandidateReview } from "@/components/domain/ConceptCandidateReview"
 import { Badge } from "@/components/ui/Badge"
@@ -25,19 +25,19 @@ const PAGE_SIZE = 100
 
 export default function ClaimsPage() {
   const [claims, setClaims] = useState<Claim[] | null>(null)
+  const [total, setTotal] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [claimType, setClaimType] = useState("ALL")
   const [query, setQuery] = useState("")
-  const [hasMore, setHasMore] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
 
   useEffect(() => {
     let cancelled = false
-    listClaims({ limit: PAGE_SIZE, offset: 0 })
-      .then((data) => {
+    Promise.all([listClaims({ limit: PAGE_SIZE, offset: 0 }), getClaimsCount()])
+      .then(([data, count]) => {
         if (!cancelled) {
           setClaims(data)
-          setHasMore(data.length === PAGE_SIZE)
+          setTotal(count)
         }
       })
       .catch((err: unknown) => {
@@ -50,13 +50,14 @@ export default function ClaimsPage() {
     }
   }, [])
 
+  const hasMore = claims !== null && total !== null && claims.length < total
+
   async function loadMore() {
     if (loadingMore || !hasMore || claims === null) return
     setLoadingMore(true)
     try {
       const data = await listClaims({ limit: PAGE_SIZE, offset: claims.length })
       setClaims((prev) => [...(prev ?? []), ...data])
-      setHasMore(data.length === PAGE_SIZE)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load claims")
     } finally {
@@ -80,9 +81,9 @@ export default function ClaimsPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex items-baseline gap-3">
           <h1 className="font-heading text-2xl font-medium text-ink">Claims</h1>
-          {claims !== null && (
+          {claims !== null && total !== null && (
             <span className="rounded-meridian border border-hairline bg-surface px-2 py-0.5 font-mono text-xs text-accent">
-              {claims.length}
+              {claims.length < total ? `${claims.length} of ${total}` : total}
             </span>
           )}
         </div>

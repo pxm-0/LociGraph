@@ -7,11 +7,13 @@ import ClaimsPage from "./page"
 
 vi.mock("@/lib/api", () => ({
   listClaims: vi.fn(),
+  getClaimsCount: vi.fn().mockResolvedValue(0),
   listConceptCandidates: vi.fn().mockResolvedValue([]),
 }))
 
-import { listClaims } from "@/lib/api"
+import { getClaimsCount, listClaims } from "@/lib/api"
 const mockListClaims = vi.mocked(listClaims)
+const mockGetClaimsCount = vi.mocked(getClaimsCount)
 
 function makeClaims(count: number, offset = 0): Claim[] {
   return Array.from({ length: count }, (_, i) => ({
@@ -55,6 +57,7 @@ describe("ClaimsPage", () => {
 
   it("shows Load more when a full page is returned, and appends the next page on click", async () => {
     mockListClaims.mockResolvedValueOnce(makeClaims(100))
+    mockGetClaimsCount.mockResolvedValueOnce(150)
     renderPage()
 
     await waitFor(() => {
@@ -74,6 +77,7 @@ describe("ClaimsPage", () => {
 
   it("does not show Load more when the first page is short", async () => {
     mockListClaims.mockResolvedValueOnce(makeClaims(10))
+    mockGetClaimsCount.mockResolvedValueOnce(10)
     renderPage()
 
     await waitFor(() => {
@@ -85,6 +89,7 @@ describe("ClaimsPage", () => {
 
   it("hides Load more after a short subsequent page is loaded", async () => {
     mockListClaims.mockResolvedValueOnce(makeClaims(100))
+    mockGetClaimsCount.mockResolvedValueOnce(110)
     renderPage()
 
     const loadMoreBtn = await screen.findByRole("button", { name: /load more/i })
@@ -99,6 +104,7 @@ describe("ClaimsPage", () => {
 
   it("shows inline error when loadMore fetch fails", async () => {
     mockListClaims.mockResolvedValueOnce(makeClaims(100))
+    mockGetClaimsCount.mockResolvedValueOnce(150)
     renderPage()
 
     const loadMoreBtn = await screen.findByRole("button", { name: /load more/i })

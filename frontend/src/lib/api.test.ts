@@ -1,5 +1,16 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest"
-import { ApiError, getSource, listObservations, listSources, login, me, uploadSource } from "./api"
+import {
+  ApiError,
+  getClaimsCount,
+  getConceptsCount,
+  getObservationsCount,
+  getSource,
+  listObservations,
+  listSources,
+  login,
+  me,
+  uploadSource,
+} from "./api"
 
 function mockFetch(status: number, body: unknown) {
   return vi.fn().mockResolvedValue({
@@ -73,4 +84,22 @@ test("listObservations forwards filters as query params", async () => {
   expect(url).toContain("source_id=s1")
   expect(url).toContain("speaker=me")
   expect(url).toContain("limit=10")
+})
+
+test("getObservationsCount hits /observations/count and returns the real total, not a page size", async () => {
+  vi.stubGlobal("fetch", mockFetch(200, { total: 39721 }))
+  expect(await getObservationsCount({ sourceId: "s1" })).toBe(39721)
+})
+
+test("getClaimsCount hits /claims/count and returns the real total", async () => {
+  const f = mockFetch(200, { total: 17676 }); vi.stubGlobal("fetch", f)
+  expect(await getClaimsCount({ sourceId: "s1", claimType: "fact" })).toBe(17676)
+  const [url] = f.mock.calls[0]
+  expect(url).toContain("/api/claims/count?")
+  expect(url).toContain("claim_type=fact")
+})
+
+test("getConceptsCount hits /concepts/count and returns the real total", async () => {
+  vi.stubGlobal("fetch", mockFetch(200, { total: 412 }))
+  expect(await getConceptsCount()).toBe(412)
 })

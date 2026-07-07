@@ -86,6 +86,8 @@ export interface Concept {
 export interface DashboardSummary {
   sourceCount: number
   observationCount: number
+  claimCount: number
+  conceptCount: number
   pendingJobCount: number
   recentSources: Source[]
 }

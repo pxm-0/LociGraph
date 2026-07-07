@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { listConcepts } from "@/lib/api"
+import { getConceptsCount, listConcepts } from "@/lib/api"
 import type { Concept } from "@/lib/types"
 import { Badge } from "@/components/ui/Badge"
 import { Skeleton } from "@/components/ui/Skeleton"
@@ -20,6 +20,8 @@ const CONCEPT_TYPES = [
   "project",
 ] as const
 
+const PAGE_SIZE = 100
+
 function SkeletonRows() {
   return (
     <>
@@ -36,14 +38,19 @@ function SkeletonRows() {
 
 export default function ConceptsPage() {
   const [concepts, setConcepts] = useState<Concept[] | null>(null)
+  const [total, setTotal] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [conceptType, setConceptType] = useState("ALL")
+  const [loadingMore, setLoadingMore] = useState(false)
 
   useEffect(() => {
     let cancelled = false
-    listConcepts({ limit: 100 })
-      .then((data) => {
-        if (!cancelled) setConcepts(data)
+    Promise.all([listConcepts({ limit: PAGE_SIZE, offset: 0 }), getConceptsCount()])
+      .then(([data, count]) => {
+        if (!cancelled) {
+          setConcepts(data)
+          setTotal(count)
+        }
       })
       .catch((err: unknown) => {
         if (!cancelled) {
@@ -55,6 +62,21 @@ export default function ConceptsPage() {
     }
   }, [])
 
+  const hasMore = concepts !== null && total !== null && concepts.length < total
+
+  async function loadMore() {
+    if (loadingMore || !hasMore || concepts === null) return
+    setLoadingMore(true)
+    try {
+      const data = await listConcepts({ limit: PAGE_SIZE, offset: concepts.length })
+      setConcepts((prev) => [...(prev ?? []), ...data])
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to load concepts")
+    } finally {
+      setLoadingMore(false)
+    }
+  }
+
   const isLoading = concepts === null && error === null
   const filtered = concepts
     ? concepts.filter((c) => conceptType === "ALL" || c.conceptType === conceptType)
@@ -64,9 +86,9 @@ export default function ConceptsPage() {
     <div className="space-y-6 p-8">
       <div className="flex items-baseline gap-3">
         <h1 className="font-heading text-2xl font-medium text-ink">Concepts</h1>
-        {concepts !== null && (
+        {concepts !== null && total !== null && (
           <span className="rounded-meridian border border-hairline bg-surface px-2 py-0.5 font-mono text-xs text-accent">
-            {concepts.length}
+            {concepts.length < total ? `${concepts.length} of ${total}` : total}
           </span>
         )}
       </div>
@@ -131,6 +153,17 @@ export default function ConceptsPage() {
 
       {!isLoading && error === null && filtered.length === 0 && (
         <p className="px-5 text-sm text-muted">No concepts match this filter.</p>
+      )}
+
+      {hasMore && error === null && (
+        <button
+          className="rounded-meridian bg-ember px-4 py-1.5 font-mono text-xs uppercase tracking-widest text-void transition-colors hover:opacity-90 disabled:opacity-50"
+          disabled={loadingMore}
+          onClick={loadMore}
+          type="button"
+        >
+          {loadingMore ? "Loading…" : "Load more"}
+        </button>
       )}
     </div>
   )

@@ -143,6 +143,8 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
   return {
     sourceCount: Number(d.source_count ?? 0),
     observationCount: Number(d.observation_count ?? 0),
+    claimCount: Number(d.claim_count ?? 0),
+    conceptCount: Number(d.concept_count ?? 0),
     pendingJobCount: Number(d.pending_job_count ?? 0),
     recentSources: ((d.recent_sources ?? []) as Record<string, unknown>[]).map(toSource),
   }
@@ -194,6 +196,18 @@ export async function listObservations(q: ObservationQuery = {}): Promise<Observ
   return (await r.json()).map(toObservation)
 }
 
+export async function getObservationsCount(
+  q: Pick<ObservationQuery, "sourceId" | "speaker" | "status"> = {}
+): Promise<number> {
+  const params = new URLSearchParams()
+  if (q.sourceId) params.set("source_id", q.sourceId)
+  if (q.speaker) params.set("speaker", q.speaker)
+  if (q.status) params.set("status", q.status)
+  const r = await req(`/observations/count?${params.toString()}`)
+  if (!r.ok) throw await readError(r, "getObservationsCount failed")
+  return Number((await r.json()).total ?? 0)
+}
+
 export interface ClaimQuery {
   sourceId?: string
   observationId?: string
@@ -214,6 +228,19 @@ export async function listClaims(q: ClaimQuery = {}): Promise<Claim[]> {
   const r = await req(`/claims?${params.toString()}`)
   if (!r.ok) throw await readError(r, "listClaims failed")
   return (await r.json()).map(toClaim)
+}
+
+export async function getClaimsCount(
+  q: Pick<ClaimQuery, "sourceId" | "observationId" | "claimType" | "status"> = {}
+): Promise<number> {
+  const params = new URLSearchParams()
+  if (q.sourceId) params.set("source_id", q.sourceId)
+  if (q.observationId) params.set("observation_id", q.observationId)
+  if (q.claimType) params.set("claim_type", q.claimType)
+  if (q.status) params.set("status", q.status)
+  const r = await req(`/claims/count?${params.toString()}`)
+  if (!r.ok) throw await readError(r, "getClaimsCount failed")
+  return Number((await r.json()).total ?? 0)
 }
 
 export async function getClaim(id: string): Promise<Claim | null> {
@@ -284,6 +311,17 @@ export async function listConcepts(q: ConceptQuery = {}): Promise<Concept[]> {
   const r = await req(`/concepts?${params.toString()}`)
   if (!r.ok) throw await readError(r, "listConcepts failed")
   return (await r.json()).map(toConcept)
+}
+
+export async function getConceptsCount(
+  q: Pick<ConceptQuery, "conceptType" | "status"> = {}
+): Promise<number> {
+  const params = new URLSearchParams()
+  if (q.conceptType) params.set("concept_type", q.conceptType)
+  if (q.status) params.set("status", q.status)
+  const r = await req(`/concepts/count?${params.toString()}`)
+  if (!r.ok) throw await readError(r, "getConceptsCount failed")
+  return Number((await r.json()).total ?? 0)
 }
 
 export async function getConcept(conceptId: string): Promise<Concept | null> {
