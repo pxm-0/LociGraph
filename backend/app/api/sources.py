@@ -19,6 +19,7 @@ from kernel.db.sources import SourceRepository
 from kernel.ingestion.base import SourceType
 from kernel.models import Source
 from kernel.storage import delete_raw, save_raw
+from worker.tasks.embed_claims import embed_claims
 from worker.tasks.extract_claims import dispatch_claim_extraction_jobs, plan_claim_extraction_jobs
 
 router = APIRouter()
@@ -131,6 +132,24 @@ async def extract_source_claims(
         jobs = await plan_claim_extraction_jobs(conn, source_id, user_id, force=force)
     dispatch_claim_extraction_jobs(jobs, source_id, user_id, force)
     return {"job_ids": [str(job_id) for job_id, _ in jobs], "status": "pending"}
+
+
+@router.post("/sources/{source_id}/embed-claims", status_code=202)
+async def embed_source_claims(
+    source_id: str,
+    user_id: str = Depends(get_current_user),
+) -> dict[str, Any]:
+    async with session(user_id) as conn:
+        source = await SourceRepository(conn).get(source_id)
+        if source is None:
+            raise HTTPException(status_code=404, detail="not found")
+        if source.import_status != "VERIFIED":
+            raise HTTPException(status_code=409, detail="source is not verified")
+        job = await JobRepository(conn).create(
+            user_id, "embed_claims", payload={"source_id": source_id}
+        )
+    embed_claims.send(source_id, user_id, str(job.id))
+    return {"job_id": str(job.id), "status": "pending"}
 
 
 @router.post("/sources/{source_id}/purge")

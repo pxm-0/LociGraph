@@ -32,6 +32,16 @@ def _no_extraction_broker(monkeypatch):  # type: ignore[no-untyped-def]
     return calls
 
 
+@pytest.fixture
+def _no_embedding_broker(monkeypatch):  # type: ignore[no-untyped-def]
+    calls: list[tuple[object, ...]] = []
+    monkeypatch.setattr(
+        "backend.app.api.sources.embed_claims.send",
+        lambda *a, **k: calls.append(a),
+    )
+    return calls
+
+
 async def _login(client):  # type: ignore[no-untyped-def]
     await client.post("/auth/login", json={"password": os.environ["LOCIGRAPH_PASSWORD"]})
 
@@ -185,6 +195,51 @@ async def test_manual_claim_extraction_rejects_inaccessible_source(
 
     assert r.status_code == 404
     assert _no_extraction_broker == []
+
+
+@pytest.mark.asyncio
+async def test_manual_embed_claims_creates_job(client, seeded_user, _no_embedding_broker):  # type: ignore[no-untyped-def]
+    async with session(seeded_user) as conn:
+        source = await SourceRepository(conn).create(seeded_user, "json", "manual-embed")
+        await SourceRepository(conn).mark_verified(source.id)
+
+    await _login(client)
+    r = await client.post(f"/sources/{source.id}/embed-claims")
+
+    assert r.status_code == 202
+    assert "job_id" in r.json()
+    assert len(_no_embedding_broker) == 1
+
+    async with session(seeded_user) as conn:
+        await conn.execute(text("DELETE FROM jobs"))
+        await conn.execute(text("DELETE FROM sources"))
+
+
+@pytest.mark.asyncio
+async def test_manual_embed_claims_rejects_unverified_source(  # type: ignore[no-untyped-def]
+    client, seeded_user, _no_embedding_broker
+):
+    async with session(seeded_user) as conn:
+        source = await SourceRepository(conn).create(seeded_user, "json", "embed-unverified")
+
+    await _login(client)
+    r = await client.post(f"/sources/{source.id}/embed-claims")
+
+    assert r.status_code == 409
+    assert _no_embedding_broker == []
+
+    async with session(seeded_user) as conn:
+        await conn.execute(text("DELETE FROM sources"))
+
+
+@pytest.mark.asyncio
+async def test_manual_embed_claims_unknown_source_returns_404(  # type: ignore[no-untyped-def]
+    client, seeded_user, _no_embedding_broker
+):
+    await _login(client)
+    r = await client.post("/sources/00000000-0000-0000-0000-000000000000/embed-claims")
+    assert r.status_code == 404
+    assert _no_embedding_broker == []
 
 
 @pytest.mark.asyncio
