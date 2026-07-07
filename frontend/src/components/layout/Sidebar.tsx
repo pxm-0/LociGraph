@@ -22,6 +22,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Observations", href: "/observations", icon: "visibility" },
   { label: "Claims", href: "/claims", icon: "analytics" },
   { label: "Concepts", href: "/concepts", icon: "hub" },
+  { label: "Search", href: "/search", icon: "search" },
 ]
 
 // Hearth: wide left sidebar with label + icon, teal active indicator

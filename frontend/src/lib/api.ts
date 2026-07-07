@@ -5,6 +5,7 @@ import type {
   DashboardSummary,
   Job,
   Observation,
+  SearchResult,
   Source,
   SourceType,
 } from "./types"
@@ -335,4 +336,19 @@ export async function getConceptClaims(conceptId: string): Promise<Claim[]> {
   const r = await req(`/concepts/${conceptId}/claims`)
   if (!r.ok) throw await readError(r, "getConceptClaims failed")
   return (await r.json()).map(toClaim)
+}
+
+export async function search(query: string, limit = 20): Promise<SearchResult[]> {
+  const params = new URLSearchParams({ q: query, limit: String(limit) })
+  const r = await req(`/search?${params.toString()}`)
+  if (!r.ok) throw await readError(r, "search failed")
+  const rows = (await r.json()) as Record<string, unknown>[]
+  return rows.map((d) => ({ ...toClaim(d), similarity: Number(d.similarity) }))
+}
+
+export async function embedClaims(sourceId: string): Promise<{ jobId: string; status: string }> {
+  const r = await req(`/sources/${sourceId}/embed-claims`, { method: "POST" })
+  if (!r.ok) throw await readError(r, "embedClaims failed")
+  const d = await r.json()
+  return { jobId: d.job_id, status: d.status }
 }

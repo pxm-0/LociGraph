@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest"
 import {
   ApiError,
+  embedClaims,
   getClaimsCount,
   getConceptsCount,
   getObservationsCount,
@@ -9,6 +10,7 @@ import {
   listSources,
   login,
   me,
+  search,
   uploadSource,
 } from "./api"
 
@@ -102,4 +104,28 @@ test("getClaimsCount hits /claims/count and returns the real total", async () =>
 test("getConceptsCount hits /concepts/count and returns the real total", async () => {
   vi.stubGlobal("fetch", mockFetch(200, { total: 412 }))
   expect(await getConceptsCount()).toBe(412)
+})
+
+test("search sends q and limit as query params and maps similarity", async () => {
+  const f = mockFetch(200, [
+    { id: "c1", source_id: "s1", observation_id: "o1", claim_text: "hi", claim_type: "fact", confidence: 0.9, extraction_method: "test", model_name: null, prompt_version: null, status: "proposed", created_at: "2024-01-01T00:00:00Z", similarity: 0.87 },
+  ])
+  vi.stubGlobal("fetch", f)
+  const [result] = await search("hello", 5)
+  expect(result.similarity).toBe(0.87)
+  expect(result.claimText).toBe("hi")
+  const [url] = f.mock.calls[0]
+  expect(url).toContain("/api/search?")
+  expect(url).toContain("q=hello")
+  expect(url).toContain("limit=5")
+})
+
+test("embedClaims posts to /sources/:id/embed-claims and returns jobId/status", async () => {
+  const f = mockFetch(200, { job_id: "j1", status: "pending" })
+  vi.stubGlobal("fetch", f)
+  const result = await embedClaims("s1")
+  expect(result).toEqual({ jobId: "j1", status: "pending" })
+  const [url, init] = f.mock.calls[0]
+  expect(url).toBe("/api/sources/s1/embed-claims")
+  expect(init.method).toBe("POST")
 })

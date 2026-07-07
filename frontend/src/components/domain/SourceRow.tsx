@@ -15,18 +15,22 @@ function formatBytes(bytes: number | null): string {
 interface SourceRowProps {
   source: Source
   isExtracting?: boolean
+  isEmbedding?: boolean
   itemsCompleted?: number | null
   itemsTotal?: number | null
   onExtract?: (source: Source) => void
+  onEmbed?: (source: Source) => void
   onDelete?: (source: Source) => void
 }
 
 export function SourceRow({
   source,
   isExtracting = false,
+  isEmbedding = false,
   itemsCompleted = null,
   itemsTotal = null,
   onExtract,
+  onEmbed,
   onDelete,
 }: SourceRowProps) {
   const isPurged = source.importStatus === "PURGED"
@@ -34,6 +38,8 @@ export function SourceRow({
     ? "font-heading text-muted line-through"
     : "font-heading text-ink"
   const canExtract = source.importStatus === "VERIFIED" && onExtract !== undefined
+  const canEmbed =
+    source.importStatus === "VERIFIED" && source.claimCount > 0 && onEmbed !== undefined
   const canDelete = source.claimCount === 0 && !isPurged
   const showProgress = isExtracting && Boolean(itemsTotal)
 
@@ -71,6 +77,17 @@ export function SourceRow({
         >
           {isExtracting ? "Running" : source.claimCount > 0 ? "Retry" : "Extract"}
         </Button>
+        {onEmbed !== undefined && (
+          <Button
+            className="ml-2 px-3 py-1.5 font-mono text-[11px] uppercase"
+            disabled={!canEmbed || isEmbedding}
+            onClick={() => onEmbed(source)}
+            type="button"
+            variant="ghost"
+          >
+            {isEmbedding ? "Embedding" : "Embed"}
+          </Button>
+        )}
         <Button
           className="ml-2 px-3 py-1.5 font-mono text-[11px] uppercase"
           disabled={!canDelete}

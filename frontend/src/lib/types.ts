@@ -61,6 +61,10 @@ export interface Claim {
   createdAt: string
 }
 
+export interface SearchResult extends Claim {
+  similarity: number
+}
+
 export interface ConceptCandidate {
   id: string
   sourceId: string

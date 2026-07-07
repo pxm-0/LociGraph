@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react"
-import { describe, expect, it } from "vitest"
+import userEvent from "@testing-library/user-event"
+import { describe, expect, it, vi } from "vitest"
 import type { Source } from "@/lib/types"
 import { SourceRow } from "./SourceRow"
 
@@ -44,5 +45,33 @@ describe("SourceRow progress bar", () => {
     renderRow({ isExtracting: false, itemsCompleted: 5, itemsTotal: 20 })
 
     expect(screen.queryByTestId("extraction-progress-bar")).not.toBeInTheDocument()
+  })
+})
+
+describe("SourceRow embed button", () => {
+  it("is disabled when the source has no claims yet", () => {
+    renderRow({ onEmbed: () => {} })
+    expect(screen.getByRole("button", { name: "Embed" })).toBeDisabled()
+  })
+
+  it("is enabled once claims exist and calls onEmbed with the source on click", async () => {
+    const onEmbed = vi.fn()
+    renderRow({ source: { ...SOURCE, claimCount: 3 }, onEmbed })
+
+    const button = screen.getByRole("button", { name: "Embed" })
+    expect(button).not.toBeDisabled()
+    await userEvent.click(button)
+
+    expect(onEmbed).toHaveBeenCalledWith(expect.objectContaining({ id: SOURCE.id }))
+  })
+
+  it("shows Embedding and disables the button while isEmbedding is true", () => {
+    renderRow({ source: { ...SOURCE, claimCount: 3 }, onEmbed: () => {}, isEmbedding: true })
+    expect(screen.getByRole("button", { name: "Embedding" })).toBeDisabled()
+  })
+
+  it("does not render the embed button when onEmbed is not provided", () => {
+    renderRow()
+    expect(screen.queryByRole("button", { name: /embed/i })).not.toBeInTheDocument()
   })
 })
