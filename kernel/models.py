@@ -139,6 +139,39 @@ class Claim:
 
 
 @dataclass(frozen=True, slots=True)
+class SemanticVector:
+    id: UUID
+    user_id: UUID
+    claim_id: UUID
+    model_name: str
+    created_at: datetime
+    embedding: list[float]
+
+    @classmethod
+    def from_row(cls, row: Mapping[str, Any]) -> SemanticVector:
+        raw = row["embedding"]
+        parsed = (
+            [float(x) for x in raw.strip("[]").split(",")]
+            if isinstance(raw, str)
+            else list(raw)
+        )
+        return cls(
+            id=row["id"],
+            user_id=row["user_id"],
+            claim_id=row["claim_id"],
+            model_name=row["model_name"],
+            created_at=row["created_at"],
+            embedding=parsed,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class SimilarClaim:
+    claim: Claim
+    similarity: float
+
+
+@dataclass(frozen=True, slots=True)
 class ConceptCandidate:
     id: UUID
     user_id: UUID

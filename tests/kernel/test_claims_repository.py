@@ -161,3 +161,30 @@ async def test_count_respects_filters(make_user):
     assert total == 2
     assert by_type == 1
     assert none_match == 0
+
+
+@pytest.mark.asyncio
+async def test_list_for_source_returns_every_claim_unpaginated(make_user):
+    user_id = await make_user()
+    async with session(user_id) as conn:
+        source = await SourceRepository(conn).create(user_id, "json", "claims-list-for-source")
+        repo = ClaimRepository(conn)
+        for i in range(3):
+            [obs_id] = await ObservationRepository(conn).bulk_insert(
+                [{"content": f"obs {i}"}], source.id, user_id
+            )
+            await repo.create(
+                user_id=user_id,
+                source_id=source.id,
+                observation_id=obs_id,
+                claim_text=f"claim {i}",
+                claim_type="fact",
+                confidence=0.9,
+                extraction_method="test",
+                model_name="fake",
+                prompt_version="v1",
+            )
+
+        result = await repo.list_for_source(source.id)
+
+    assert len(result) == 3

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, List
 from uuid import UUID
 
 from sqlalchemy import text
@@ -120,6 +120,18 @@ class ClaimRepository(BaseRepository):
             )
         ).scalar_one()
         return result
+
+    async def list_for_source(self, source_id: str | UUID) -> List[Claim]:
+        rows = (
+            await self.conn.execute(
+                text(
+                    f"SELECT {_COLUMNS} FROM claims WHERE source_id = :source_id "
+                    "ORDER BY created_at"
+                ),
+                {"source_id": str(source_id)},
+            )
+        ).mappings().all()
+        return [Claim.from_row(_as_mapping(r)) for r in rows]
 
     async def count(
         self,

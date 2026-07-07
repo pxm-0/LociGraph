@@ -181,3 +181,41 @@ async def test_concepts_and_edges_isolated_between_tenants(make_user):
                 concept_candidate_id=candidate.id,
                 confidence=0.5,
             )
+
+
+@pytest.mark.asyncio
+async def test_semantic_vectors_isolated_between_tenants(make_user):
+    from kernel.db.semantic_vectors import SemanticVectorRepository
+
+    user_a = await make_user()
+    user_b = await make_user()
+
+    async with session(user_a) as conn:
+        src = await SourceRepository(conn).create(user_a, "json", "iso-vectors")
+        [obs_id] = await ObservationRepository(conn).bulk_insert(
+            [{"content": "Secret vector source"}], src.id, user_a
+        )
+        claim = await ClaimRepository(conn).create(
+            user_id=user_a,
+            source_id=src.id,
+            observation_id=obs_id,
+            claim_text="Secret claim for embedding.",
+            claim_type="fact",
+            confidence=0.9,
+            extraction_method="test",
+            model_name="fake",
+            prompt_version="v1",
+        )
+        assert claim is not None
+        vector = await SemanticVectorRepository(conn).create(
+            user_id=user_a,
+            claim_id=claim.id,
+            embedding=[0.1, 0.2] + [0.0] * 1534,
+            model_name="test",
+        )
+        assert vector is not None
+
+    async with session(user_b) as conn:
+        assert await SemanticVectorRepository(conn).get_for_claim(claim.id) is None
+        query_vec = [0.1, 0.2] + [0.0] * 1534
+        assert await SemanticVectorRepository(conn).search_similar(query_vec) == []

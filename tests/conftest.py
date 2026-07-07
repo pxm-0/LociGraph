@@ -52,6 +52,7 @@ async def make_user(reset_engine):
             await conn.execute(text("DELETE FROM claim_concept_edges"))
             await conn.execute(text("DELETE FROM concepts"))
             await conn.execute(text("DELETE FROM concept_candidates"))
+            await conn.execute(text("DELETE FROM semantic_vectors"))
             await conn.execute(text("DELETE FROM claims"))
             await conn.execute(text("DELETE FROM observations"))
             await conn.execute(text("DELETE FROM fragments"))
