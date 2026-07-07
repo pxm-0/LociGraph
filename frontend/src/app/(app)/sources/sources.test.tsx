@@ -2,21 +2,42 @@ import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { expect, vi, describe, it, beforeEach } from "vitest"
 import { ThemeProvider } from "@/lib/theme"
-import type { Source } from "@/lib/types"
+import type { Job, Source } from "@/lib/types"
 import SourcesPage from "./page"
 
 vi.mock("@/lib/api", () => ({
   listSources: vi.fn(),
   purgeSource: vi.fn(),
   extractClaims: vi.fn(),
+  embedClaims: vi.fn(),
   getJob: vi.fn(),
+  listJobs: vi.fn().mockResolvedValue([]),
 }))
 
-import { extractClaims, getJob, listSources, purgeSource } from "@/lib/api"
+import { embedClaims, extractClaims, getJob, listJobs, listSources, purgeSource } from "@/lib/api"
 const mockListSources = vi.mocked(listSources)
 const mockPurgeSource = vi.mocked(purgeSource)
 const mockExtractClaims = vi.mocked(extractClaims)
+const mockEmbedClaims = vi.mocked(embedClaims)
 const mockGetJob = vi.mocked(getJob)
+const mockListJobs = vi.mocked(listJobs)
+
+function makeJob(overrides: Partial<Job> = {}): Job {
+  return {
+    id: "job-1",
+    jobType: "extract_claims",
+    status: "running",
+    attempts: 0,
+    error: null,
+    createdAt: null,
+    startedAt: null,
+    completedAt: null,
+    itemsCompleted: null,
+    itemsTotal: null,
+    sourceId: null,
+    ...overrides,
+  }
+}
 
 const MOCK_SOURCES: Source[] = [
   {
@@ -222,30 +243,8 @@ describe("SourcesPage", () => {
       mockListSources.mockResolvedValueOnce([MOCK_SOURCES[0]])
       mockExtractClaims.mockResolvedValueOnce({ jobIds: ["job-1"], status: "running" })
       mockGetJob
-        .mockResolvedValueOnce({
-          id: "job-1",
-          jobType: "extract_claims",
-          status: "running",
-          attempts: 0,
-          error: null,
-          createdAt: null,
-          startedAt: null,
-          completedAt: null,
-          itemsCompleted: 4,
-          itemsTotal: 10,
-        })
-        .mockResolvedValueOnce({
-          id: "job-1",
-          jobType: "extract_claims",
-          status: "completed",
-          attempts: 0,
-          error: null,
-          createdAt: null,
-          startedAt: null,
-          completedAt: null,
-          itemsCompleted: 10,
-          itemsTotal: 10,
-        })
+        .mockResolvedValueOnce(makeJob({ status: "running", itemsCompleted: 4, itemsTotal: 10 }))
+        .mockResolvedValueOnce(makeJob({ status: "completed", itemsCompleted: 10, itemsTotal: 10 }))
       mockListSources.mockResolvedValueOnce([{ ...MOCK_SOURCES[0], claimCount: 3 }])
       renderSources()
 
@@ -260,7 +259,7 @@ describe("SourcesPage", () => {
 
       await vi.advanceTimersByTimeAsync(1200)
       await vi.waitFor(() => {
-        expect(screen.getByText("4 / 10 processed")).toBeInTheDocument()
+        expect(screen.getByText("Extract: 4 / 10 processed")).toBeInTheDocument()
       })
 
       await vi.advanceTimersByTimeAsync(1200)
@@ -270,6 +269,127 @@ describe("SourcesPage", () => {
 
       vi.useRealTimers()
     })
+
+    it("surfaces the job error and stops polling when extraction fails", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      mockListSources.mockResolvedValueOnce([MOCK_SOURCES[0]])
+      mockExtractClaims.mockResolvedValueOnce({ jobIds: ["job-1"], status: "running" })
+      mockGetJob.mockResolvedValueOnce(
+        makeJob({ status: "failed", error: "OpenAI rejected the configured API key" })
+      )
+      mockListSources.mockResolvedValueOnce([MOCK_SOURCES[0]])
+      renderSources()
+
+      await vi.waitFor(() => {
+        expect(screen.getByText("archive_manifest.json")).toBeInTheDocument()
+      })
+      await userEvent.click(screen.getByRole("button", { name: "Extract" }), { delay: null })
+      await vi.waitFor(() => expect(mockExtractClaims).toHaveBeenCalled())
+
+      await vi.advanceTimersByTimeAsync(1200)
+      await vi.waitFor(() => {
+        expect(screen.getByText("OpenAI rejected the configured API key")).toBeInTheDocument()
+      })
+
+      vi.useRealTimers()
+    })
   })
 
+  describe("Embedding progress polling", () => {
+    it("shows embed progress and clears it once the job completes", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      mockListSources.mockResolvedValueOnce([{ ...MOCK_SOURCES[0], claimCount: 5 }])
+      mockEmbedClaims.mockResolvedValueOnce({ jobId: "embed-1", status: "pending" })
+      mockGetJob
+        .mockResolvedValueOnce(
+          makeJob({ id: "embed-1", jobType: "embed_claims", itemsCompleted: 2, itemsTotal: 5 })
+        )
+        .mockResolvedValueOnce(
+          makeJob({
+            id: "embed-1",
+            jobType: "embed_claims",
+            status: "completed",
+            itemsCompleted: 5,
+            itemsTotal: 5,
+          })
+        )
+      mockListSources.mockResolvedValueOnce([{ ...MOCK_SOURCES[0], claimCount: 5 }])
+      renderSources()
+
+      await vi.waitFor(() => {
+        expect(screen.getByText("archive_manifest.json")).toBeInTheDocument()
+      })
+
+      await userEvent.click(screen.getByRole("button", { name: "Embed" }), { delay: null })
+      await vi.waitFor(() => expect(mockEmbedClaims).toHaveBeenCalledWith("1"))
+
+      await vi.advanceTimersByTimeAsync(1200)
+      await vi.waitFor(() => {
+        expect(screen.getByText("Embed: 2 / 5 processed")).toBeInTheDocument()
+      })
+
+      await vi.advanceTimersByTimeAsync(1200)
+      await vi.waitFor(() => {
+        expect(screen.queryByText(/processed/)).not.toBeInTheDocument()
+      })
+
+      vi.useRealTimers()
+    })
+  })
+
+  describe("Resuming jobs already in flight on load", () => {
+    it("shows extraction progress for a job it did not trigger, discovered via listJobs on mount", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      mockListSources.mockResolvedValueOnce([MOCK_SOURCES[0]])
+      mockListJobs.mockImplementation(({ status } = {}) =>
+        Promise.resolve(
+          status === "running"
+            ? [makeJob({ id: "resumed-1", sourceId: "1", status: "running" })]
+            : []
+        )
+      )
+      mockGetJob.mockResolvedValueOnce(
+        makeJob({ id: "resumed-1", status: "running", itemsCompleted: 7, itemsTotal: 20 })
+      )
+      renderSources()
+
+      await vi.waitFor(() => {
+        expect(screen.getByText("archive_manifest.json")).toBeInTheDocument()
+      })
+      await vi.waitFor(() => expect(mockListJobs).toHaveBeenCalled())
+
+      await vi.advanceTimersByTimeAsync(1200)
+      await vi.waitFor(() => {
+        expect(screen.getByText("Extract: 7 / 20 processed")).toBeInTheDocument()
+      })
+      expect(mockExtractClaims).not.toHaveBeenCalled()
+
+      vi.useRealTimers()
+    })
+
+    it("ignores active jobs for sources not currently loaded", async () => {
+      // Fake timers, never advanced past the poll interval: the resumed
+      // watcher for source "999" is started (proving hydration ran), but
+      // its first getJob poll never fires within this test, so there's
+      // nothing to render — and nothing left over to leak into later tests.
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      mockListSources.mockResolvedValueOnce([MOCK_SOURCES[0]])
+      mockListJobs.mockImplementation(({ status } = {}) =>
+        Promise.resolve(
+          status === "pending" ? [makeJob({ id: "other-src-job", sourceId: "999" })] : []
+        )
+      )
+      renderSources()
+
+      await vi.waitFor(() => {
+        expect(screen.getByText("archive_manifest.json")).toBeInTheDocument()
+      })
+      await vi.waitFor(() => expect(mockListJobs).toHaveBeenCalled())
+
+      expect(screen.queryByText(/processed/)).not.toBeInTheDocument()
+      expect(mockGetJob).not.toHaveBeenCalled()
+
+      vi.useRealTimers()
+    })
+  })
 })

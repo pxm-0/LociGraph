@@ -6,6 +6,7 @@ import {
   getConceptsCount,
   getObservationsCount,
   getSource,
+  listJobs,
   listObservations,
   listSources,
   login,
@@ -86,6 +87,21 @@ test("listObservations forwards filters as query params", async () => {
   expect(url).toContain("source_id=s1")
   expect(url).toContain("speaker=me")
   expect(url).toContain("limit=10")
+})
+
+test("listJobs forwards filters as query params and maps source_id to sourceId", async () => {
+  const f = mockFetch(200, [
+    { id: "j1", job_type: "extract_claims", status: "running", attempts: 0, error: null, created_at: null, started_at: null, completed_at: null, items_completed: 4, items_total: 10, source_id: "s1" },
+  ])
+  vi.stubGlobal("fetch", f)
+  const [job] = await listJobs({ sourceId: "s1", jobType: "extract_claims", status: "running" })
+  expect(job.sourceId).toBe("s1")
+  expect(job.itemsCompleted).toBe(4)
+  const [url] = f.mock.calls[0]
+  expect(url).toContain("/api/jobs?")
+  expect(url).toContain("source_id=s1")
+  expect(url).toContain("job_type=extract_claims")
+  expect(url).toContain("status=running")
 })
 
 test("getObservationsCount hits /observations/count and returns the real total, not a page size", async () => {

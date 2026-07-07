@@ -73,6 +73,7 @@ function toJob(d: Record<string, unknown>): Job {
     completedAt: (d.completed_at as string | null) ?? null,
     itemsCompleted: (d.items_completed as number | null) ?? null,
     itemsTotal: (d.items_total as number | null) ?? null,
+    sourceId: (d.source_id as string | null) ?? null,
   }
 }
 
@@ -264,6 +265,26 @@ export async function getJob(jobId: string): Promise<Job> {
   const r = await req(`/jobs/${jobId}`)
   if (!r.ok) throw await readError(r, "getJob failed")
   return toJob(await r.json())
+}
+
+export interface JobQuery {
+  sourceId?: string
+  jobType?: string
+  status?: string
+  limit?: number
+  offset?: number
+}
+
+export async function listJobs(q: JobQuery = {}): Promise<Job[]> {
+  const params = new URLSearchParams()
+  if (q.sourceId) params.set("source_id", q.sourceId)
+  if (q.jobType) params.set("job_type", q.jobType)
+  if (q.status) params.set("status", q.status)
+  if (q.limit != null) params.set("limit", String(q.limit))
+  if (q.offset != null) params.set("offset", String(q.offset))
+  const r = await req(`/jobs?${params.toString()}`)
+  if (!r.ok) throw await readError(r, "listJobs failed")
+  return (await r.json()).map(toJob)
 }
 
 export async function extractClaims(

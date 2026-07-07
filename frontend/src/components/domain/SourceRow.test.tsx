@@ -30,7 +30,7 @@ describe("SourceRow progress bar", () => {
   it("renders progress text and bar width when extracting with known totals", () => {
     renderRow({ isExtracting: true, itemsCompleted: 5, itemsTotal: 20 })
 
-    expect(screen.getByText("5 / 20 processed")).toBeInTheDocument()
+    expect(screen.getByText("Extract: 5 / 20 processed")).toBeInTheDocument()
     const bar = screen.getByTestId("extraction-progress-bar")
     expect(bar).toHaveStyle({ width: "25%" })
   })
@@ -45,6 +45,34 @@ describe("SourceRow progress bar", () => {
     renderRow({ isExtracting: false, itemsCompleted: 5, itemsTotal: 20 })
 
     expect(screen.queryByTestId("extraction-progress-bar")).not.toBeInTheDocument()
+  })
+
+  it("renders progress text and bar width when embedding with known totals", () => {
+    renderRow({ isEmbedding: true, embedItemsCompleted: 3, embedItemsTotal: 12 })
+
+    expect(screen.getByText("Embed: 3 / 12 processed")).toBeInTheDocument()
+    const bar = screen.getByTestId("embedding-progress-bar")
+    expect(bar).toHaveStyle({ width: "25%" })
+  })
+
+  it("does not render the embedding progress bar when embedItemsTotal is null", () => {
+    renderRow({ isEmbedding: true, embedItemsCompleted: null, embedItemsTotal: null })
+
+    expect(screen.queryByTestId("embedding-progress-bar")).not.toBeInTheDocument()
+  })
+
+  it("shows both extract and embed progress bars at once when both are active", () => {
+    renderRow({
+      isExtracting: true,
+      itemsCompleted: 1,
+      itemsTotal: 4,
+      isEmbedding: true,
+      embedItemsCompleted: 2,
+      embedItemsTotal: 8,
+    })
+
+    expect(screen.getByTestId("extraction-progress-bar")).toBeInTheDocument()
+    expect(screen.getByTestId("embedding-progress-bar")).toBeInTheDocument()
   })
 })
 

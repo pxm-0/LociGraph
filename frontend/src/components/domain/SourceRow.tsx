@@ -18,9 +18,38 @@ interface SourceRowProps {
   isEmbedding?: boolean
   itemsCompleted?: number | null
   itemsTotal?: number | null
+  embedItemsCompleted?: number | null
+  embedItemsTotal?: number | null
   onExtract?: (source: Source) => void
   onEmbed?: (source: Source) => void
   onDelete?: (source: Source) => void
+}
+
+function ProgressBar({
+  testId,
+  label,
+  completed,
+  total,
+}: {
+  testId: string
+  label: string
+  completed: number | null
+  total: number | null
+}) {
+  return (
+    <div className="mt-2 space-y-1">
+      <p className="font-mono text-[10px] text-muted">
+        {label}: {completed} / {total} processed
+      </p>
+      <div className="h-0.5 w-full rounded-full bg-hairline">
+        <div
+          data-testid={testId}
+          className="h-0.5 rounded-full bg-ember transition-all"
+          style={{ width: `${((completed ?? 0) / (total ?? 1)) * 100}%` }}
+        />
+      </div>
+    </div>
+  )
 }
 
 export function SourceRow({
@@ -29,6 +58,8 @@ export function SourceRow({
   isEmbedding = false,
   itemsCompleted = null,
   itemsTotal = null,
+  embedItemsCompleted = null,
+  embedItemsTotal = null,
   onExtract,
   onEmbed,
   onDelete,
@@ -41,7 +72,8 @@ export function SourceRow({
   const canEmbed =
     source.importStatus === "VERIFIED" && source.claimCount > 0 && onEmbed !== undefined
   const canDelete = source.claimCount === 0 && !isPurged
-  const showProgress = isExtracting && Boolean(itemsTotal)
+  const showExtractProgress = isExtracting && Boolean(itemsTotal)
+  const showEmbedProgress = isEmbedding && Boolean(embedItemsTotal)
 
   return (
     <tr className="border-t border-hairline transition-colors hover:bg-surface-hover">
@@ -97,19 +129,21 @@ export function SourceRow({
         >
           Delete
         </Button>
-        {showProgress && (
-          <div className="mt-2 space-y-1">
-            <p className="font-mono text-[10px] text-muted">
-              {itemsCompleted} / {itemsTotal} processed
-            </p>
-            <div className="h-0.5 w-full rounded-full bg-hairline">
-              <div
-                data-testid="extraction-progress-bar"
-                className="h-0.5 rounded-full bg-ember transition-all"
-                style={{ width: `${((itemsCompleted ?? 0) / (itemsTotal ?? 1)) * 100}%` }}
-              />
-            </div>
-          </div>
+        {showExtractProgress && (
+          <ProgressBar
+            testId="extraction-progress-bar"
+            label="Extract"
+            completed={itemsCompleted}
+            total={itemsTotal}
+          />
+        )}
+        {showEmbedProgress && (
+          <ProgressBar
+            testId="embedding-progress-bar"
+            label="Embed"
+            completed={embedItemsCompleted}
+            total={embedItemsTotal}
+          />
         )}
       </td>
     </tr>

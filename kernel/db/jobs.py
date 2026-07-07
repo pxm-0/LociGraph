@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import builtins
 import json
 from collections.abc import Mapping
 from typing import Any
@@ -13,7 +14,8 @@ from kernel.models import Job
 
 _COLUMNS = (
     "id, user_id, job_type, status, attempts, error, "
-    "created_at, started_at, completed_at, items_completed, items_total, heartbeat_at, result"
+    "created_at, started_at, completed_at, items_completed, items_total, heartbeat_at, result, "
+    "payload ->> 'source_id' AS source_id"
 )
 
 # dramatiq's own dead-worker detection is unreliable for a long-running,
@@ -109,6 +111,38 @@ class JobRepository(BaseRepository):
         ).mappings().first()
         return Job.from_row(_as_mapping(row)) if row else None
 
+    async def list(
+        self,
+        *,
+        source_id: str | UUID | None = None,
+        job_type: str | None = None,
+        status: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> builtins.list[Job]:
+        clauses = []
+        params: dict[str, Any] = {"limit": limit, "offset": offset}
+        if source_id is not None:
+            clauses.append("payload ->> 'source_id' = :source_id")
+            params["source_id"] = str(source_id)
+        if job_type is not None:
+            clauses.append("job_type = :job_type")
+            params["job_type"] = job_type
+        if status is not None:
+            clauses.append("status = :status")
+            params["status"] = status
+        where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
+        rows = (
+            await self.conn.execute(
+                text(
+                    f"SELECT {_COLUMNS} FROM jobs {where} "
+                    "ORDER BY created_at DESC LIMIT :limit OFFSET :offset"
+                ),
+                params,
+            )
+        ).mappings().all()
+        return [Job.from_row(_as_mapping(r)) for r in rows]
+
     async def find_active_job_for_source(
         self,
         job_type: str,
@@ -169,7 +203,7 @@ class JobRepository(BaseRepository):
         row = result.first()
         return row[0] if row else None
 
-    async def count_by_statuses(self, statuses: list[str]) -> int:
+    async def count_by_statuses(self, statuses: builtins.list[str]) -> int:
         if not statuses:
             return 0
         params = {f"status_{i}": status for i, status in enumerate(statuses)}

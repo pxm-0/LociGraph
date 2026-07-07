@@ -24,7 +24,25 @@ def _serialize(job: Job) -> dict[str, Any]:
         "completed_at": job.completed_at.isoformat() if job.completed_at else None,
         "items_completed": job.items_completed,
         "items_total": job.items_total,
+        "result": job.result,
+        "source_id": job.source_id,
     }
+
+
+@router.get("/jobs")
+async def list_jobs(
+    source_id: str | None = None,
+    job_type: str | None = None,
+    status: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
+    user_id: str = Depends(get_current_user),
+) -> list[dict[str, Any]]:
+    async with session(user_id) as conn:
+        jobs = await JobRepository(conn).list(
+            source_id=source_id, job_type=job_type, status=status, limit=limit, offset=offset
+        )
+    return [_serialize(job) for job in jobs]
 
 
 @router.get("/jobs/{job_id}")

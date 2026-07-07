@@ -216,3 +216,51 @@ async def test_find_active_job_for_source_keeps_a_fresh_pending_job(make_user):
 
     assert found == job.id
     assert untouched.status == "pending"
+
+
+@pytest.mark.asyncio
+async def test_list_filters_by_source_job_type_and_status(make_user):
+    user_id = await make_user()
+    async with session(user_id) as conn:
+        repo = JobRepository(conn)
+        extract_job = await repo.create(
+            user_id, "extract_claims", payload={"source_id": "list-src-1"}
+        )
+        await repo.mark_running(extract_job.id)
+        embed_job = await repo.create(
+            user_id, "embed_claims", payload={"source_id": "list-src-1"}
+        )
+        await repo.create(user_id, "extract_claims", payload={"source_id": "list-src-2"})
+
+        for_source = await repo.list(source_id="list-src-1")
+        by_type = await repo.list(source_id="list-src-1", job_type="embed_claims")
+        by_status = await repo.list(source_id="list-src-1", status="running")
+        other_source = await repo.list(source_id="list-src-2")
+
+    assert {j.id for j in for_source} == {extract_job.id, embed_job.id}
+    assert [j.id for j in by_type] == [embed_job.id]
+    assert [j.id for j in by_status] == [extract_job.id]
+    assert [j.source_id for j in for_source] == ["list-src-1", "list-src-1"]
+    assert [j.id for j in other_source] != [extract_job.id, embed_job.id]
+
+
+@pytest.mark.asyncio
+async def test_list_orders_newest_first_and_respects_limit(make_user):
+    # Two separate transactions so Postgres' now() (stable within one
+    # transaction) actually differs between them, giving a real order.
+    user_id = await make_user()
+    async with session(user_id) as conn:
+        first = await JobRepository(conn).create(
+            user_id, "extract_claims", payload={"source_id": "list-order"}
+        )
+    async with session(user_id) as conn:
+        second = await JobRepository(conn).create(
+            user_id, "extract_claims", payload={"source_id": "list-order"}
+        )
+    async with session(user_id) as conn:
+        repo = JobRepository(conn)
+        limited = await repo.list(source_id="list-order", limit=1)
+        all_jobs = await repo.list(source_id="list-order")
+
+    assert [j.id for j in limited] == [second.id]
+    assert [j.id for j in all_jobs] == [second.id, first.id]

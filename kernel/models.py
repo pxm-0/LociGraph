@@ -271,6 +271,7 @@ class Job:
     items_total: int | None = None
     heartbeat_at: datetime | None = None
     result: Mapping[str, Any] | None = None
+    source_id: str | None = None
 
     @classmethod
     def from_row(cls, row: Mapping[str, Any]) -> Job:
@@ -288,4 +289,5 @@ class Job:
             items_total=row.get("items_total"),
             heartbeat_at=row.get("heartbeat_at"),
             result=row.get("result"),
+            source_id=row.get("source_id"),
         )

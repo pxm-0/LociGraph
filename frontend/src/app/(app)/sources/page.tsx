@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { embedClaims, extractClaims, getJob, listSources, purgeSource } from "@/lib/api"
+import { useCallback, useEffect, useState } from "react"
+import { embedClaims, extractClaims, getJob, listJobs, listSources, purgeSource } from "@/lib/api"
 import { filterByStatus } from "@/lib/derive"
 import type { Job, Source } from "@/lib/types"
 import { SourceRow } from "@/components/domain/SourceRow"
@@ -9,6 +9,8 @@ import { Skeleton } from "@/components/ui/Skeleton"
 
 const FILTER_PILLS = ["ALL", "PENDING", "INGESTING", "VERIFIED", "QUARANTINED", "PURGED"] as const
 type FilterPill = (typeof FILTER_PILLS)[number]
+
+type JobType = "extract_claims" | "embed_claims"
 
 function SkeletonRows() {
   return (
@@ -24,17 +26,18 @@ function SkeletonRows() {
   )
 }
 
-interface ExtractionProgress {
+interface JobProgress {
   jobIds: string[]
   itemsCompleted: number | null
   itemsTotal: number | null
 }
 
 const TERMINAL_JOB_STATUSES = new Set(["completed", "failed"])
+const ACTIVE_JOB_STATUSES = ["pending", "running"] as const
 
-// A source's extraction may be split across several chunk jobs running in
-// parallel; the UI shows one progress bar summing across all of them and
-// waits for every chunk to finish before refreshing.
+// A source's extraction (or embedding) may be split across several chunk
+// jobs running in parallel; the UI shows one progress bar summing across
+// all of them and waits for every chunk to finish before refreshing.
 function sumJobProgress(jobs: Job[]): { itemsCompleted: number | null; itemsTotal: number | null } {
   const withTotals = jobs.filter((j) => j.itemsCompleted != null && j.itemsTotal != null)
   if (withTotals.length === 0) return { itemsCompleted: null, itemsTotal: null }
@@ -48,8 +51,8 @@ export default function SourcesPage() {
   const [sources, setSources] = useState<Source[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [activeFilter, setActiveFilter] = useState<FilterPill>("ALL")
-  const [running, setRunning] = useState<Record<string, ExtractionProgress>>({})
-  const [embedding, setEmbedding] = useState<Record<string, boolean>>({})
+  const [extracting, setExtracting] = useState<Record<string, JobProgress>>({})
+  const [embedding, setEmbedding] = useState<Record<string, JobProgress>>({})
 
   async function refreshSources() {
     await listSources()
@@ -77,55 +80,100 @@ export default function SourcesPage() {
     }
   }, [])
 
-  async function startExtraction(source: Source) {
-    setError(null)
+  // Poll a set of job ids (one source's chunk jobs for one job type) until
+  // every one reaches a terminal status. Used both for a job just triggered
+  // by a button click, and for jobs discovered already in flight on mount —
+  // so progress survives a page refresh or a job started elsewhere (e.g.
+  // extraction auto-enqueued after ingestion).
+  const watchJobs = useCallback(async (sourceId: string, jobType: JobType, jobIds: string[]) => {
+    const setProgress = jobType === "extract_claims" ? setExtracting : setEmbedding
+    setProgress((current) => ({
+      ...current,
+      [sourceId]: { jobIds, itemsCompleted: null, itemsTotal: null },
+    }))
     try {
-      const result = await extractClaims(source.id, source.claimCount > 0)
-      setRunning((current) => ({
-        ...current,
-        [source.id]: { jobIds: result.jobIds, itemsCompleted: null, itemsTotal: null },
-      }))
-
       let active = true
       while (active) {
         await new Promise((resolve) => window.setTimeout(resolve, 1200))
-        const jobs = await Promise.all(result.jobIds.map((jobId) => getJob(jobId)))
+        const jobs = await Promise.all(jobIds.map((jobId) => getJob(jobId)))
         if (jobs.every((job) => TERMINAL_JOB_STATUSES.has(job.status))) {
           active = false
-          setRunning((current) => {
-            const next = { ...current }
-            delete next[source.id]
-            return next
-          })
           await refreshSources()
           const failed = jobs.find((job) => job.status === "failed")
-          if (failed) setError(failed.error ?? "Claim extraction failed")
+          if (failed) {
+            setError(
+              failed.error ??
+                (jobType === "extract_claims" ? "Claim extraction failed" : "Claim embedding failed")
+            )
+          }
         } else {
-          setRunning((current) => ({
+          setProgress((current) => ({
             ...current,
-            [source.id]: { jobIds: result.jobIds, ...sumJobProgress(jobs) },
+            [sourceId]: { jobIds, ...sumJobProgress(jobs) },
           }))
         }
       }
     } catch (err: unknown) {
-      setRunning((current) => {
+      setError(err instanceof Error ? err.message : "Job polling failed")
+    } finally {
+      setProgress((current) => {
         const next = { ...current }
-        delete next[source.id]
+        delete next[sourceId]
         return next
       })
+    }
+  }, [])
+
+  // On load, resume watching any extraction/embedding jobs already in
+  // flight for this user — without this, progress is only ever visible to
+  // whoever's browser tab triggered the job, and only until they navigate
+  // away or refresh.
+  useEffect(() => {
+    let cancelled = false
+    async function hydrateActiveJobs() {
+      const activeByStatus = await Promise.all(
+        ACTIVE_JOB_STATUSES.map((status) => listJobs({ status, limit: 200 }))
+      )
+      if (cancelled) return
+      const bySourceAndType = new Map<string, Map<JobType, string[]>>()
+      for (const job of activeByStatus.flat()) {
+        if (job.sourceId === null) continue
+        if (job.jobType !== "extract_claims" && job.jobType !== "embed_claims") continue
+        const byType = bySourceAndType.get(job.sourceId) ?? new Map<JobType, string[]>()
+        byType.set(job.jobType, [...(byType.get(job.jobType) ?? []), job.id])
+        bySourceAndType.set(job.sourceId, byType)
+      }
+      for (const [sourceId, byType] of bySourceAndType) {
+        for (const [jobType, jobIds] of byType) {
+          void watchJobs(sourceId, jobType, jobIds)
+        }
+      }
+    }
+    hydrateActiveJobs().catch((err: unknown) => {
+      if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load active jobs")
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [watchJobs])
+
+  async function startExtraction(source: Source) {
+    setError(null)
+    try {
+      const result = await extractClaims(source.id, source.claimCount > 0)
+      void watchJobs(source.id, "extract_claims", result.jobIds)
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Claim extraction failed")
     }
   }
 
   async function startEmbedding(source: Source) {
     setError(null)
-    setEmbedding((current) => ({ ...current, [source.id]: true }))
     try {
-      await embedClaims(source.id)
+      const result = await embedClaims(source.id)
+      void watchJobs(source.id, "embed_claims", [result.jobId])
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Claim embedding failed")
-    } finally {
-      setEmbedding((current) => ({ ...current, [source.id]: false }))
     }
   }
 
@@ -218,10 +266,12 @@ export default function SourcesPage() {
           ) : (
             filtered.map((source) => (
               <SourceRow
+                embedItemsCompleted={embedding[source.id]?.itemsCompleted ?? null}
+                embedItemsTotal={embedding[source.id]?.itemsTotal ?? null}
                 isEmbedding={Boolean(embedding[source.id])}
-                isExtracting={Boolean(running[source.id])}
-                itemsCompleted={running[source.id]?.itemsCompleted ?? null}
-                itemsTotal={running[source.id]?.itemsTotal ?? null}
+                isExtracting={Boolean(extracting[source.id])}
+                itemsCompleted={extracting[source.id]?.itemsCompleted ?? null}
+                itemsTotal={extracting[source.id]?.itemsTotal ?? null}
                 key={source.id}
                 onDelete={deleteSource}
                 onEmbed={startEmbedding}

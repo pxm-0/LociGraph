@@ -45,6 +45,7 @@ export interface Job {
   completedAt: string | null
   itemsCompleted: number | null
   itemsTotal: number | null
+  sourceId: string | null
 }
 
 export interface Claim {
