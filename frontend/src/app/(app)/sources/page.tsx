@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { extractClaims, getJob, listSources, purgeSource } from "@/lib/api"
+import { embedClaims, extractClaims, getJob, listSources, purgeSource } from "@/lib/api"
 import { filterByStatus } from "@/lib/derive"
 import type { Job, Source } from "@/lib/types"
 import { SourceRow } from "@/components/domain/SourceRow"
@@ -49,6 +49,7 @@ export default function SourcesPage() {
   const [error, setError] = useState<string | null>(null)
   const [activeFilter, setActiveFilter] = useState<FilterPill>("ALL")
   const [running, setRunning] = useState<Record<string, ExtractionProgress>>({})
+  const [embedding, setEmbedding] = useState<Record<string, boolean>>({})
 
   async function refreshSources() {
     await listSources()
@@ -113,6 +114,18 @@ export default function SourcesPage() {
         return next
       })
       setError(err instanceof Error ? err.message : "Claim extraction failed")
+    }
+  }
+
+  async function startEmbedding(source: Source) {
+    setError(null)
+    setEmbedding((current) => ({ ...current, [source.id]: true }))
+    try {
+      await embedClaims(source.id)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Claim embedding failed")
+    } finally {
+      setEmbedding((current) => ({ ...current, [source.id]: false }))
     }
   }
 
@@ -205,11 +218,13 @@ export default function SourcesPage() {
           ) : (
             filtered.map((source) => (
               <SourceRow
+                isEmbedding={Boolean(embedding[source.id])}
                 isExtracting={Boolean(running[source.id])}
                 itemsCompleted={running[source.id]?.itemsCompleted ?? null}
                 itemsTotal={running[source.id]?.itemsTotal ?? null}
                 key={source.id}
                 onDelete={deleteSource}
+                onEmbed={startEmbedding}
                 onExtract={startExtraction}
                 source={source}
               />
