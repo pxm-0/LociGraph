@@ -160,8 +160,8 @@ Verified sources can produce proposed claims through:
 
 Claim and concept-candidate rows are tenant-scoped by PostgreSQL RLS. Concept
 candidates are proposed memory only; canonical concepts, graph edges,
-contradiction detection, embeddings, Custodian, and Planetarium work remain
-out of scope for Phase 1 Plan 1.
+contradiction detection, Custodian, and Planetarium work remain out of scope
+for Phase 1 Plan 1 (embeddings are covered in Phase 1 Plan 3).
 
 ---
 
@@ -183,6 +183,24 @@ Canonical concepts are browsable at `/concepts` (`GET /api/concepts`,
 like every other table. Concept-to-concept relationships, inferred graph
 edges, and an interactive graph visualization are out of scope for this
 plan — see the Planetarium (Phase 4).
+
+---
+
+## Phase 1 Embeddings & Semantic Search
+
+Claims are embedded via OpenAI (`text-embedding-3-small` by default) into a
+pgvector-backed `semantic_vectors` table (HNSW cosine index), one row per
+claim:
+
+- automatic `embed_claims` jobs after each extraction chunk persists claims,
+  when `EMBEDDING_AUTORUN=true`
+- manual `POST /api/sources/{source_id}/embed-claims`
+
+`GET /api/search?q=...&limit=20` embeds the query and ranks claims by cosine
+similarity, scoped by RLS like every other query. Concept embeddings, hybrid
+keyword+semantic search, and re-ranking are out of scope for this plan — see
+the Planetarium (Phase 4), which consumes these embeddings for its spatial
+projection layer.
 
 ---
 
