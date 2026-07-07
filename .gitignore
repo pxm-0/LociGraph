@@ -27,3 +27,6 @@ postgres_data/
 
 # Claude local settings
 .claude/settings.local.json
+
+# Subagent-driven-development scratch (progress ledger, review packages)
+.superpowers/
