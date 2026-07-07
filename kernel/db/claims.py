@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import builtins
 import json
 from collections.abc import Mapping
 from typing import Any
@@ -121,7 +122,7 @@ class ClaimRepository(BaseRepository):
         ).scalar_one()
         return result
 
-    async def list_for_source(self, source_id: str | UUID) -> list[Claim]:
+    async def list_for_source(self, source_id: str | UUID) -> builtins.list[Claim]:
         rows = (
             await self.conn.execute(
                 text(
