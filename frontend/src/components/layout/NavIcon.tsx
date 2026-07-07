@@ -15,6 +15,7 @@ export type IconName =
   | "analytics"
   | "hub"
   | "search"
+  | "orbit"
   | "toggle_off"
   | "toggle_on"
 
@@ -75,6 +76,13 @@ const ICONS: Record<IconName, ReactNode> = {
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="11" cy="11" r="7" />
       <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  ),
+  orbit: (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" />
+      <ellipse cx="12" cy="12" rx="10" ry="4.5" />
+      <circle cx="20.5" cy="12" r="1.5" fill="currentColor" stroke="none" />
     </svg>
   ),
   toggle_off: (

@@ -33,6 +33,7 @@
   --color-status-verified: #2e6b30;
   --color-status-ingesting: #8a5a1e;
   --color-status-quarantined: #6b4e1a;
+  --color-status-failed: #8a2e2e;
 }
 [data-mode="meridian"] {
   --color-canvas: #141210;
@@ -45,6 +46,7 @@
   --color-status-verified: #5a8c5a;
   --color-status-ingesting: #d4882f;
   --color-status-quarantined: #8c6a2a;
+  --color-status-failed: #d46a5a;
 }
 
 html, body { padding: 0; margin: 0; }

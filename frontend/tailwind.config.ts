@@ -16,6 +16,7 @@ const config: Config = {
         "status-verified": "var(--color-status-verified)",
         "status-ingesting": "var(--color-status-ingesting)",
         "status-quarantined": "var(--color-status-quarantined)",
+        "status-failed": "var(--color-status-failed)",
         whisper: "rgba(245,237,226,0.07)",
         "whisper-faint": "rgba(245,237,226,0.03)",
         "chamber-hover": "#26211d",

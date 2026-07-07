@@ -30,8 +30,10 @@ get_broker()
 # poisoned batch (or one crashed worker) stalls everything behind it, and a
 # retry redoes the whole backlog. Splitting into fixed-size chunks bounds the
 # blast radius of a failure to one chunk and lets independent chunks run
-# concurrently instead of strictly one after another.
-MAX_OBSERVATIONS_PER_JOB = 5000
+# concurrently instead of strictly one after another. Kept small (rather
+# than e.g. 5000) so a bad chunk's blast radius and a healed retry's re-work
+# both stay cheap even at the cost of creating more job rows.
+MAX_OBSERVATIONS_PER_JOB = 1000
 
 
 async def plan_claim_extraction_jobs(
