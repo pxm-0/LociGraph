@@ -223,6 +223,26 @@ here; see
 
 ---
 
+## Phase 2 Contradictions
+
+Claims linked to the same concept are automatically checked for
+contradictions when `CONTRADICTION_AUTORUN=true`: the claim's embedding
+finds its most similar claims already linked to that concept (reusing the
+Phase 1 Plan 3 embeddings), and each close-enough candidate pair gets one
+LLM call deciding whether the two actually conflict. Confirmed pairs are
+stored `unresolved` by default, per ADR-005 — the system never guesses
+whether a contradiction is a true conflict, an evolution of understanding, a
+contextual difference, or both.
+
+`GET /api/contradictions` (filterable by `concept_id`/`classification`) and
+`POST /api/contradictions/{id}/classify` let a user resolve one manually.
+Custodian-assisted classification and concept revision tracking (the next
+Phase 2 plan, which will consume `evolution`-classified contradictions) are
+out of scope here; see
+[docs/superpowers/specs/2026-07-09-contradictions-design.md](docs/superpowers/specs/2026-07-09-contradictions-design.md).
+
+---
+
 ## Project Layout
 
 ```
