@@ -12,7 +12,7 @@ from kernel.models import Observation
 
 logger = logging.getLogger(__name__)
 
-PROMPT_VERSION = "claim-extraction-v1"
+PROMPT_VERSION = "claim-extraction-v2"
 CLAIM_TYPES = {
     "fact",
     "event",
@@ -24,6 +24,24 @@ CLAIM_TYPES = {
     "interpretation",
     "decision",
     "task",
+}
+ASSERTION_TYPES = {"reality", "perception", "interpretation"}
+
+# ponytail: backfill-only map mirroring migration 0008's SQL CASE statement —
+# new claims are always LLM-classified via ASSERTION_TYPES above, never
+# derived from this table. Kept here only so a test can assert every
+# CLAIM_TYPES value has an entry, catching drift if the taxonomy grows.
+CLAIM_TYPE_TO_ASSERTION_TYPE_BACKFILL: dict[str, str] = {
+    "fact": "reality",
+    "event": "reality",
+    "relationship": "reality",
+    "decision": "reality",
+    "task": "reality",
+    "emotion": "perception",
+    "preference": "perception",
+    "belief": "interpretation",
+    "interpretation": "interpretation",
+    "definition": "interpretation",
 }
 CONCEPT_TYPES = {
     "idea",
@@ -79,6 +97,7 @@ class ExtractedClaim:
     observation_id: UUID
     claim_text: str
     claim_type: str
+    assertion_type: str
     confidence: float
     concept_candidates: list[ExtractedConceptCandidate] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -110,6 +129,9 @@ def _parse_claim(raw_claim: object, observation_ids: set[UUID]) -> ExtractedClai
     claim_type = str(raw_claim.get("claim_type", "")).strip()
     if claim_type not in CLAIM_TYPES:
         raise ValueError(f"invalid claim_type: {claim_type}")
+    assertion_type = str(raw_claim.get("assertion_type", "")).strip()
+    if assertion_type not in ASSERTION_TYPES:
+        raise ValueError(f"invalid assertion_type: {assertion_type}")
 
     candidates: list[ExtractedConceptCandidate] = []
     raw_candidates = raw_claim.get("concept_candidates", [])
@@ -138,6 +160,7 @@ def _parse_claim(raw_claim: object, observation_ids: set[UUID]) -> ExtractedClai
         observation_id=observation_id,
         claim_text=claim_text,
         claim_type=claim_type,
+        assertion_type=assertion_type,
         confidence=_as_float(raw_claim.get("confidence"), "confidence"),
         concept_candidates=candidates,
         metadata={"raw": raw_claim},
@@ -201,7 +224,11 @@ class OpenAIClaimExtractor:
                         "Extract atomic claims from observations. Return only claims "
                         "grounded in the supplied text. Suggest concept candidates as "
                         "non-canonical proposals. If an observation has no useful claim, "
-                        "return no claim for it."
+                        "return no claim for it. For each claim, also classify "
+                        "assertion_type: 'reality' for something that happened or is "
+                        "objectively true, 'perception' for a felt or subjective "
+                        "experience (an emotion or preference), or 'interpretation' for "
+                        "an inferred belief or conclusion drawn from reality."
                     ),
                 },
                 {
@@ -240,6 +267,7 @@ class OpenAIClaimExtractor:
                                         "observation_id",
                                         "claim_text",
                                         "claim_type",
+                                        "assertion_type",
                                         "confidence",
                                         "concept_candidates",
                                     ],
@@ -249,6 +277,10 @@ class OpenAIClaimExtractor:
                                         "claim_type": {
                                             "type": "string",
                                             "enum": sorted(CLAIM_TYPES),
+                                        },
+                                        "assertion_type": {
+                                            "type": "string",
+                                            "enum": sorted(ASSERTION_TYPES),
                                         },
                                         "confidence": {
                                             "type": "number",

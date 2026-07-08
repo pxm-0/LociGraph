@@ -36,6 +36,7 @@ class FakeExtractor:
                     observation_id=observations[0].id,
                     claim_text=self.claim_text,
                     claim_type="fact",
+                    assertion_type="reality",
                     confidence=0.88,
                     concept_candidates=[
                         ExtractedConceptCandidate(
