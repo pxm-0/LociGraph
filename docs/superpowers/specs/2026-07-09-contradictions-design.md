@@ -100,7 +100,32 @@ New `worker/tasks/detect_contradictions.py`, actor signature
    repository's create method).
 6. Mark the job completed with `{"contradictions_found": N}`.
 
-Register the actor in `worker/main.py` alongside `extract_claims`/`embed_claims`.
+**Reliability tolerances — mirror `extract_claims`/`embed_claims` exactly,
+reusing their shared infrastructure rather than inventing new numbers:**
+`@dramatiq.actor(queue_name="extraction", max_retries=3,
+on_retry_exhausted="heal_detect_contradictions")` — same `max_retries=3` and
+same `"extraction"` queue (same 25-thread worker process, no new concurrency
+knob; there is no per-queue concurrency setting in this codebase today, just
+`worker/Dockerfile`'s single `--threads 25` for the whole process). No custom
+`time_limit` override — the job makes at most `CONTRADICTION_CANDIDATE_LIMIT`
+(5) sequential LLM calls, comfortably inside dramatiq's default 10-minute
+per-call limit, unlike `extract_claims`/`embed_claims` which need explicit
+multi-hour overrides for genuinely long-running batches. A paired
+`_heal_detect_contradictions`/`heal_detect_contradictions` actor reuses
+`worker/tasks/healing.py`'s existing `next_heal_generation`/
+`MAX_HEAL_GENERATIONS` (50)/`HEAL_DELAY_MS` (30s) — creates a fresh `Job` row
+for the same `(concept_id, claim_id)` and re-sends with
+`heal_generation=generation`, identical shape to `_heal_embed_claims`.
+Detection is naturally idempotent for healing purposes: the `contradictions`
+unique index means a healed retry that re-detects the same pair is a no-op
+insert, not a duplicate. `MAX_OBSERVATIONS_PER_JOB`-style chunking doesn't
+apply here — each job is already inherently bounded to at most 5 candidate
+pairs by `CONTRADICTION_CANDIDATE_LIMIT`, so there's no unbounded-batch
+problem to chunk away.
+
+Register `detect_contradictions` and `heal_detect_contradictions` in
+`worker/main.py` alongside the existing `extract_claims`/`embed_claims`
+imports.
 
 ### API
 `backend/app/api/contradictions.py` (new router):
