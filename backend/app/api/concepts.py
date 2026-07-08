@@ -3,15 +3,37 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 
 from backend.app.auth.dependencies import get_current_user
 from kernel.db.claim_concept_edges import ClaimConceptEdgeRepository
 from kernel.db.claims import ClaimRepository
 from kernel.db.concepts import ConceptRepository
+from kernel.db.revisions import RevisionRepository
 from kernel.db.session import session
-from kernel.models import Claim, ClaimConceptEdge, Concept
+from kernel.models import Claim, ClaimConceptEdge, Concept, Revision
 
 router = APIRouter()
+
+
+class CreateRevisionBody(BaseModel):
+    new_description: str
+    rationale: str | None = None
+
+
+def serialize_revision(revision: Revision) -> dict[str, Any]:
+    return {
+        "id": str(revision.id),
+        "concept_id": str(revision.concept_id),
+        "contradiction_id": str(revision.contradiction_id)
+        if revision.contradiction_id
+        else None,
+        "source": revision.source,
+        "previous_description": revision.previous_description,
+        "new_description": revision.new_description,
+        "rationale": revision.rationale,
+        "created_at": revision.created_at.isoformat(),
+    }
 
 
 def serialize_claim(claim: Claim) -> dict[str, Any]:
@@ -114,3 +136,44 @@ async def list_concept_claims(
             if claim is not None:
                 result.append(serialize_claim(claim))
         return result
+
+
+@router.get("/concepts/{concept_id}/revisions")
+async def list_concept_revisions(
+    concept_id: str,
+    limit: int = 50,
+    offset: int = 0,
+    user_id: str = Depends(get_current_user),
+) -> list[dict[str, Any]]:
+    async with session(user_id) as conn:
+        concept = await ConceptRepository(conn).get(concept_id)
+        if concept is None:
+            raise HTTPException(status_code=404, detail="not found")
+        revisions = await RevisionRepository(conn).list(
+            concept_id=concept_id, limit=limit, offset=offset
+        )
+        return [serialize_revision(r) for r in revisions]
+
+
+@router.post("/concepts/{concept_id}/revisions")
+async def create_concept_revision(
+    concept_id: str,
+    body: CreateRevisionBody,
+    user_id: str = Depends(get_current_user),
+) -> dict[str, Any]:
+    async with session(user_id) as conn:
+        concepts = ConceptRepository(conn)
+        concept = await concepts.get(concept_id)
+        if concept is None:
+            raise HTTPException(status_code=404, detail="not found")
+        await concepts.update_description(concept_id, body.new_description)
+        revision = await RevisionRepository(conn).create(
+            user_id=user_id,
+            concept_id=concept_id,
+            contradiction_id=None,
+            source="manual",
+            previous_description=concept.description,
+            new_description=body.new_description,
+            rationale=body.rationale,
+        )
+    return serialize_revision(revision)
