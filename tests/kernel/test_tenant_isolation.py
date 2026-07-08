@@ -290,3 +290,30 @@ async def test_contradictions_isolated_between_tenants(make_user):
     async with session(user_b) as conn:
         assert await ContradictionRepository(conn).list(concept_id=concept.id) == []
         assert await ContradictionRepository(conn).get(contradiction.id) is None
+
+
+@pytest.mark.asyncio
+async def test_revisions_isolated_between_tenants(make_user):
+    from kernel.db.concepts import ConceptRepository
+    from kernel.db.revisions import RevisionRepository
+
+    user_a = await make_user()
+    user_b = await make_user()
+
+    async with session(user_a) as conn:
+        concept = await ConceptRepository(conn).find_or_create(
+            user_id=user_a, concept_type="idea", concept_name="Secret Concept", description=None
+        )
+        revision = await RevisionRepository(conn).create(
+            user_id=user_a,
+            concept_id=concept.id,
+            contradiction_id=None,
+            source="manual",
+            previous_description=None,
+            new_description="Secret revision.",
+            rationale=None,
+        )
+
+    async with session(user_b) as conn:
+        assert await RevisionRepository(conn).list(concept_id=concept.id) == []
+        assert await RevisionRepository(conn).get(revision.id) is None

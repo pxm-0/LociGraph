@@ -8,7 +8,7 @@ from uuid import UUID
 from sqlalchemy import text
 from sqlalchemy.engine import RowMapping
 
-from kernel.db.base_repository import BaseRepository
+from kernel.db.base_repository import BaseRepository, strip_nul_bytes
 from kernel.models import Concept
 
 _COLUMNS = "id, user_id, concept_name, concept_type, description, status, created_at, metadata"
@@ -48,6 +48,20 @@ class ConceptRepository(BaseRepository):
                     "description": description,
                     "metadata": json.dumps(metadata or {}),
                 },
+            )
+        ).mappings().first()
+        return Concept.from_row(_as_mapping(row)) if row else None
+
+    async def update_description(
+        self, concept_id: str | UUID, new_description: str
+    ) -> Concept | None:
+        row = (
+            await self.conn.execute(
+                text(
+                    f"UPDATE concepts SET description = :description WHERE id = :id "
+                    f"RETURNING {_COLUMNS}"
+                ),
+                {"id": str(concept_id), "description": strip_nul_bytes(new_description)},
             )
         ).mappings().first()
         return Concept.from_row(_as_mapping(row)) if row else None
