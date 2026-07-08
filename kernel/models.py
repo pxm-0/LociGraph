@@ -259,6 +259,35 @@ class ClaimConceptEdge:
 
 
 @dataclass(frozen=True, slots=True)
+class Contradiction:
+    id: UUID
+    user_id: UUID
+    concept_id: UUID
+    claim_a_id: UUID
+    claim_b_id: UUID
+    similarity: float
+    classification: str
+    rationale: str
+    created_at: datetime
+    classified_at: datetime | None = None
+
+    @classmethod
+    def from_row(cls, row: Mapping[str, Any]) -> Contradiction:
+        return cls(
+            id=row["id"],
+            user_id=row["user_id"],
+            concept_id=row["concept_id"],
+            claim_a_id=row["claim_a_id"],
+            claim_b_id=row["claim_b_id"],
+            similarity=float(row["similarity"]),
+            classification=row["classification"],
+            rationale=row["rationale"],
+            created_at=row["created_at"],
+            classified_at=row.get("classified_at"),
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class Job:
     id: UUID
     user_id: UUID
