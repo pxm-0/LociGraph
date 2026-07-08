@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -9,8 +10,12 @@ from backend.app.api.concepts import serialize_claim
 from backend.app.auth.dependencies import get_current_user
 from kernel.db.claims import ClaimRepository
 from kernel.db.contradictions import CLASSIFICATIONS, ContradictionRepository
+from kernel.db.jobs import JobRepository
 from kernel.db.session import session
 from kernel.models import Contradiction
+from worker.tasks.create_revision import create_revision
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -98,4 +103,24 @@ async def classify_contradiction(
         claims = ClaimRepository(conn)
         serialized = await _serialize_contradiction(contradiction, claims)
     assert serialized is not None
+    # Auto-enqueue revision synthesis AFTER the classify transaction commits
+    # (deliberately outside the session block above): sending the dramatiq
+    # message before commit risks create_revision picking it up and reading
+    # a contradiction row that isn't visible yet under READ COMMITTED
+    # isolation — the exact bug fixed in Phase 2 Plan 2's auto-enqueue wiring.
+    if body.classification == "evolution":
+        try:
+            async with session(user_id) as conn:
+                revision_job = await JobRepository(conn).create(
+                    user_id,
+                    "create_revision",
+                    payload={"contradiction_id": contradiction_id},
+                )
+            create_revision.send(contradiction_id, user_id, str(revision_job.id))
+        except Exception as exc:
+            logger.warning(
+                "failed to auto-enqueue create_revision for contradiction %s: %s",
+                contradiction_id,
+                exc,
+            )
     return serialized
