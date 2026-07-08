@@ -243,6 +243,28 @@ out of scope here; see
 
 ---
 
+## Phase 2 Revisions
+
+Concepts have their first mutable field: `description`. Every change is
+recorded in a `revisions` table — append-only, two sources. Classifying a
+contradiction `evolution` auto-enqueues an LLM call that synthesizes an
+updated description from both claims and the concept's current
+understanding. Independently, `POST /api/concepts/{id}/revisions` lets you
+write a concept's description directly at any time — no contradiction, no
+LLM required. Both paths converge on the same table and the same mutation,
+so overriding a synthesized description you don't like is just writing
+another revision on top; revisions are immutable once created.
+
+`GET /api/concepts/{id}/revisions` lists a concept's full history, newest
+first. The `/concepts/{id}` page (the app's first concept detail view) shows
+the concept's claims and revision history side by side, with a form to
+author a manual revision. This completes Phase 2 — Contradictions and
+Revisions are two of the three original scope items with Reality/Perception
+Separation; see
+[docs/superpowers/specs/2026-07-09-revisions-design.md](docs/superpowers/specs/2026-07-09-revisions-design.md).
+
+---
+
 ## Project Layout
 
 ```
