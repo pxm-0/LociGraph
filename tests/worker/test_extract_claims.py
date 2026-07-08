@@ -572,3 +572,77 @@ async def test_extract_claims_stays_completed_when_embed_enqueue_fails(make_user
     assert done.result["claims"] == 1
     assert done.error is None
     assert len(claims) == 1
+
+
+@pytest.mark.asyncio
+async def test_extract_claims_auto_enqueues_contradiction_detection_when_flag_set(
+    make_user, monkeypatch
+):
+    user_id = await make_user()
+    source, job = await _seed_verified_source(user_id)
+    monkeypatch.setenv("CONTRADICTION_AUTORUN", "true")
+    monkeypatch.setattr(
+        "worker.tasks.extract_claims.get_claim_extractor",
+        lambda settings: FakeExtractor(),
+    )
+    sent: list[tuple[object, ...]] = []
+    monkeypatch.setattr(
+        "worker.tasks.extract_claims.detect_contradictions.send",
+        lambda *args: sent.append(args),
+    )
+
+    await _extract_claims(str(source.id), str(user_id), str(job.id))
+
+    assert len(sent) == 1
+    _sent_concept_id, _sent_claim_id, sent_user_id, _sent_job_id = sent[0]
+    assert sent_user_id == str(user_id)
+
+
+@pytest.mark.asyncio
+async def test_extract_claims_does_not_enqueue_contradiction_detection_when_flag_unset(
+    make_user, monkeypatch
+):
+    user_id = await make_user()
+    source, job = await _seed_verified_source(user_id)
+    monkeypatch.delenv("CONTRADICTION_AUTORUN", raising=False)
+    monkeypatch.setattr(
+        "worker.tasks.extract_claims.get_claim_extractor",
+        lambda settings: FakeExtractor(),
+    )
+    sent: list[tuple[object, ...]] = []
+    monkeypatch.setattr(
+        "worker.tasks.extract_claims.detect_contradictions.send",
+        lambda *args: sent.append(args),
+    )
+
+    await _extract_claims(str(source.id), str(user_id), str(job.id))
+
+    assert sent == []
+
+
+@pytest.mark.asyncio
+async def test_extract_claims_stays_completed_when_contradiction_enqueue_fails(
+    make_user, monkeypatch
+):
+    user_id = await make_user()
+    source, job = await _seed_verified_source(user_id)
+    monkeypatch.setenv("CONTRADICTION_AUTORUN", "true")
+    monkeypatch.setattr(
+        "worker.tasks.extract_claims.get_claim_extractor",
+        lambda settings: FakeExtractor(),
+    )
+    monkeypatch.setattr(
+        "worker.tasks.extract_claims.detect_contradictions.send",
+        lambda *args: (_ for _ in ()).throw(RuntimeError("broker unavailable")),
+    )
+
+    await _extract_claims(str(source.id), str(user_id), str(job.id))
+
+    async with session(user_id) as conn:
+        done = await JobRepository(conn).get(job.id)
+        claims = await ClaimRepository(conn).list(source_id=source.id)
+
+    assert done.status == "completed"
+    assert done.result["claims"] == 1
+    assert done.error is None
+    assert len(claims) == 1

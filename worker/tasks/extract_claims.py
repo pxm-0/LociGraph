@@ -9,6 +9,7 @@ import dramatiq
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from kernel.ai.claim_extraction import ClaimExtractionSettings, get_claim_extractor
+from kernel.ai.contradiction_detection import ContradictionSettings
 from kernel.ai.embeddings import EmbeddingSettings
 from kernel.concepts_promotion import approve_candidate
 from kernel.db.claims import ClaimRepository
@@ -18,6 +19,7 @@ from kernel.db.observations import ObservationRepository
 from kernel.db.session import session
 from kernel.db.sources import SourceRepository
 from worker.broker import get_broker, run_actor
+from worker.tasks.detect_contradictions import detect_contradictions
 from worker.tasks.embed_claims import embed_claims
 from worker.tasks.errors import public_error as _public_error
 from worker.tasks.healing import HEAL_DELAY_MS, next_heal_generation
@@ -97,6 +99,7 @@ async def _extract_claims(
     observation_ids: list[str] | None = None,
 ) -> None:
     settings = ClaimExtractionSettings.from_env()
+    contradiction_settings = ContradictionSettings.from_env()
     async with session(user_id) as conn:
         await JobRepository(conn).mark_running(job_id)
         if observation_ids is None:
@@ -209,7 +212,35 @@ async def _extract_claims(
                         # click "approve" on every single candidate isn't
                         # viable, so a freshly extracted candidate goes
                         # straight to being a concept linked to its claim.
-                        await approve_candidate(conn, created_candidate.id)
+                        approval = await approve_candidate(conn, created_candidate.id)
+                        # Auto-enqueue contradiction detection for this newly
+                        # linked claim, same failure-isolation shape as the
+                        # embed_claims auto-enqueue below: a broker/config
+                        # failure here must never corrupt this already-good
+                        # candidate/edge state or the extraction job's result.
+                        if contradiction_settings.contradiction_autorun:
+                            try:
+                                contradiction_job = await JobRepository(conn).create(
+                                    user_id,
+                                    "detect_contradictions",
+                                    payload={
+                                        "concept_id": str(approval.edge.concept_id),
+                                        "claim_id": str(approval.edge.claim_id),
+                                    },
+                                )
+                                detect_contradictions.send(
+                                    str(approval.edge.concept_id),
+                                    str(approval.edge.claim_id),
+                                    user_id,
+                                    str(contradiction_job.id),
+                                )
+                            except Exception as exc:
+                                logger.warning(
+                                    "failed to auto-enqueue detect_contradictions "
+                                    "for claim %s: %s",
+                                    approval.edge.claim_id,
+                                    exc,
+                                )
 
                 processed_count += len(batch)
                 await JobRepository(conn).update_progress(

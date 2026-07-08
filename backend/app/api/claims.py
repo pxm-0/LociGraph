@@ -1,17 +1,23 @@
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 
 from backend.app.api.concepts import serialize_claim, serialize_concept, serialize_edge
 from backend.app.auth.dependencies import get_current_user
+from kernel.ai.contradiction_detection import ContradictionSettings
 from kernel.concepts_promotion import CandidateNotPromotable, approve_candidate
 from kernel.db.claims import ClaimRepository
 from kernel.db.concept_candidates import ConceptCandidateRepository
 from kernel.db.concepts import ConceptRepository
+from kernel.db.jobs import JobRepository
 from kernel.db.session import session
 from kernel.models import ConceptCandidate
+from worker.tasks.detect_contradictions import detect_contradictions
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -119,6 +125,28 @@ async def approve_concept_candidate(
             status_code = 404 if exc.reason == "not_found" else 409
             raise HTTPException(status_code=status_code, detail=exc.message) from exc
         concept_dict = await serialize_concept(result.concept, ConceptRepository(conn))
+        if ContradictionSettings.from_env().contradiction_autorun:
+            try:
+                contradiction_job = await JobRepository(conn).create(
+                    user_id,
+                    "detect_contradictions",
+                    payload={
+                        "concept_id": str(result.edge.concept_id),
+                        "claim_id": str(result.edge.claim_id),
+                    },
+                )
+                detect_contradictions.send(
+                    str(result.edge.concept_id),
+                    str(result.edge.claim_id),
+                    user_id,
+                    str(contradiction_job.id),
+                )
+            except Exception as exc:
+                logger.warning(
+                    "failed to auto-enqueue detect_contradictions for claim %s: %s",
+                    result.edge.claim_id,
+                    exc,
+                )
     return {
         "concept": concept_dict,
         "edge": serialize_edge(result.edge),
