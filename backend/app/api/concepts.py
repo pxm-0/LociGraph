@@ -21,6 +21,7 @@ def serialize_claim(claim: Claim) -> dict[str, Any]:
         "observation_id": str(claim.observation_id),
         "claim_text": claim.claim_text,
         "claim_type": claim.claim_type,
+        "assertion_type": claim.assertion_type,
         "confidence": claim.confidence,
         "extraction_method": claim.extraction_method,
         "model_name": claim.model_name,
