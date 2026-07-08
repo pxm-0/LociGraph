@@ -14,6 +14,7 @@ export type IconName =
   | "visibility"
   | "analytics"
   | "hub"
+  | "balance"
   | "search"
   | "orbit"
   | "toggle_off"
@@ -70,6 +71,15 @@ const ICONS: Record<IconName, ReactNode> = {
       <circle cx="19" cy="19" r="2.5" />
       <path d="M12 7.5L7 16.5" />
       <path d="M12 7.5l5 9" />
+    </svg>
+  ),
+  balance: (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="3" x2="12" y2="21" />
+      <line x1="5" y1="7" x2="19" y2="7" />
+      <path d="M5 7l-3 6a3 3 0 0 0 6 0z" />
+      <path d="M19 7l-3 6a3 3 0 0 0 6 0z" />
+      <line x1="9" y1="21" x2="15" y2="21" />
     </svg>
   ),
   search: (

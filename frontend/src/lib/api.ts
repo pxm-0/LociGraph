@@ -2,6 +2,7 @@ import type {
   Claim,
   Concept,
   ConceptCandidate,
+  Contradiction,
   DashboardSummary,
   Job,
   Observation,
@@ -376,4 +377,60 @@ export async function embedClaims(sourceId: string): Promise<{ jobId: string; st
   if (!r.ok) throw await readError(r, "embedClaims failed")
   const d = await r.json()
   return { jobId: d.job_id, status: d.status }
+}
+
+function toContradiction(d: Record<string, unknown>): Contradiction {
+  return {
+    id: String(d.id),
+    conceptId: String(d.concept_id),
+    claimA: toClaim(d.claim_a as Record<string, unknown>),
+    claimB: toClaim(d.claim_b as Record<string, unknown>),
+    similarity: Number(d.similarity),
+    classification: String(d.classification),
+    rationale: String(d.rationale),
+    createdAt: String(d.created_at),
+    classifiedAt: (d.classified_at as string | null) ?? null,
+  }
+}
+
+export interface ContradictionQuery {
+  conceptId?: string
+  classification?: string
+  limit?: number
+  offset?: number
+}
+
+export async function listContradictions(q: ContradictionQuery = {}): Promise<Contradiction[]> {
+  const params = new URLSearchParams()
+  if (q.conceptId) params.set("concept_id", q.conceptId)
+  if (q.classification) params.set("classification", q.classification)
+  if (q.limit != null) params.set("limit", String(q.limit))
+  if (q.offset != null) params.set("offset", String(q.offset))
+  const r = await req(`/contradictions?${params.toString()}`)
+  if (!r.ok) throw await readError(r, "listContradictions failed")
+  return (await r.json()).map(toContradiction)
+}
+
+export async function getContradictionsCount(
+  q: Pick<ContradictionQuery, "conceptId" | "classification"> = {}
+): Promise<number> {
+  const params = new URLSearchParams()
+  if (q.conceptId) params.set("concept_id", q.conceptId)
+  if (q.classification) params.set("classification", q.classification)
+  const r = await req(`/contradictions/count?${params.toString()}`)
+  if (!r.ok) throw await readError(r, "getContradictionsCount failed")
+  return Number((await r.json()).total ?? 0)
+}
+
+export async function classifyContradiction(
+  contradictionId: string,
+  classification: string
+): Promise<Contradiction> {
+  const r = await req(`/contradictions/${contradictionId}/classify`, {
+    method: "POST",
+    headers: JSON_HEADERS,
+    body: JSON.stringify({ classification }),
+  })
+  if (!r.ok) throw await readError(r, "classifyContradiction failed")
+  return toContradiction(await r.json())
 }

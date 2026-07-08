@@ -67,6 +67,18 @@ export interface SearchResult extends Claim {
   similarity: number
 }
 
+export interface Contradiction {
+  id: string
+  conceptId: string
+  claimA: Claim
+  claimB: Claim
+  similarity: number
+  classification: string
+  rationale: string
+  createdAt: string
+  classifiedAt: string | null
+}
+
 export interface ConceptCandidate {
   id: string
   sourceId: string
