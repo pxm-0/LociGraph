@@ -1,6 +1,9 @@
 import pytest
 
+from kernel.db.claim_concept_edges import ClaimConceptEdgeRepository
 from kernel.db.claims import ClaimRepository
+from kernel.db.concept_candidates import ConceptCandidateRepository
+from kernel.db.concepts import ConceptRepository
 from kernel.db.observations import ObservationRepository
 from kernel.db.semantic_vectors import SemanticVectorRepository
 from kernel.db.session import session
@@ -123,3 +126,75 @@ async def test_search_similar_ranks_by_cosine_distance(make_user):
     assert [r.claim.id for r in results] == [close.id, far.id]
     assert results[0].similarity > results[1].similarity
     assert results[0].similarity == pytest.approx(1.0, abs=1e-6)
+
+
+@pytest.mark.asyncio
+async def test_search_similar_within_concept_excludes_other_concepts_and_self(make_user):
+    user_id = await make_user()
+    async with session(user_id) as conn:
+        source = await SourceRepository(conn).create(user_id, "json", "sv-repo-5")
+        concept_a = await ConceptRepository(conn).find_or_create(
+            user_id=user_id, concept_type="idea", concept_name="Concept A", description=None
+        )
+        concept_b = await ConceptRepository(conn).find_or_create(
+            user_id=user_id, concept_type="idea", concept_name="Concept B", description=None
+        )
+        target = await _make_claim(conn, user_id, source.id, "Target claim.")
+        same_concept = await _make_claim(conn, user_id, source.id, "Same concept claim.")
+        other_concept = await _make_claim(conn, user_id, source.id, "Other concept claim.")
+
+        edge_repo = ClaimConceptEdgeRepository(conn)
+        candidate_repo = ConceptCandidateRepository(conn)
+        for claim, concept in [
+            (target, concept_a),
+            (same_concept, concept_a),
+            (other_concept, concept_b),
+        ]:
+            candidate = await candidate_repo.create(
+                user_id=user_id,
+                source_id=source.id,
+                claim_id=claim.id,
+                candidate_name=concept.concept_name,
+                concept_type="idea",
+                rationale=None,
+                confidence=0.9,
+                extraction_method="test",
+                model_name="fake",
+                prompt_version="v1",
+            )
+            await edge_repo.create(
+                user_id=user_id,
+                claim_id=claim.id,
+                concept_id=concept.id,
+                concept_candidate_id=candidate.id,
+                confidence=0.9,
+            )
+
+        vector_repo = SemanticVectorRepository(conn)
+        await vector_repo.create(
+            user_id=user_id,
+            claim_id=target.id,
+            embedding=_pad_vector([1.0, 0.0]),
+            model_name="test",
+        )
+        await vector_repo.create(
+            user_id=user_id,
+            claim_id=same_concept.id,
+            embedding=_pad_vector([0.9, 0.1]),
+            model_name="test",
+        )
+        await vector_repo.create(
+            user_id=user_id,
+            claim_id=other_concept.id,
+            embedding=_pad_vector([1.0, 0.0]),
+            model_name="test",
+        )
+
+        results = await vector_repo.search_similar_within_concept(
+            concept_id=concept_a.id,
+            exclude_claim_id=target.id,
+            query_embedding=_pad_vector([1.0, 0.0]),
+            limit=5,
+        )
+
+    assert [r.claim.id for r in results] == [same_concept.id]

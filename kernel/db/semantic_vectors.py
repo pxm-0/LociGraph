@@ -100,3 +100,38 @@ class SemanticVectorRepository(BaseRepository):
             SimilarClaim(claim=Claim.from_row(_as_mapping(r)), similarity=float(r["similarity"]))
             for r in rows
         ]
+
+    async def search_similar_within_concept(
+        self,
+        *,
+        concept_id: str | UUID,
+        exclude_claim_id: str | UUID,
+        query_embedding: list[float],
+        limit: int = 5,
+    ) -> list[SimilarClaim]:
+        rows = (
+            await self.conn.execute(
+                text(
+                    f"""
+                    SELECT {_CLAIM_COLUMNS},
+                           1 - (sv.embedding <=> CAST(:query_embedding AS vector)) AS similarity
+                    FROM semantic_vectors sv
+                    JOIN claims c ON c.id = sv.claim_id
+                    JOIN claim_concept_edges cce ON cce.claim_id = c.id
+                    WHERE cce.concept_id = :concept_id AND c.id != :exclude_claim_id
+                    ORDER BY sv.embedding <=> CAST(:query_embedding AS vector) ASC
+                    LIMIT :limit
+                    """
+                ),
+                {
+                    "concept_id": str(concept_id),
+                    "exclude_claim_id": str(exclude_claim_id),
+                    "query_embedding": _embedding_literal(query_embedding),
+                    "limit": limit,
+                },
+            )
+        ).mappings().all()
+        return [
+            SimilarClaim(claim=Claim.from_row(_as_mapping(r)), similarity=float(r["similarity"]))
+            for r in rows
+        ]

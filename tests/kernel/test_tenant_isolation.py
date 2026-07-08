@@ -222,3 +222,71 @@ async def test_semantic_vectors_isolated_between_tenants(make_user):
         assert await SemanticVectorRepository(conn).get_for_claim(claim.id) is None
         query_vec = [0.1, 0.2] + [0.0] * 1534
         assert await SemanticVectorRepository(conn).search_similar(query_vec) == []
+
+
+@pytest.mark.asyncio
+async def test_contradictions_isolated_between_tenants(make_user):
+    from kernel.db.claim_concept_edges import ClaimConceptEdgeRepository
+    from kernel.db.concept_candidates import ConceptCandidateRepository
+    from kernel.db.concepts import ConceptRepository
+    from kernel.db.contradictions import ContradictionRepository
+
+    user_a = await make_user()
+    user_b = await make_user()
+
+    async with session(user_a) as conn:
+        src = await SourceRepository(conn).create(user_a, "json", "iso-contradictions")
+        concept = await ConceptRepository(conn).find_or_create(
+            user_id=user_a, concept_type="idea", concept_name="Secret Concept", description=None
+        )
+        claims = []
+        for text_ in ["Secret claim A.", "Secret claim B."]:
+            [obs_id] = await ObservationRepository(conn).bulk_insert(
+                [{"content": text_}], src.id, user_a
+            )
+            claim = await ClaimRepository(conn).create(
+                user_id=user_a,
+                source_id=src.id,
+                observation_id=obs_id,
+                claim_text=text_,
+                claim_type="fact",
+                assertion_type="reality",
+                confidence=0.9,
+                extraction_method="test",
+                model_name="fake",
+                prompt_version="v1",
+            )
+            assert claim is not None
+            candidate = await ConceptCandidateRepository(conn).create(
+                user_id=user_a,
+                source_id=src.id,
+                claim_id=claim.id,
+                candidate_name="Secret Concept",
+                concept_type="idea",
+                rationale=None,
+                confidence=0.9,
+                extraction_method="test",
+                model_name="fake",
+                prompt_version="v1",
+            )
+            await ClaimConceptEdgeRepository(conn).create(
+                user_id=user_a,
+                claim_id=claim.id,
+                concept_id=concept.id,
+                concept_candidate_id=candidate.id,
+                confidence=0.9,
+            )
+            claims.append(claim)
+        contradiction = await ContradictionRepository(conn).create(
+            user_id=user_a,
+            concept_id=concept.id,
+            claim_a_id=claims[0].id,
+            claim_b_id=claims[1].id,
+            similarity=0.8,
+            rationale="Secret rationale.",
+        )
+        assert contradiction is not None
+
+    async with session(user_b) as conn:
+        assert await ContradictionRepository(conn).list(concept_id=concept.id) == []
+        assert await ContradictionRepository(conn).get(contradiction.id) is None

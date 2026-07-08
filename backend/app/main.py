@@ -2,7 +2,17 @@ from __future__ import annotations
 
 from fastapi import FastAPI
 
-from backend.app.api import auth, claims, concepts, dashboard, jobs, observations, search, sources
+from backend.app.api import (
+    auth,
+    claims,
+    concepts,
+    contradictions,
+    dashboard,
+    jobs,
+    observations,
+    search,
+    sources,
+)
 
 
 def create_app() -> FastAPI:
@@ -14,6 +24,7 @@ def create_app() -> FastAPI:
     app.include_router(dashboard.router)
     app.include_router(claims.router)
     app.include_router(concepts.router)
+    app.include_router(contradictions.router)
     app.include_router(search.router)
     return app
 

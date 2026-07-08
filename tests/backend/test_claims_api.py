@@ -7,6 +7,7 @@ from sqlalchemy import text
 
 from kernel.db.claims import ClaimRepository
 from kernel.db.concept_candidates import ConceptCandidateRepository
+from kernel.db.jobs import JobRepository
 from kernel.db.observations import ObservationRepository
 from kernel.db.session import session
 from kernel.db.sources import SourceRepository
@@ -179,6 +180,127 @@ async def test_claims_filter_by_assertion_type(client, seeded_user):  # type: ig
     assert body[0]["assertion_type"] == "perception"
 
     async with session(seeded_user) as conn:
+        await conn.execute(text("DELETE FROM claims"))
+        await conn.execute(text("DELETE FROM observations"))
+        await conn.execute(text("DELETE FROM sources"))
+
+
+@pytest.mark.asyncio
+async def test_approve_candidate_auto_enqueues_contradiction_detection_when_flag_set(
+    client, seeded_user, monkeypatch
+):  # type: ignore[no-untyped-def]
+    monkeypatch.setenv("CONTRADICTION_AUTORUN", "true")
+    sent: list[tuple[object, ...]] = []
+    monkeypatch.setattr(
+        "backend.app.api.claims.detect_contradictions.send",
+        lambda *args: sent.append(args),
+    )
+    async with session(seeded_user) as conn:
+        source = await SourceRepository(conn).create(seeded_user, "json", "approve-autorun-on")
+        [observation_id] = await ObservationRepository(conn).bulk_insert(
+            [{"content": "Alpha is useful."}], source.id, seeded_user
+        )
+        claim = await ClaimRepository(conn).create(
+            user_id=seeded_user,
+            source_id=source.id,
+            observation_id=observation_id,
+            claim_text="Alpha is useful.",
+            claim_type="fact",
+            assertion_type="reality",
+            confidence=0.9,
+            extraction_method="test",
+            model_name="fake",
+            prompt_version="v1",
+        )
+        assert claim is not None
+        candidate = await ConceptCandidateRepository(conn).create(
+            user_id=seeded_user,
+            source_id=source.id,
+            claim_id=claim.id,
+            candidate_name="Alpha",
+            concept_type="idea",
+            rationale=None,
+            confidence=0.8,
+            extraction_method="test",
+            model_name="fake",
+            prompt_version="v1",
+        )
+
+    await _login(client)
+    r = await client.post(f"/concept-candidates/{candidate.id}/approve")
+
+    assert r.status_code == 200
+    assert len(sent) == 1
+    sent_concept_id, sent_claim_id, sent_user_id, sent_job_id = sent[0]
+    body = r.json()
+    assert sent_concept_id == body["concept"]["id"]
+    assert sent_claim_id == str(claim.id)
+    assert sent_user_id == str(seeded_user)
+    async with session(seeded_user) as conn:
+        contradiction_jobs = await JobRepository(conn).list(job_type="detect_contradictions")
+    assert len(contradiction_jobs) == 1
+    assert sent_job_id == str(contradiction_jobs[0].id)
+
+    async with session(seeded_user) as conn:
+        await conn.execute(text("DELETE FROM claim_concept_edges"))
+        await conn.execute(text("DELETE FROM concepts"))
+        await conn.execute(text("DELETE FROM concept_candidates"))
+        await conn.execute(text("DELETE FROM claims"))
+        await conn.execute(text("DELETE FROM observations"))
+        await conn.execute(text("DELETE FROM sources"))
+
+
+@pytest.mark.asyncio
+async def test_approve_candidate_does_not_enqueue_contradiction_detection_when_flag_unset(
+    client, seeded_user, monkeypatch
+):  # type: ignore[no-untyped-def]
+    monkeypatch.delenv("CONTRADICTION_AUTORUN", raising=False)
+    sent: list[tuple[object, ...]] = []
+    monkeypatch.setattr(
+        "backend.app.api.claims.detect_contradictions.send",
+        lambda *args: sent.append(args),
+    )
+    async with session(seeded_user) as conn:
+        source = await SourceRepository(conn).create(seeded_user, "json", "approve-autorun-off")
+        [observation_id] = await ObservationRepository(conn).bulk_insert(
+            [{"content": "Beta is useful."}], source.id, seeded_user
+        )
+        claim = await ClaimRepository(conn).create(
+            user_id=seeded_user,
+            source_id=source.id,
+            observation_id=observation_id,
+            claim_text="Beta is useful.",
+            claim_type="fact",
+            assertion_type="reality",
+            confidence=0.9,
+            extraction_method="test",
+            model_name="fake",
+            prompt_version="v1",
+        )
+        assert claim is not None
+        candidate = await ConceptCandidateRepository(conn).create(
+            user_id=seeded_user,
+            source_id=source.id,
+            claim_id=claim.id,
+            candidate_name="Beta",
+            concept_type="idea",
+            rationale=None,
+            confidence=0.8,
+            extraction_method="test",
+            model_name="fake",
+            prompt_version="v1",
+        )
+
+    await _login(client)
+    r = await client.post(f"/concept-candidates/{candidate.id}/approve")
+
+    assert r.status_code == 200
+    assert sent == []
+
+    async with session(seeded_user) as conn:
+        await conn.execute(text("DELETE FROM claim_concept_edges"))
+        await conn.execute(text("DELETE FROM concepts"))
+        await conn.execute(text("DELETE FROM concept_candidates"))
         await conn.execute(text("DELETE FROM claims"))
         await conn.execute(text("DELETE FROM observations"))
         await conn.execute(text("DELETE FROM sources"))

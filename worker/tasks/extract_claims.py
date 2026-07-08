@@ -9,6 +9,7 @@ import dramatiq
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from kernel.ai.claim_extraction import ClaimExtractionSettings, get_claim_extractor
+from kernel.ai.contradiction_detection import ContradictionSettings
 from kernel.ai.embeddings import EmbeddingSettings
 from kernel.concepts_promotion import approve_candidate
 from kernel.db.claims import ClaimRepository
@@ -18,6 +19,7 @@ from kernel.db.observations import ObservationRepository
 from kernel.db.session import session
 from kernel.db.sources import SourceRepository
 from worker.broker import get_broker, run_actor
+from worker.tasks.detect_contradictions import detect_contradictions
 from worker.tasks.embed_claims import embed_claims
 from worker.tasks.errors import public_error as _public_error
 from worker.tasks.healing import HEAL_DELAY_MS, next_heal_generation
@@ -97,6 +99,7 @@ async def _extract_claims(
     observation_ids: list[str] | None = None,
 ) -> None:
     settings = ClaimExtractionSettings.from_env()
+    contradiction_settings = ContradictionSettings.from_env()
     async with session(user_id) as conn:
         await JobRepository(conn).mark_running(job_id)
         if observation_ids is None:
@@ -170,6 +173,7 @@ async def _extract_claims(
         processed_count = 0
         for batch in batched(pending_observations, settings.claim_extraction_batch_size):
             result = await extractor.extract(batch)
+            pending_contradiction_triggers: list[tuple[str, str]] = []
             async with session(user_id) as conn:
                 claim_repo = ClaimRepository(conn)
                 candidate_repo = ConceptCandidateRepository(conn)
@@ -209,7 +213,11 @@ async def _extract_claims(
                         # click "approve" on every single candidate isn't
                         # viable, so a freshly extracted candidate goes
                         # straight to being a concept linked to its claim.
-                        await approve_candidate(conn, created_candidate.id)
+                        approval = await approve_candidate(conn, created_candidate.id)
+                        if contradiction_settings.contradiction_autorun:
+                            pending_contradiction_triggers.append(
+                                (str(approval.edge.concept_id), str(approval.edge.claim_id))
+                            )
 
                 processed_count += len(batch)
                 await JobRepository(conn).update_progress(
@@ -217,6 +225,36 @@ async def _extract_claims(
                     items_completed=processed_count,
                     items_total=len(pending_observations),
                 )
+
+            # Auto-enqueue contradiction detection for this batch's newly
+            # linked claims, deliberately OUTSIDE the session block above:
+            # sending the dramatiq message before that transaction commits
+            # risks detect_contradictions picking it up and reading a
+            # claim/concept/edge that isn't visible yet under READ COMMITTED
+            # isolation. Same failure-isolation shape as the embed_claims
+            # auto-enqueue below: one failed enqueue must never corrupt this
+            # batch's already-committed claim/candidate state or stop the
+            # remaining triggers in this batch from being sent.
+            for trigger_concept_id, trigger_claim_id in pending_contradiction_triggers:
+                try:
+                    async with session(user_id) as conn:
+                        contradiction_job = await JobRepository(conn).create(
+                            user_id,
+                            "detect_contradictions",
+                            payload={
+                                "concept_id": trigger_concept_id,
+                                "claim_id": trigger_claim_id,
+                            },
+                        )
+                    detect_contradictions.send(
+                        trigger_concept_id, trigger_claim_id, user_id, str(contradiction_job.id)
+                    )
+                except Exception as exc:
+                    logger.warning(
+                        "failed to auto-enqueue detect_contradictions for claim %s: %s",
+                        trigger_claim_id,
+                        exc,
+                    )
 
         async with session(user_id) as conn:
             await JobRepository(conn).mark_completed(
