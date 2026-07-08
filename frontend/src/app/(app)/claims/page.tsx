@@ -21,6 +21,8 @@ const CLAIM_TYPES = [
   "task",
 ] as const
 
+const ASSERTION_TYPES = ["ALL", "reality", "perception", "interpretation"] as const
+
 const PAGE_SIZE = 100
 
 export default function ClaimsPage() {
@@ -28,6 +30,7 @@ export default function ClaimsPage() {
   const [total, setTotal] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [claimType, setClaimType] = useState("ALL")
+  const [assertionType, setAssertionType] = useState("ALL")
   const [query, setQuery] = useState("")
   const [loadingMore, setLoadingMore] = useState(false)
 
@@ -71,10 +74,11 @@ export default function ClaimsPage() {
     const needle = query.trim().toLowerCase()
     return claims.filter((claim) => {
       const matchesType = claimType === "ALL" || claim.claimType === claimType
+      const matchesAssertion = assertionType === "ALL" || claim.assertionType === assertionType
       const matchesQuery = needle === "" || claim.claimText.toLowerCase().includes(needle)
-      return matchesType && matchesQuery
+      return matchesType && matchesAssertion && matchesQuery
     })
-  }, [claims, claimType, query])
+  }, [claims, claimType, assertionType, query])
 
   return (
     <div className="space-y-6 p-8">
@@ -114,6 +118,24 @@ export default function ClaimsPage() {
         ))}
       </div>
 
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Filter by assertion type">
+        {ASSERTION_TYPES.map((item) => (
+          <button
+            aria-pressed={assertionType === item}
+            className={
+              assertionType === item
+                ? "rounded-meridian bg-ember px-3 py-1.5 font-mono text-xs uppercase tracking-widest text-void transition-colors"
+                : "rounded-meridian px-3 py-1.5 font-mono text-xs uppercase tracking-widest text-muted transition-colors hover:text-ink"
+            }
+            key={item}
+            onClick={() => setAssertionType(item)}
+            type="button"
+          >
+            {item === "ALL" ? "All" : item}
+          </button>
+        ))}
+      </div>
+
       {error !== null && (
         <div
           role="alert"
@@ -134,8 +156,9 @@ export default function ClaimsPage() {
           {filtered.map((claim) => (
             <article className="grid gap-3 py-4 md:grid-cols-[1fr_160px_120px]" key={claim.id}>
               <p className="text-sm leading-6 text-ink">{claim.claimText}</p>
-              <div>
+              <div className="flex flex-wrap gap-1">
                 <Badge className="font-mono uppercase">{claim.claimType}</Badge>
+                <Badge className="font-mono uppercase">{claim.assertionType}</Badge>
               </div>
               <div className="font-mono text-xs text-muted">
                 {Math.round(claim.confidence * 100)}% / {claim.status}

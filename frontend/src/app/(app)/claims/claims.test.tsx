@@ -22,6 +22,7 @@ function makeClaims(count: number, offset = 0): Claim[] {
     observationId: "obs-1",
     claimText: `claim ${offset + i}`,
     claimType: "fact",
+    assertionType: "reality",
     confidence: 0.9,
     extractionMethod: "llm",
     modelName: null,
@@ -114,5 +115,27 @@ describe("ClaimsPage", () => {
     await waitFor(() => {
       expect(screen.getByRole("alert")).toBeInTheDocument()
     })
+  })
+
+  it("filters by assertion type", async () => {
+    const reality = { ...makeClaims(1)[0], id: "c-reality", claimText: "reality claim", assertionType: "reality" }
+    const perception = {
+      ...makeClaims(1)[0],
+      id: "c-perception",
+      claimText: "perception claim",
+      assertionType: "perception",
+    }
+    mockListClaims.mockResolvedValueOnce([reality, perception])
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByText("reality claim")).toBeInTheDocument()
+      expect(screen.getByText("perception claim")).toBeInTheDocument()
+    })
+
+    await userEvent.click(screen.getByRole("button", { name: "perception" }))
+
+    expect(screen.queryByText("reality claim")).not.toBeInTheDocument()
+    expect(screen.getByText("perception claim")).toBeInTheDocument()
   })
 })
