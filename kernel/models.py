@@ -111,6 +111,7 @@ class Claim:
     observation_id: UUID
     claim_text: str
     claim_type: str
+    assertion_type: str
     confidence: float
     extraction_method: str
     status: str
@@ -128,6 +129,7 @@ class Claim:
             observation_id=row["observation_id"],
             claim_text=row["claim_text"],
             claim_type=row["claim_type"],
+            assertion_type=row["assertion_type"],
             confidence=float(row["confidence"]),
             extraction_method=row["extraction_method"],
             model_name=row.get("model_name"),

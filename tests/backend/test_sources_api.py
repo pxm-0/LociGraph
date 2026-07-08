@@ -306,6 +306,7 @@ async def test_purge_source_with_claims_returns_409_and_unchanged(client, seeded
             observation_id=obs_ids[0],
             claim_text="a claim",
             claim_type="fact",
+            assertion_type="reality",
             confidence=0.9,
             extraction_method="manual",
             model_name=None,

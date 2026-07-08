@@ -42,6 +42,7 @@ async def _seed_source_with_claims(user_id, count=1):  # type: ignore[no-untyped
                 observation_id=obs_id,
                 claim_text=f"Alpha {i} matters.",
                 claim_type="fact",
+                assertion_type="reality",
                 confidence=0.9,
                 extraction_method="test",
                 model_name="fake",

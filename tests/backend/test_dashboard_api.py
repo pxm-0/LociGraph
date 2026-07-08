@@ -28,6 +28,7 @@ async def test_dashboard_summary_reports_real_totals(client, seeded_user):  # ty
             observation_id=obs_id,
             claim_text="Hello matters.",
             claim_type="fact",
+            assertion_type="reality",
             confidence=0.9,
             extraction_method="test",
             model_name="fake",

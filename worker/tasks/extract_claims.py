@@ -180,6 +180,7 @@ async def _extract_claims(
                         observation_id=extracted.observation_id,
                         claim_text=extracted.claim_text,
                         claim_type=extracted.claim_type,
+                        assertion_type=extracted.assertion_type,
                         confidence=extracted.confidence,
                         extraction_method=result.extraction_method,
                         model_name=result.model_name,

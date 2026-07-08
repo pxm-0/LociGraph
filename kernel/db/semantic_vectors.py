@@ -14,8 +14,8 @@ _COLUMNS = "id, user_id, claim_id, model_name, created_at, embedding::text AS em
 
 _CLAIM_COLUMNS = (
     "c.id, c.user_id, c.source_id, c.observation_id, c.claim_text, c.claim_type, "
-    "c.confidence, c.extraction_method, c.model_name, c.prompt_version, c.status, "
-    "c.created_at, c.metadata"
+    "c.assertion_type, c.confidence, c.extraction_method, c.model_name, c.prompt_version, "
+    "c.status, c.created_at, c.metadata"
 )
 
 

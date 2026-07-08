@@ -48,6 +48,7 @@ def test_claim_and_concept_candidate_from_row():
             "observation_id": uuid.uuid4(),
             "claim_text": "Alpha matters.",
             "claim_type": "belief",
+            "assertion_type": "perception",
             "confidence": 0.77,
             "extraction_method": "test",
             "model_name": "fake",

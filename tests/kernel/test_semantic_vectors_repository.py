@@ -22,6 +22,7 @@ async def _make_claim(conn, user_id, source_id, content="Alpha matters."):
         observation_id=obs_id,
         claim_text=content,
         claim_type="fact",
+        assertion_type="reality",
         confidence=0.9,
         extraction_method="test",
         model_name="fake",
