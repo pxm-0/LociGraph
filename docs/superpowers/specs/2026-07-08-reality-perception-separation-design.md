@@ -31,16 +31,34 @@ The same migration `0008` backfills every existing row using a deterministic
 `claim_type → assertion_type` map, run once as a data migration (`UPDATE
 claims SET assertion_type = CASE claim_type ... END`), then the column is
 altered to `NOT NULL` (two-step: add nullable, backfill, set `NOT NULL`,
-matching the standard safe-migration order for an existing table with rows):
+matching the standard safe-migration order for an existing table with rows).
 
-| claim_type | assertion_type |
-|---|---|
-| fact, event, definition, relationship, decision, task | reality |
-| emotion, preference | perception |
-| belief, interpretation | interpretation |
+There's no per-`claim_type` description anywhere in the codebase today (the
+extraction prompt hands the LLM a bare enum, no definitions) — the mapping
+below is grounded directly in ADR-002's three-way split (what happened /
+what was felt / what was inferred), reasoned per type against how a personal
+journaling/notes tool actually uses each label:
+
+| claim_type | assertion_type | rationale |
+|---|---|---|
+| fact, event | reality | directly states something that is/was true or occurred |
+| relationship, decision, task | reality | states an objective fact about the world or the person's recorded action/intent (a decision or task having been made/recorded is itself an event, regardless of what motivated it) |
+| emotion, preference | perception | a felt/subjective state — the direct match for ADR-002's "this felt like abandonment" example |
+| belief, interpretation | interpretation | an inferred conclusion or stance, not a raw fact or a felt state |
+| definition | interpretation | in a personal notes context, defining a concept ("success means X to me") is the person's own conceptual framing, not an observed fact — closer to "what was inferred" than "what happened" |
 
 This map is backfill-only — it never runs for newly-extracted claims, which
-are always LLM-classified (see below).
+are always LLM-classified (see below). It's also inherently lossy (a
+10-value enum collapsed into 3 buckets can't be perfectly accurate per-row),
+so every row it touches gets `metadata["assertion_type_source"] =
+"backfill_deterministic_v1"` set alongside the value (claims already store
+free-form provenance in `metadata`, e.g. `{"raw": raw_claim}` from
+extraction) — this makes backfilled labels distinguishable from
+LLM-classified ones so a future pass can find and re-classify them if
+accuracy ever turns out to matter, instead of silently blending two
+different confidence levels under one column. A repository/migration test
+asserts every value in `CLAIM_TYPES` has an entry in the backfill map, so
+the map can't silently go stale if the claim_type taxonomy grows later.
 
 ### Extraction
 `kernel/ai/claim_extraction.py`'s per-claim JSON schema gains a required
