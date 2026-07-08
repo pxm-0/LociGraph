@@ -84,6 +84,7 @@ function toClaim(d: Record<string, unknown>): Claim {
     observationId: String(d.observation_id),
     claimText: String(d.claim_text),
     claimType: String(d.claim_type),
+    assertionType: String(d.assertion_type),
     confidence: Number(d.confidence),
     extractionMethod: String(d.extraction_method),
     modelName: (d.model_name as string | null) ?? null,
@@ -214,6 +215,7 @@ export interface ClaimQuery {
   sourceId?: string
   observationId?: string
   claimType?: string
+  assertionType?: string
   status?: string
   limit?: number
   offset?: number
@@ -224,6 +226,7 @@ export async function listClaims(q: ClaimQuery = {}): Promise<Claim[]> {
   if (q.sourceId) params.set("source_id", q.sourceId)
   if (q.observationId) params.set("observation_id", q.observationId)
   if (q.claimType) params.set("claim_type", q.claimType)
+  if (q.assertionType) params.set("assertion_type", q.assertionType)
   if (q.status) params.set("status", q.status)
   if (q.limit != null) params.set("limit", String(q.limit))
   if (q.offset != null) params.set("offset", String(q.offset))
@@ -233,12 +236,13 @@ export async function listClaims(q: ClaimQuery = {}): Promise<Claim[]> {
 }
 
 export async function getClaimsCount(
-  q: Pick<ClaimQuery, "sourceId" | "observationId" | "claimType" | "status"> = {}
+  q: Pick<ClaimQuery, "sourceId" | "observationId" | "claimType" | "assertionType" | "status"> = {}
 ): Promise<number> {
   const params = new URLSearchParams()
   if (q.sourceId) params.set("source_id", q.sourceId)
   if (q.observationId) params.set("observation_id", q.observationId)
   if (q.claimType) params.set("claim_type", q.claimType)
+  if (q.assertionType) params.set("assertion_type", q.assertionType)
   if (q.status) params.set("status", q.status)
   const r = await req(`/claims/count?${params.toString()}`)
   if (!r.ok) throw await readError(r, "getClaimsCount failed")

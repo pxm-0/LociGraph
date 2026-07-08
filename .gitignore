@@ -24,6 +24,7 @@ node_modules/
 data/
 caddy_data/
 postgres_data/
+backups/
 
 # Claude local settings
 .claude/settings.local.json

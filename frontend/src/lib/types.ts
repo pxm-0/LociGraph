@@ -54,6 +54,7 @@ export interface Claim {
   observationId: string
   claimText: string
   claimType: string
+  assertionType: string
   confidence: number
   extractionMethod: string
   modelName: string | null

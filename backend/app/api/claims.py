@@ -38,6 +38,7 @@ async def list_claims(
     source_id: str | None = None,
     observation_id: str | None = None,
     claim_type: str | None = None,
+    assertion_type: str | None = None,
     status: str | None = None,
     limit: int = 50,
     offset: int = 0,
@@ -48,6 +49,7 @@ async def list_claims(
             source_id=source_id,
             observation_id=observation_id,
             claim_type=claim_type,
+            assertion_type=assertion_type,
             status=status,
             limit=limit,
             offset=offset,
@@ -60,6 +62,7 @@ async def count_claims(
     source_id: str | None = None,
     observation_id: str | None = None,
     claim_type: str | None = None,
+    assertion_type: str | None = None,
     status: str | None = None,
     user_id: str = Depends(get_current_user),
 ) -> dict[str, int]:
@@ -68,6 +71,7 @@ async def count_claims(
             source_id=source_id,
             observation_id=observation_id,
             claim_type=claim_type,
+            assertion_type=assertion_type,
             status=status,
         )
     return {"total": total}

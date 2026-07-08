@@ -204,6 +204,25 @@ projection layer.
 
 ---
 
+## Phase 2 Reality/Perception Separation
+
+Every claim carries an `assertion_type` (`reality`, `perception`, or
+`interpretation`) alongside its existing `claim_type`, per ADR-002 — reality
+and perception are modeled as distinct facets of a claim, not collapsed into
+one label. New claims are classified by the extraction LLM; claims that
+existed before this field was introduced were backfilled deterministically
+from their `claim_type` and are tagged
+`metadata.assertion_type_source = "backfill_deterministic_v1"` so they stay
+distinguishable from LLM-classified claims.
+
+`GET /api/claims` and `GET /api/claims/count` accept `?assertion_type=`
+alongside the existing `?claim_type=` filter. Contradiction detection and
+concept revision tracking — the next two Phase 2 plans — are out of scope
+here; see
+[docs/superpowers/specs/2026-07-08-reality-perception-separation-design.md](docs/superpowers/specs/2026-07-08-reality-perception-separation-design.md).
+
+---
+
 ## Project Layout
 
 ```

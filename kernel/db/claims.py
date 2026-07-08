@@ -13,8 +13,8 @@ from kernel.db.base_repository import BaseRepository, strip_nul_bytes
 from kernel.models import Claim
 
 _COLUMNS = (
-    "id, user_id, source_id, observation_id, claim_text, claim_type, confidence, "
-    "extraction_method, model_name, prompt_version, status, created_at, metadata"
+    "id, user_id, source_id, observation_id, claim_text, claim_type, assertion_type, "
+    "confidence, extraction_method, model_name, prompt_version, status, created_at, metadata"
 )
 
 
@@ -31,6 +31,7 @@ class ClaimRepository(BaseRepository):
         observation_id: str | UUID,
         claim_text: str,
         claim_type: str,
+        assertion_type: str,
         confidence: float,
         extraction_method: str,
         model_name: str | None,
@@ -43,11 +44,12 @@ class ClaimRepository(BaseRepository):
                     f"""
                     INSERT INTO claims
                         (user_id, source_id, observation_id, claim_text, claim_type,
-                         confidence, extraction_method, model_name, prompt_version, metadata)
+                         assertion_type, confidence, extraction_method, model_name,
+                         prompt_version, metadata)
                     VALUES
                         (:user_id, :source_id, :observation_id, :claim_text, :claim_type,
-                         :confidence, :extraction_method, :model_name, :prompt_version,
-                         CAST(:metadata AS JSONB))
+                         :assertion_type, :confidence, :extraction_method, :model_name,
+                         :prompt_version, CAST(:metadata AS JSONB))
                     ON CONFLICT DO NOTHING
                     RETURNING {_COLUMNS}
                     """
@@ -58,6 +60,7 @@ class ClaimRepository(BaseRepository):
                     "observation_id": str(observation_id),
                     "claim_text": strip_nul_bytes(claim_text),
                     "claim_type": claim_type,
+                    "assertion_type": assertion_type,
                     "confidence": confidence,
                     "extraction_method": extraction_method,
                     "model_name": model_name,
@@ -83,6 +86,7 @@ class ClaimRepository(BaseRepository):
         source_id: str | UUID | None = None,
         observation_id: str | UUID | None = None,
         claim_type: str | None = None,
+        assertion_type: str | None = None,
         status: str | None = None,
         limit: int = 50,
         offset: int = 0,
@@ -98,6 +102,9 @@ class ClaimRepository(BaseRepository):
         if claim_type is not None:
             clauses.append("claim_type = :claim_type")
             params["claim_type"] = claim_type
+        if assertion_type is not None:
+            clauses.append("assertion_type = :assertion_type")
+            params["assertion_type"] = assertion_type
         if status is not None:
             clauses.append("status = :status")
             params["status"] = status
@@ -140,6 +147,7 @@ class ClaimRepository(BaseRepository):
         source_id: str | UUID | None = None,
         observation_id: str | UUID | None = None,
         claim_type: str | None = None,
+        assertion_type: str | None = None,
         status: str | None = None,
     ) -> int:
         clauses = []
@@ -153,6 +161,9 @@ class ClaimRepository(BaseRepository):
         if claim_type is not None:
             clauses.append("claim_type = :claim_type")
             params["claim_type"] = claim_type
+        if assertion_type is not None:
+            clauses.append("assertion_type = :assertion_type")
+            params["assertion_type"] = assertion_type
         if status is not None:
             clauses.append("status = :status")
             params["status"] = status

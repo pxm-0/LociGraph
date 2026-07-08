@@ -29,6 +29,7 @@ async def test_claims_and_candidates_list_for_current_user(client, seeded_user):
             observation_id=observation_id,
             claim_text="Alpha is useful.",
             claim_type="fact",
+            assertion_type="reality",
             confidence=0.9,
             extraction_method="test",
             model_name="fake",
@@ -81,6 +82,7 @@ async def test_claim_get_is_tenant_scoped(client, seeded_user, make_user):  # ty
             observation_id=observation_id,
             claim_text="Hidden.",
             claim_type="fact",
+            assertion_type="reality",
             confidence=0.9,
             extraction_method="test",
             model_name="fake",
@@ -107,6 +109,7 @@ async def test_claims_count_reflects_total_not_just_the_page(client, seeded_user
                 observation_id=obs_id,
                 claim_text=f"Claim {i}.",
                 claim_type="fact",
+                assertion_type="reality",
                 confidence=0.9,
                 extraction_method="test",
                 model_name="fake",
@@ -124,6 +127,56 @@ async def test_claims_count_reflects_total_not_just_the_page(client, seeded_user
     assert r.status_code == 200
     assert r.json() == {"total": 2}
     assert len(paged.json()) == 1  # the page is smaller than the real total
+
+    async with session(seeded_user) as conn:
+        await conn.execute(text("DELETE FROM claims"))
+        await conn.execute(text("DELETE FROM observations"))
+        await conn.execute(text("DELETE FROM sources"))
+
+
+@pytest.mark.asyncio
+async def test_claims_filter_by_assertion_type(client, seeded_user):  # type: ignore[no-untyped-def]
+    async with session(seeded_user) as conn:
+        source = await SourceRepository(conn).create(
+            seeded_user, "json", "claims-assertion-filter-api"
+        )
+        obs_ids = await ObservationRepository(conn).bulk_insert(
+            [{"content": "one"}, {"content": "two"}], source.id, seeded_user
+        )
+        await ClaimRepository(conn).create(
+            user_id=seeded_user,
+            source_id=source.id,
+            observation_id=obs_ids[0],
+            claim_text="Fact claim.",
+            claim_type="fact",
+            assertion_type="reality",
+            confidence=0.9,
+            extraction_method="test",
+            model_name="fake",
+            prompt_version="v1",
+        )
+        await ClaimRepository(conn).create(
+            user_id=seeded_user,
+            source_id=source.id,
+            observation_id=obs_ids[1],
+            claim_text="Preference claim.",
+            claim_type="preference",
+            assertion_type="perception",
+            confidence=0.9,
+            extraction_method="test",
+            model_name="fake",
+            prompt_version="v1",
+        )
+
+    await _login(client)
+    r = await client.get(
+        "/claims", params={"source_id": str(source.id), "assertion_type": "perception"}
+    )
+
+    assert r.status_code == 200
+    body = r.json()
+    assert len(body) == 1
+    assert body[0]["assertion_type"] == "perception"
 
     async with session(seeded_user) as conn:
         await conn.execute(text("DELETE FROM claims"))

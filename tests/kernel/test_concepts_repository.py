@@ -19,6 +19,7 @@ async def _make_claim_and_candidate(conn, user_id, source_id):
         observation_id=observation_id,
         claim_text="The user cares about careful plans.",
         claim_type="preference",
+        assertion_type="perception",
         confidence=0.9,
         extraction_method="test",
         model_name="fake",

@@ -18,6 +18,7 @@ const MOCK_RESULTS: SearchResult[] = [
     observationId: "o1",
     claimText: "The user prefers dark mode.",
     claimType: "preference",
+    assertionType: "reality",
     confidence: 0.9,
     extractionMethod: "test",
     modelName: null,

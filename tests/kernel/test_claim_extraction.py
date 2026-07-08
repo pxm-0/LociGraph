@@ -17,6 +17,7 @@ def _valid_claim(observation_id: UUID, text: str = "a claim") -> dict:
         "observation_id": str(observation_id),
         "claim_text": text,
         "claim_type": "fact",
+        "assertion_type": "reality",
         "confidence": 0.9,
         "concept_candidates": [],
     }
@@ -94,3 +95,25 @@ def test_still_raises_when_response_is_not_a_json_object():
         _parse_extraction_payload(
             json.dumps([1, 2, 3]), {uuid4()}, extraction_method="test", model_name="m"
         )
+
+
+def test_skips_claim_with_invalid_assertion_type_but_keeps_the_rest():
+    obs_a, obs_b = uuid4(), uuid4()
+    bad = _valid_claim(obs_a, "bad assertion type")
+    bad["assertion_type"] = "not-a-real-type"
+    payload = _payload([bad, _valid_claim(obs_b, "good claim")])
+    result = _parse_extraction_payload(
+        payload, {obs_a, obs_b}, extraction_method="test", model_name="m"
+    )
+    assert [c.claim_text for c in result.claims] == ["good claim"]
+
+
+def test_backfill_map_covers_every_claim_type():
+    from kernel.ai.claim_extraction import (
+        ASSERTION_TYPES,
+        CLAIM_TYPE_TO_ASSERTION_TYPE_BACKFILL,
+        CLAIM_TYPES,
+    )
+
+    assert set(CLAIM_TYPE_TO_ASSERTION_TYPE_BACKFILL) == CLAIM_TYPES
+    assert set(CLAIM_TYPE_TO_ASSERTION_TYPE_BACKFILL.values()) <= ASSERTION_TYPES
