@@ -59,16 +59,21 @@ auto-enqueued from *within* a worker task rather than from the kernel layer:
   in sync for the rarer manual-approval path (e.g. a candidate a human
   re-approves after rejection).
 
-Both call sites, after a successful `approve_candidate(...)` result, do the
+Both call sites, after a successful `approve_candidate(...)` result and only
+when a new `CONTRADICTION_AUTORUN` env flag is `true` (default `false`,
+checked via `ContradictionSettings.from_env().contradiction_autorun`), do the
 same thing: create a `Job` row
 (`JobRepository.create(user_id, "detect_contradictions", payload={"concept_id":
 str(result.edge.concept_id), "claim_id": str(result.edge.claim_id)})`) then
 `detect_contradictions.send(...)`, wrapped in a try/except that logs a
 warning on failure rather than breaking extraction or the approval response
 — identical failure-isolation shape to `embed_claims`'s existing auto-enqueue.
-This keeps both call sites exactly as fast/synchronous as they are today;
-contradictions appear moments later, the same UX pattern already established
-for extraction/embedding jobs.
+`CONTRADICTION_AUTORUN` mirrors `CLAIM_EXTRACTION_AUTORUN`/`EMBEDDING_AUTORUN`
+— every pipeline stage that auto-triggers the next, AI-cost-incurring stage
+gets the same opt-in-by-env-var convention, off by default. This keeps both
+call sites exactly as fast/synchronous as they are today; contradictions
+appear moments later, the same UX pattern already established for
+extraction/embedding jobs.
 
 ### Detection: worker task
 New `worker/tasks/detect_contradictions.py`, actor signature
@@ -87,7 +92,9 @@ New `worker/tasks/detect_contradictions.py`, actor signature
    floor come from a new `ContradictionSettings` dataclass (`from_env`, same
    pattern as `ClaimExtractionSettings`/`EmbeddingSettings`):
    `CONTRADICTION_CANDIDATE_LIMIT` (default `5`),
-   `CONTRADICTION_SIMILARITY_FLOOR` (default `0.75`).
+   `CONTRADICTION_SIMILARITY_FLOOR` (default `0.75`),
+   `CONTRADICTION_AUTORUN` (default `false` — gates the auto-enqueue call
+   sites below, not this worker task itself).
 4. For each remaining pair, call a new `kernel/ai/contradiction_detection.py`
    (`OpenAIContradictionDetector`, same structured-output-JSON-schema pattern
    as `kernel/ai/claim_extraction.py`): input is both claims' `claim_text` and
