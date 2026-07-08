@@ -594,8 +594,18 @@ async def test_extract_claims_auto_enqueues_contradiction_detection_when_flag_se
     await _extract_claims(str(source.id), str(user_id), str(job.id))
 
     assert len(sent) == 1
-    _sent_concept_id, _sent_claim_id, sent_user_id, _sent_job_id = sent[0]
+    sent_concept_id, sent_claim_id, sent_user_id, sent_job_id = sent[0]
+    async with session(user_id) as conn:
+        claims = await ClaimRepository(conn).list(source_id=source.id)
+        concepts = await ConceptRepository(conn).list()
+        contradiction_jobs = await JobRepository(conn).list(job_type="detect_contradictions")
+    assert len(claims) == 1
+    assert sent_claim_id == str(claims[0].id)
+    assert len(concepts) == 1
+    assert sent_concept_id == str(concepts[0].id)
     assert sent_user_id == str(user_id)
+    assert len(contradiction_jobs) == 1
+    assert sent_job_id == str(contradiction_jobs[0].id)
 
 
 @pytest.mark.asyncio

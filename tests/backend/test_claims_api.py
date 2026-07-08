@@ -7,6 +7,7 @@ from sqlalchemy import text
 
 from kernel.db.claims import ClaimRepository
 from kernel.db.concept_candidates import ConceptCandidateRepository
+from kernel.db.jobs import JobRepository
 from kernel.db.observations import ObservationRepository
 from kernel.db.session import session
 from kernel.db.sources import SourceRepository
@@ -230,6 +231,15 @@ async def test_approve_candidate_auto_enqueues_contradiction_detection_when_flag
 
     assert r.status_code == 200
     assert len(sent) == 1
+    sent_concept_id, sent_claim_id, sent_user_id, sent_job_id = sent[0]
+    body = r.json()
+    assert sent_concept_id == body["concept"]["id"]
+    assert sent_claim_id == str(claim.id)
+    assert sent_user_id == str(seeded_user)
+    async with session(seeded_user) as conn:
+        contradiction_jobs = await JobRepository(conn).list(job_type="detect_contradictions")
+    assert len(contradiction_jobs) == 1
+    assert sent_job_id == str(contradiction_jobs[0].id)
 
     async with session(seeded_user) as conn:
         await conn.execute(text("DELETE FROM claim_concept_edges"))

@@ -125,8 +125,16 @@ async def approve_concept_candidate(
             status_code = 404 if exc.reason == "not_found" else 409
             raise HTTPException(status_code=status_code, detail=exc.message) from exc
         concept_dict = await serialize_concept(result.concept, ConceptRepository(conn))
-        if ContradictionSettings.from_env().contradiction_autorun:
-            try:
+    # Auto-enqueue contradiction detection AFTER the approval transaction
+    # commits (deliberately outside the session block above): sending the
+    # dramatiq message before commit risks detect_contradictions picking it
+    # up and reading a claim/concept/edge that isn't visible yet under READ
+    # COMMITTED isolation. Same failure-isolation shape as embed_claims's
+    # auto-enqueue elsewhere in this codebase: a broker/config failure here
+    # must never break this already-successful approval response.
+    if ContradictionSettings.from_env().contradiction_autorun:
+        try:
+            async with session(user_id) as conn:
                 contradiction_job = await JobRepository(conn).create(
                     user_id,
                     "detect_contradictions",
@@ -135,18 +143,18 @@ async def approve_concept_candidate(
                         "claim_id": str(result.edge.claim_id),
                     },
                 )
-                detect_contradictions.send(
-                    str(result.edge.concept_id),
-                    str(result.edge.claim_id),
-                    user_id,
-                    str(contradiction_job.id),
-                )
-            except Exception as exc:
-                logger.warning(
-                    "failed to auto-enqueue detect_contradictions for claim %s: %s",
-                    result.edge.claim_id,
-                    exc,
-                )
+            detect_contradictions.send(
+                str(result.edge.concept_id),
+                str(result.edge.claim_id),
+                user_id,
+                str(contradiction_job.id),
+            )
+        except Exception as exc:
+            logger.warning(
+                "failed to auto-enqueue detect_contradictions for claim %s: %s",
+                result.edge.claim_id,
+                exc,
+            )
     return {
         "concept": concept_dict,
         "edge": serialize_edge(result.edge),
