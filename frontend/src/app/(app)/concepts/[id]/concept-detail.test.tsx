@@ -141,4 +141,13 @@ describe("ConceptDetailPage", () => {
       expect(screen.getByText(/concept not found/i)).toBeInTheDocument()
     })
   })
+
+  it("shows an error message instead of an infinite skeleton when the initial load fails", async () => {
+    mockGetConcept.mockRejectedValueOnce(new Error("network error"))
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toBeInTheDocument()
+    })
+  })
 })

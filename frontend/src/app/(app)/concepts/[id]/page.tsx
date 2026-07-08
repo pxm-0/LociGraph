@@ -79,6 +79,19 @@ export default function ConceptDetailPage({ params }: { params: { id: string } }
     )
   }
 
+  if (error !== null && concept === null) {
+    return (
+      <div className="space-y-6 p-8">
+        <div
+          role="alert"
+          className="rounded-hearth border border-hairline bg-surface px-6 py-4 text-sm text-muted"
+        >
+          Could not load concept: {error}
+        </div>
+      </div>
+    )
+  }
+
   if (concept === null) {
     return (
       <div className="space-y-6 p-8">
