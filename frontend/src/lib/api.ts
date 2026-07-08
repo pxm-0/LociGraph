@@ -6,6 +6,7 @@ import type {
   DashboardSummary,
   Job,
   Observation,
+  Revision,
   SearchResult,
   Source,
   SourceType,
@@ -362,6 +363,39 @@ export async function getConceptClaims(conceptId: string): Promise<Claim[]> {
   const r = await req(`/concepts/${conceptId}/claims`)
   if (!r.ok) throw await readError(r, "getConceptClaims failed")
   return (await r.json()).map(toClaim)
+}
+
+function toRevision(d: Record<string, unknown>): Revision {
+  return {
+    id: String(d.id),
+    conceptId: String(d.concept_id),
+    contradictionId: (d.contradiction_id as string | null) ?? null,
+    source: String(d.source),
+    previousDescription: (d.previous_description as string | null) ?? null,
+    newDescription: String(d.new_description),
+    rationale: (d.rationale as string | null) ?? null,
+    createdAt: String(d.created_at),
+  }
+}
+
+export async function getConceptRevisions(conceptId: string): Promise<Revision[]> {
+  const r = await req(`/concepts/${conceptId}/revisions`)
+  if (!r.ok) throw await readError(r, "getConceptRevisions failed")
+  return (await r.json()).map(toRevision)
+}
+
+export async function createConceptRevision(
+  conceptId: string,
+  newDescription: string,
+  rationale?: string
+): Promise<Revision> {
+  const r = await req(`/concepts/${conceptId}/revisions`, {
+    method: "POST",
+    headers: JSON_HEADERS,
+    body: JSON.stringify({ new_description: newDescription, rationale: rationale ?? null }),
+  })
+  if (!r.ok) throw await readError(r, "createConceptRevision failed")
+  return toRevision(await r.json())
 }
 
 export async function search(query: string, limit = 20): Promise<SearchResult[]> {
