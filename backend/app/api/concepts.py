@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from backend.app.auth.dependencies import get_current_user
 from kernel.db.claim_concept_edges import ClaimConceptEdgeRepository
@@ -17,7 +17,7 @@ router = APIRouter()
 
 
 class CreateRevisionBody(BaseModel):
-    new_description: str
+    new_description: str = Field(min_length=1)
     rationale: str | None = None
 
 
