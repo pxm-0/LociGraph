@@ -1567,6 +1567,80 @@ git commit -m "feat: add Custodian session CRUD and SSE message-streaming API"
 
 ---
 
+### Task 4b: Disconnect-survival test
+
+**Why this task exists:** the whole point of `_generate_and_persist` running as a detached `asyncio.Task` (Task 4) rather than being awaited inline is that generation survives the client disconnecting mid-stream. Task 4's own test list — copied from this plan as originally written — never actually tested that property; every test fully drains the SSE stream. Found during Task 4's review (task quality was still Approved — the underlying code was traced and confirmed correct — but the coverage gap is real and this task closes it before the branch is considered done).
+
+**Files:**
+- Modify: `tests/backend/test_custodian_api.py`
+
+**Interfaces:** none new — exercises the existing `POST /custodian/sessions/{id}/messages` endpoint and `_generate_and_persist`/`_spawn` machinery from Task 4.
+
+- [ ] **Step 1: Write the failing test**
+
+Add to `tests/backend/test_custodian_api.py`:
+
+```python
+@pytest.mark.asyncio
+async def test_reply_still_persists_after_client_disconnects_mid_stream(  # type: ignore[no-untyped-def]
+    client, seeded_user, monkeypatch
+):
+    fake = FakeCustodian(CustodianReply(content="Hello there.", tool_calls=[]))
+    monkeypatch.setattr("backend.app.api.custodian.get_custodian", lambda: fake)
+
+    await _login(client)
+    created = await client.post("/custodian/sessions", json={})
+    session_id = created.json()["id"]
+
+    # Simulate a disconnect: open the stream, read only the first chunk, then
+    # abandon it without draining the rest — the background task in
+    # _generate_and_persist is a detached asyncio.Task, not awaited by this
+    # request, so dropping the response here must not stop it from finishing.
+    async with client.stream(
+        "POST", f"/custodian/sessions/{session_id}/messages", json={"content": "Hi"}
+    ) as response:
+        async for _chunk in response.aiter_text():
+            break  # read exactly one chunk, then exit the `async with` early
+
+    # Poll for the background task to finish persisting — it runs
+    # independently of the request/response lifecycle we just abandoned.
+    deadline = asyncio.get_event_loop().time() + 5.0
+    messages: list[object] = []
+    while asyncio.get_event_loop().time() < deadline:
+        async with session(seeded_user) as conn:
+            messages = await CustodianRepository(conn).list_messages(session_id)
+        if any(m.role == "assistant" for m in messages):
+            break
+        await asyncio.sleep(0.1)
+
+    assert any(m.role == "assistant" and m.content == "Hello there." for m in messages)
+
+    async with session(seeded_user) as conn:
+        await conn.execute(text("DELETE FROM custodian_messages"))
+        await conn.execute(text("DELETE FROM custodian_sessions"))
+```
+
+Add `import asyncio` to the file's imports if not already present.
+
+- [ ] **Step 2: Run the test to verify it fails**
+
+Run: `.venv/bin/pytest tests/backend/test_custodian_api.py -k disconnect -v`
+Expected: at this point the test should actually already PASS if Task 4's implementation is correct (this task adds coverage, not new behavior) — if it FAILS, that means the disconnect-survival property doesn't actually hold, which is a real bug in Task 4's implementation to fix, not a test to weaken.
+
+- [ ] **Step 3: Confirm and run the full backend suite**
+
+Run: `.venv/bin/pytest tests/backend/ -v`
+Expected: all pass, including the new test.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add tests/backend/test_custodian_api.py
+git commit -m "test: verify Custodian reply generation survives a mid-stream client disconnect"
+```
+
+---
+
 ### Task 5: Frontend types and API client
 
 **Files:**
