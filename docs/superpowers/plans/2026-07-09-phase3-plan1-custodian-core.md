@@ -619,7 +619,7 @@ git commit -m "feat: add concept name-substring lookup for Custodian retrieval"
 - Create: `tests/kernel/test_custodian_engine.py`
 
 **Interfaces:**
-- Produces: `CustodianSettings.from_env()` (`active_ai_provider, openai_api_key, openai_custodian_model, custodian_max_messages_per_session`); `ToolCallRecord` dataclass (`tool_name, tool_input, tool_output`); `CustodianReply` dataclass (`content: str, tool_calls: list[ToolCallRecord]`); `OpenAICustodian(api_key, model, *, client=None)` with `async reply(conn, user_id, history: list[dict[str, str]], on_token: Callable[[str], Awaitable[None]], on_tool_call: Callable[[ToolCallRecord], Awaitable[None]]) -> CustodianReply`; `get_custodian(settings=None) -> OpenAICustodian`.
+- Produces: `CustodianSettings.from_env()` (`active_ai_provider, openai_api_key, openai_custodian_model, custodian_max_messages_per_session`); `ToolCallRecord` dataclass (`tool_name, tool_input, tool_output`); `CustodianReply` dataclass (`content: str, tool_calls: list[ToolCallRecord]`); `OpenAICustodian(api_key, model, *, client=None)` with `async reply(conn, user_id, session_id, history: list[dict[str, str]], on_token: Callable[[str], Awaitable[None]], on_tool_call: Callable[[ToolCallRecord], Awaitable[None]]) -> CustodianReply`; `get_custodian(settings=None) -> OpenAICustodian`.
 - Consumes: `kernel.ai.embeddings.EmbeddingSettings`/`get_embedder`, `kernel.db.semantic_vectors.SemanticVectorRepository.search_similar`, `kernel.db.concepts.ConceptRepository.search_by_name` (Task 2), `kernel.db.revisions.RevisionRepository.list`.
 
 - [ ] **Step 1: Write the module**
@@ -790,10 +790,15 @@ class OpenAICustodian:
         self,
         conn: Any,
         user_id: str | UUID,
+        session_id: str | UUID,
         history: list[dict[str, str]],
         on_token: OnToken,
         on_tool_call: OnToolCall,
     ) -> CustodianReply:
+        # session_id is unused by this plan's two read-only tools, but a
+        # future plan (Custodian Logging) adds write-proposal tools that
+        # need to know which session they're proposing into — accepting it
+        # here now avoids a signature change once that plan lands.
         client = self._client
         if client is None:
             from openai import AsyncOpenAI
@@ -947,6 +952,9 @@ class FakeOpenAIClient:
         self.responses = _FakeResponsesClient(rounds)
 
 
+_TEST_SESSION_ID = "00000000-0000-0000-0000-000000000000"
+
+
 async def _collect_reply(custodian, conn, user_id, history):  # type: ignore[no-untyped-def]
     tokens: list[str] = []
     tool_calls: list[ToolCallRecord] = []
@@ -957,7 +965,9 @@ async def _collect_reply(custodian, conn, user_id, history):  # type: ignore[no-
     async def on_tool_call(record: ToolCallRecord) -> None:
         tool_calls.append(record)
 
-    reply = await custodian.reply(conn, user_id, history, on_token, on_tool_call)
+    reply = await custodian.reply(
+        conn, user_id, _TEST_SESSION_ID, history, on_token, on_tool_call
+    )
     return reply, tokens, tool_calls
 
 
@@ -1280,7 +1290,9 @@ async def _generate_and_persist(
                     }
                 )
 
-            reply = await custodian.reply(conn, user_id, history, on_token, on_tool_call)
+            reply = await custodian.reply(
+                conn, user_id, session_id, history, on_token, on_tool_call
+            )
 
             for call in reply.tool_calls:
                 await repo.add_message(
@@ -1413,7 +1425,7 @@ class FakeCustodian:
     def __init__(self, reply: CustodianReply) -> None:
         self._reply = reply
 
-    async def reply(self, conn, user_id, history, on_token, on_tool_call):  # type: ignore[no-untyped-def]
+    async def reply(self, conn, user_id, session_id, history, on_token, on_tool_call):  # type: ignore[no-untyped-def]
         for chunk in self._reply.content.split(" "):
             await on_token(chunk + " ")
         for call in self._reply.tool_calls:

@@ -63,7 +63,7 @@ shape: `CustodianSettings.from_env()` (`active_ai_provider`,
 `if settings.active_ai_provider != "openai": raise ValueError(...)` way as
 `get_claim_extractor`.
 
-`OpenAICustodian.stream_reply(messages, on_token, on_tool_call)` calls
+`OpenAICustodian.reply(conn, user_id, session_id, history, on_token, on_tool_call)` calls
 OpenAI's Responses API in streaming mode with two tools declared:
 
 - `search_archive(query: str, limit: int = 10)` — executed against the exact
