@@ -15,13 +15,19 @@ Revision, Contradiction, Planetarium, Janitor) named in
 `implementation/03_AI_Architecture.md` are future AI roles with no scope
 defined yet — deferred entirely, not touched by any Phase 3 plan.
 
-Phase 3 is planned in parallel with Phase 2 Plan 2 (Contradictions), which is
-still mid-implementation on `phase2/plan2-contradictions`. Phase 2 Plan 3
-(Revisions) also remains unplanned. Phase 3 plans below do not block on
-either — Plan 3 (contradiction-classification assist) reads the existing
-`contradictions` table schema but doesn't require Contradictions to be
-merged first, only for its API/repository shape to be stable, which it
-already is per `docs/superpowers/specs/2026-07-09-contradictions-design.md`.
+**Recalibration (2026-07-09, post Phase 2 completion):** Phase 2 is now fully
+merged to `main` — all three plans (Reality/Perception Separation #13,
+Contradictions #14, Revisions #15) are done. This roadmap was originally
+written while Contradictions was still mid-implementation and Revisions was
+unplanned; that framing is now moot. Plan 3 below (contradiction-classification
+assist) reads the final, shipped `contradictions` API
+(`GET /api/contradictions`, `POST /api/contradictions/{id}/classify`) — its
+assumptions held. Revisions' own design doc
+(`docs/superpowers/specs/2026-07-09-revisions-design.md`) explicitly deferred
+"any Custodian involvement" to this phase, so no scope collision there either.
+The one concrete casualty: Revisions claimed migration `0010`
+(`migrations/versions/0010_revisions.py`), which Plan 1 below had reserved for
+Custodian's tables — bumped to `0011`.
 
 ## Plans
 

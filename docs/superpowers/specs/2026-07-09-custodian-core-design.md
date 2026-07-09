@@ -14,7 +14,7 @@ roles (`implementation/03_AI_Architecture.md`) have no defined scope and are
 untouched.
 
 Unlike every existing AI call in this codebase (`extract_claims`,
-`embed_claims`, and the in-progress `detect_contradictions`), the Custodian
+`embed_claims`, `detect_contradictions`, and `create_revision`), the Custodian
 is not a background dramatiq job gated behind an autorun flag — it's a
 direct, synchronous conversation triggered by normal use, so it introduces
 this codebase's first streaming endpoint and its first per-session cost
@@ -25,7 +25,9 @@ guardrail.
 ### Data model
 Two new tables, RLS-scoped exactly like every other table
 (`ENABLE`/`FORCE ROW LEVEL SECURITY`, `<table>_user_isolation` policy,
-`GRANT` to `locigraph_app`), added in `migrations/versions/0010_custodian.py`:
+`GRANT` to `locigraph_app`), added in `migrations/versions/0011_custodian.py`
+(the next revision after `0010_revisions.py`, Phase 2 Plan 3's migration,
+which landed after this design was first drafted):
 
 - `custodian_sessions`: `id, user_id, title, started_at, ended_at, model,
   provider`. `title` is nullable, set from the first user message (truncated)
@@ -101,9 +103,11 @@ listening), so reloading the page shows the full reply rather than a
 truncated one.
 
 ### Frontend
-A new `Orb` component (client component) rendered in
-`frontend/src/app/(app)/layout.tsx` so it's present on every authenticated
-page — a fixed-position floating circle with the DESIGN.md breathing-pulse
+A new `Orb` component (client component) rendered inside
+`frontend/src/components/layout/AppChrome.tsx` (the shell that already wraps
+`Sidebar` + page content, per `frontend/src/app/(app)/layout.tsx`) so it's
+present on every authenticated page — a fixed-position floating circle with
+the DESIGN.md breathing-pulse
 animation (1.4s infinite), teal/soft and bottom-corner in Hearth mode,
 ember/scanning-ring and bottom-center in Meridian mode, driven by the
 existing `data-mode` toggle. Clicking it expands a chat panel overlay
