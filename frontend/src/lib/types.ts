@@ -134,6 +134,17 @@ export interface CustodianMessage {
   createdAt: string
 }
 
+export interface CustodianLoggedItem {
+  id: string
+  sessionId: string
+  itemType: string
+  targetId: string | null
+  content: Record<string, unknown>
+  status: "proposed" | "accepted" | "rejected" | "superseded"
+  createdAt: string
+  resolvedAt: string | null
+}
+
 export interface DashboardSummary {
   sourceCount: number
   observationCount: number
