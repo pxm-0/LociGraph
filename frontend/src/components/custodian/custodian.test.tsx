@@ -113,4 +113,29 @@ describe("Orb", () => {
       expect(screen.getByText(/Logged: Save as note/)).toBeInTheDocument()
     })
   })
+
+  it("summarizes a propose_* tool call as a generic archive-change notice, not a search", async () => {
+    mockCreate.mockResolvedValueOnce({
+      id: "s1",
+      title: null,
+      startedAt: "2024-05-12T14:32:01Z",
+      endedAt: null,
+      model: "gpt-4o-mini",
+      provider: "openai",
+    })
+    mockStream.mockImplementationOnce(async (_id, _content, handlers) => {
+      handlers.onToolCall("propose_note", "")
+      handlers.onDone()
+    })
+
+    renderOrb()
+    await userEvent.click(screen.getByLabelText("Open the Custodian"))
+    await userEvent.type(screen.getByPlaceholderText("Ask the Custodian..."), "log it")
+    await userEvent.keyboard("{Enter}")
+
+    await waitFor(() => {
+      expect(screen.getByText("Proposed a change to your archive")).toBeInTheDocument()
+      expect(screen.queryByText(/Searched the archive for/)).not.toBeInTheDocument()
+    })
+  })
 })

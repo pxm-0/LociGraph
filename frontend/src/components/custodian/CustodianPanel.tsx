@@ -18,6 +18,7 @@ interface DisplayMessage {
 }
 
 function summarizeToolCall(toolName: string | null, query: string): string {
+  if (toolName?.startsWith("propose_")) return "Proposed a change to your archive"
   if (toolName === "search_concepts") return `Looked up "${query}"`
   return `Searched the archive for "${query}"`
 }
