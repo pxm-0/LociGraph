@@ -1576,42 +1576,47 @@ git commit -m "feat: add Custodian session CRUD and SSE message-streaming API"
 
 **Interfaces:** none new — exercises the existing `POST /custodian/sessions/{id}/messages` endpoint and `_generate_and_persist`/`_spawn` machinery from Task 4.
 
-- [ ] **Step 1: Write the failing test**
+**Correction (post-review):** the original version of this step tried to simulate a disconnect by opening an SSE stream through the `client` fixture and breaking out of the `async for` after one chunk. Task 4b's own review caught, with an empirical repro, that this cannot work in this codebase's test setup: `client` is an `httpx.AsyncClient` wired through `httpx.ASGITransport` (`tests/backend/conftest.py`), and that transport fully drains the ASGI app's response — collapsing it into one joined chunk — *before* the test's `async with client.stream(...)` block is even entered. So "read one chunk then break" reads the *entire* stream, including `event: done`, and by the time that line runs, `_generate_and_persist` has already finished. The test would pass identically even if `_spawn`'s detached-task behavior were deleted and `_generate_and_persist` were awaited inline instead — it has no power to catch the regression it exists to catch. Fix: bypass the HTTP/ASGI layer entirely and call `_generate_and_persist` directly, never draining its output queue — the exact situation a disconnect produces in production, expressed without needing a real socket-based server.
+
+- [ ] **Step 1: Write the test**
 
 Add to `tests/backend/test_custodian_api.py`:
 
 ```python
 @pytest.mark.asyncio
-async def test_reply_still_persists_after_client_disconnects_mid_stream(  # type: ignore[no-untyped-def]
-    client, seeded_user, monkeypatch
+async def test_generate_and_persist_completes_even_when_nothing_drains_the_queue(  # type: ignore[no-untyped-def]
+    seeded_user, monkeypatch
 ):
+    # _generate_and_persist is a detached asyncio.Task (see _spawn in
+    # backend/app/api/custodian.py) — in production, a client disconnecting
+    # mid-stream means nothing ever reads from its output queue again. This
+    # test reproduces exactly that: it calls _generate_and_persist directly
+    # and never touches the queue it writes to, proving completion doesn't
+    # depend on a consumer. (An httpx.ASGITransport-based HTTP-layer version
+    # of this test cannot work — that transport fully drains the SSE
+    # response before the client sees any bytes, so it can never simulate a
+    # partial read; verified empirically during this task's review.)
+    from backend.app.api.custodian import _generate_and_persist
+
     fake = FakeCustodian(CustodianReply(content="Hello there.", tool_calls=[]))
     monkeypatch.setattr("backend.app.api.custodian.get_custodian", lambda: fake)
 
-    await _login(client)
-    created = await client.post("/custodian/sessions", json={})
-    session_id = created.json()["id"]
+    async with session(seeded_user) as conn:
+        custodian_session = await CustodianRepository(conn).create_session(
+            user_id=seeded_user, model="gpt-4o-mini", provider="openai"
+        )
+        await CustodianRepository(conn).add_message(
+            session_id=custodian_session.id, user_id=seeded_user, role="user", content="Hi"
+        )
 
-    # Simulate a disconnect: open the stream, read only the first chunk, then
-    # abandon it without draining the rest — the background task in
-    # _generate_and_persist is a detached asyncio.Task, not awaited by this
-    # request, so dropping the response here must not stop it from finishing.
-    async with client.stream(
-        "POST", f"/custodian/sessions/{session_id}/messages", json={"content": "Hi"}
-    ) as response:
-        async for _chunk in response.aiter_text():
-            break  # read exactly one chunk, then exit the `async with` early
+    queue: asyncio.Queue = asyncio.Queue()
+    task = asyncio.create_task(
+        _generate_and_persist(custodian_session.id, seeded_user, queue)
+    )
+    await asyncio.wait_for(task, timeout=5.0)
 
-    # Poll for the background task to finish persisting — it runs
-    # independently of the request/response lifecycle we just abandoned.
-    deadline = asyncio.get_event_loop().time() + 5.0
-    messages: list[object] = []
-    while asyncio.get_event_loop().time() < deadline:
-        async with session(seeded_user) as conn:
-            messages = await CustodianRepository(conn).list_messages(session_id)
-        if any(m.role == "assistant" for m in messages):
-            break
-        await asyncio.sleep(0.1)
+    async with session(seeded_user) as conn:
+        messages = await CustodianRepository(conn).list_messages(custodian_session.id)
 
     assert any(m.role == "assistant" and m.content == "Hello there." for m in messages)
 
@@ -1622,10 +1627,10 @@ async def test_reply_still_persists_after_client_disconnects_mid_stream(  # type
 
 Add `import asyncio` to the file's imports if not already present.
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [ ] **Step 2: Run the test to verify it passes**
 
-Run: `.venv/bin/pytest tests/backend/test_custodian_api.py -k disconnect -v`
-Expected: at this point the test should actually already PASS if Task 4's implementation is correct (this task adds coverage, not new behavior) — if it FAILS, that means the disconnect-survival property doesn't actually hold, which is a real bug in Task 4's implementation to fix, not a test to weaken.
+Run: `.venv/bin/pytest tests/backend/test_custodian_api.py -k generate_and_persist -v`
+Expected: PASS. If it fails or hangs past the 5s timeout, that's a real bug in `_generate_and_persist` to fix (e.g. it awaits something tied to the queue being drained) — not a test to loosen.
 
 - [ ] **Step 3: Confirm and run the full backend suite**
 
