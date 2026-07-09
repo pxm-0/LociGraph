@@ -15,9 +15,20 @@ interface DisplayMessage {
   content: string
 }
 
+function summarizeToolCall(toolName: string | null, query: string): string {
+  if (toolName === "search_concepts") return `Looked up "${query}"`
+  return `Searched the archive for "${query}"`
+}
+
 function toDisplay(m: CustodianMessage): DisplayMessage {
   if (m.role === "tool") {
-    return { role: "tool", content: `Searched the archive for "${m.toolInput ?? ""}"` }
+    let query = ""
+    try {
+      query = JSON.parse(m.toolInput ?? "{}").query ?? ""
+    } catch {
+      query = ""
+    }
+    return { role: "tool", content: summarizeToolCall(m.toolName, query) }
   }
   return { role: m.role, content: m.content }
 }
@@ -49,10 +60,14 @@ export function CustodianPanel({ onClose }: { onClose: () => void }) {
   }
 
   async function startNewConversation() {
-    const created = await createCustodianSession()
-    setSessions((prev) => [created, ...prev])
-    setActiveId(created.id)
-    setMessages([])
+    try {
+      const created = await createCustodianSession()
+      setSessions((prev) => [created, ...prev])
+      setActiveId(created.id)
+      setMessages([])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "failed to start a new conversation")
+    }
   }
 
   async function send() {
@@ -61,11 +76,16 @@ export function CustodianPanel({ onClose }: { onClose: () => void }) {
     setError(null)
     let sessionId = activeId
     if (!sessionId) {
-      const created = await createCustodianSession()
-      setSessions((prev) => [created, ...prev])
-      setActiveId(created.id)
-      setMessages([])
-      sessionId = created.id
+      try {
+        const created = await createCustodianSession()
+        setSessions((prev) => [created, ...prev])
+        setActiveId(created.id)
+        setMessages([])
+        sessionId = created.id
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "failed to start a new conversation")
+        return
+      }
     }
     setInput("")
     setMessages((prev) => [...prev, { role: "user", content }])
@@ -86,7 +106,7 @@ export function CustodianPanel({ onClose }: { onClose: () => void }) {
           const next = [...prev]
           next.splice(next.length - 1, 0, {
             role: "tool",
-            content: `Searched the archive for "${query}"`,
+            content: summarizeToolCall(toolName, query),
           })
           return next
         })

@@ -52,7 +52,7 @@ export function AppChrome({ children }: { children: ReactNode }) {
             )}
           </div>
 
-          {/* Right: mode toggle + orb slot */}
+          {/* Right: mode toggle */}
           <div className="flex items-center gap-4">
             <ModeToggle />
           </div>

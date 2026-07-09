@@ -188,6 +188,9 @@ async def send_custodian_message(
         if custodian_session is None:
             raise HTTPException(status_code=404, detail="not found")
         message_count = await repo.count_messages(session_id)
+        # Counts every persisted row (user/assistant/tool/system), not
+        # conversational turns — this is a cost safety valve, not a turn
+        # budget, so a turn with tool calls consumes more of the cap.
         if (
             custodian_session.ended_at is not None
             or message_count >= settings.custodian_max_messages_per_session
