@@ -7,7 +7,11 @@ Logging, then Custodian-assisted contradiction classification). Per
 conversational AI guide that explains the archive and retrieves evidence.
 This plan builds the conversational core: chat sessions, streamed replies,
 and archive retrieval via LLM tool-calling — read-only, no writes to the
-archive. Custodian Logging (proposing observations/claims/concepts/tasks
+archive. Retrieval covers both claims (semantic search over the existing
+embedding index) and concepts (name lookup returning description + revision
+history) — concept lookup was added after Phase 2 Plan 3 (Revisions) shipped,
+since concepts only gained a meaningful `description`/history to retrieve
+once that plan landed. Custodian Logging (proposing observations/claims/concepts/tasks
 from chat) and contradiction-classification assistance are explicitly out of
 scope; both build on this plan's session/message infrastructure. Librarian
 roles (`implementation/03_AI_Architecture.md`) have no defined scope and are
@@ -37,7 +41,8 @@ which landed after this design was first drafted):
   tool_input, tool_output, created_at`. `role` is one of `user`, `assistant`,
   `tool`, `system` — the last for cap/error notices. `tool_name`/`tool_input`/
   `tool_output` are nullable and only populated on `role="tool"` rows (one row
-  per `search_archive` call), giving a complete, replayable transcript.
+  per tool call, whichever of the two tools below was invoked), giving a
+  complete, replayable transcript.
   `user_id` is denormalized onto messages (not just sessions) so RLS can scope
   the messages table directly without a join, matching how every other
   child table in this schema carries its own `user_id`.
@@ -59,12 +64,22 @@ shape: `CustodianSettings.from_env()` (`active_ai_provider`,
 `get_claim_extractor`.
 
 `OpenAICustodian.stream_reply(messages, on_token, on_tool_call)` calls
-OpenAI's Responses API in streaming mode with one tool declared:
-`search_archive(query: str, limit: int = 10)`. The model may call it zero or
-more times per turn; each call is executed against the exact same
-`SemanticVectorRepository.search_similar` path `backend/app/api/search.py`
-already uses (embed the query via `get_embedder`, then cosine search), and
-the result is fed back to the model as the tool's output before it continues
+OpenAI's Responses API in streaming mode with two tools declared:
+
+- `search_archive(query: str, limit: int = 10)` — executed against the exact
+  same `SemanticVectorRepository.search_similar` path `backend/app/api/search.py`
+  already uses (embed the query via `get_embedder`, then cosine search).
+- `search_concepts(query: str, limit: int = 5)` — substring name lookup via a
+  new `ConceptRepository.search_by_name(query, limit)` (`ILIKE '%query%'`,
+  ordered by `created_at DESC`; no embeddings involved, matching how
+  `list()`'s existing filters work). For each match, also fetches its
+  revision history via the existing `RevisionRepository.list(concept_id=...,
+  limit=5)` and returns `{id, concept_name, concept_type, description,
+  recent_revisions: [...]}` so the model can answer "what do you know about
+  X, and how has that understanding changed" in one call.
+
+The model may call either tool zero or more times per turn; each call's
+result is fed back to the model as the tool's output before it continues
 generating. Every tool call/result is persisted as a `role="tool"` message
 via the callback, and streamed token deltas are persisted as a single
 `role="assistant"` message once generation completes.
@@ -90,8 +105,8 @@ the existing `get_current_user` cookie-auth dependency:
 - `POST /custodian/sessions/{id}/messages` — body `{"content": str}`.
   Persists the user message, then returns a `text/event-stream` response:
   each SSE event is one token delta (`event: token`) or a tool-call notice
-  (`event: tool_call`, `{"tool_name": "search_archive", "query": "..."}`),
-  terminated by `event: done`. If the OpenAI call raises, emits
+  (`event: tool_call`, `{"tool_name": "search_archive" | "search_concepts",
+  "query": "..."}`), terminated by `event: done`. If the OpenAI call raises, emits
   `event: error` with a sanitized message and persists a `role="system"`
   message recording the failure — no auto-retry. 409 if the session has
   already hit its message cap.
@@ -116,7 +131,7 @@ containing:
   conversation" action),
 - the message thread for the active session (user/assistant bubbles; a
   `role="tool"` message renders as a small "Searched the archive for
-  '...'" indicator rather than raw JSON),
+  '...'" / "Looked up '...'" indicator rather than raw JSON),
 - a text input that POSTs a message and streams the reply in.
 
 Since the streaming endpoint is POST (not GET), the client consumes it via
@@ -137,9 +152,11 @@ roadmap and stays out of scope here.
 - `tests/kernel/test_tenant_isolation.py` — add Custodian session/message
   isolation cases.
 - `tests/kernel/test_custodian_engine.py` — conversation engine with a mocked
-  OpenAI streaming client: token-delta assembly, the tool-call loop
-  (`search_archive` invoked, result fed back, second turn generated),
-  message-cap enforcement.
+  OpenAI streaming client: token-delta assembly, the tool-call loop for both
+  `search_archive` and `search_concepts` (tool invoked, result fed back,
+  second turn generated), message-cap enforcement.
+- `tests/kernel/test_concepts_repository.py` — add a case for
+  `search_by_name` (substring match, ordering, tenant isolation).
 - Backend API tests hitting `/api/custodian/*` with a mocked provider,
   covering auth (401), the cap (409), and SSE event framing.
 - Frontend RTL tests for the Orb (pulse renders, click expands panel),
@@ -154,8 +171,9 @@ roadmap and stays out of scope here.
   that.
 - Librarian roles of any kind — no scope defined yet anywhere in the
   design docs.
-- Concept retrieval (`search_archive` only searches claims via the existing
-  embedding index; concepts have no embeddings yet, per Phase 1 Plan 3).
+- Concept *semantic* search — `search_concepts` is a name-substring lookup
+  only (concepts still have no embeddings, per Phase 1 Plan 3); there's no
+  "find concepts related to X" beyond a literal name match.
 - The "Archivist's Dock" / "Instrument Panel" navigation-dock behavior
   described in DESIGN.md — a distinct nav feature, not part of the Custodian
   work.
