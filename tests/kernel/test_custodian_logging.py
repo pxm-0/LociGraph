@@ -259,6 +259,23 @@ async def test_accept_importance_signal(make_user):
 
 
 @pytest.mark.asyncio
+async def test_accept_raises_unknown_item_type_for_unrecognized_item_type(make_user):
+    # item_type has no DB CHECK constraint (validated only at the propose-tool
+    # dispatch layer, a later task) — this seeds a row with a bogus value
+    # directly via the repository to prove accept_logged_item doesn't
+    # silently mark it "accepted" with nothing created.
+    user_id = await make_user()
+    async with session(user_id) as conn:
+        custodian_session = await _make_session(conn, user_id)
+        item = await _propose(conn, user_id, custodian_session.id, "not_a_real_type", {})
+
+        with pytest.raises(LoggedItemNotResolvable) as exc_info:
+            await accept_logged_item(conn, item.id)
+
+    assert exc_info.value.reason == "unknown_item_type"
+
+
+@pytest.mark.asyncio
 async def test_accept_raises_not_found_for_unknown_item(make_user):
     user_id = await make_user()
     async with session(user_id) as conn:

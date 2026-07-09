@@ -26,7 +26,7 @@ class LoggedItemNotResolvable(Exception):
     yet. The API layer catches this to decide the HTTP status."""
 
     message: str
-    reason: str  # "not_found" | "invalid_status" | "concept_mismatch" | "duplicate"
+    reason: str  # "not_found" | "invalid_status" | "concept_mismatch" | "duplicate" | "unknown_item_type"
 
 
 async def get_or_create_custodian_source(conn: AsyncConnection, user_id: str | UUID) -> Source:
@@ -174,6 +174,12 @@ async def accept_logged_item(conn: AsyncConnection, item_id: str | UUID) -> Cust
             target_id=item.target_id,
         )
         new_target_id = signal.id
+
+    else:
+        raise LoggedItemNotResolvable(
+            message=f"unrecognized item_type {item.item_type!r}",
+            reason="unknown_item_type",
+        )
 
     resolved = await items.resolve(item_id, "accepted", target_id=new_target_id)
     assert resolved is not None, "item was 'proposed' one line above — resolve cannot race here"
