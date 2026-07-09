@@ -127,6 +127,10 @@ _RESOLVE_STATUS_CODES = {
     "invalid_status": 409,
     "concept_mismatch": 422,
     "duplicate": 409,
+    # Malformed internal state (a logged item with no recognized item_type) —
+    # not the caller's fault, so 500 rather than a 4xx; mapped explicitly so
+    # it's a clean response instead of an uncaught KeyError on this dict.
+    "unknown_item_type": 500,
 }
 
 

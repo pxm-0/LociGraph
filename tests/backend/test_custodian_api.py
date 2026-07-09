@@ -226,6 +226,35 @@ async def test_accept_and_reject_endpoints(client, seeded_user):  # type: ignore
 
 
 @pytest.mark.asyncio
+async def test_accept_unrecognized_item_type_returns_500_not_a_crash(  # type: ignore[no-untyped-def]
+    client, seeded_user
+):
+    # item_type has no DB CHECK constraint, so a malformed row (never
+    # produced by any real propose_* tool, but not impossible either) must
+    # still get a clean, deliberate 500 rather than an uncaught KeyError on
+    # _RESOLVE_STATUS_CODES.
+    async with session(seeded_user) as conn:
+        from kernel.db.custodian import CustodianRepository
+
+        custodian_session = await CustodianRepository(conn).create_session(
+            user_id=seeded_user, model="gpt-4o-mini", provider="openai"
+        )
+        item = await CustodianLoggedItemRepository(conn).create(
+            user_id=seeded_user, session_id=custodian_session.id,
+            item_type="not_a_real_type", content={},
+        )
+
+    await _login(client)
+    r = await client.post(f"/custodian/logged-items/{item.id}/accept")
+
+    assert r.status_code == 500
+
+    async with session(seeded_user) as conn:
+        await conn.execute(text("DELETE FROM custodian_logged_items"))
+        await conn.execute(text("DELETE FROM custodian_sessions"))
+
+
+@pytest.mark.asyncio
 async def test_generate_and_persist_completes_even_when_nothing_drains_the_queue(  # type: ignore[no-untyped-def]
     seeded_user, monkeypatch
 ):
