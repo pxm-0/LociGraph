@@ -146,3 +146,36 @@ async def test_count_respects_filters(make_user):
     assert total == 2  # noqa: PLR2004
     assert ideas == 1
     assert none_match == 0
+
+
+@pytest.mark.asyncio
+async def test_search_by_name_matches_substring_case_insensitively(make_user):
+    user_id = await make_user()
+    async with session(user_id) as conn:
+        repo = ConceptRepository(conn)
+        await repo.create(
+            user_id=user_id, concept_name="Sovereignty", concept_type="value"
+        )
+        await repo.create(
+            user_id=user_id, concept_name="Personal Sovereignty", concept_type="value"
+        )
+        await repo.create(user_id=user_id, concept_name="Unrelated", concept_type="idea")
+
+        matches = await repo.search_by_name("sovereign")
+
+    assert {c.concept_name for c in matches} == {"Sovereignty", "Personal Sovereignty"}
+
+
+@pytest.mark.asyncio
+async def test_search_by_name_respects_limit(make_user):
+    user_id = await make_user()
+    async with session(user_id) as conn:
+        repo = ConceptRepository(conn)
+        for i in range(3):
+            await repo.create(
+                user_id=user_id, concept_name=f"Topic {i}", concept_type="idea"
+            )
+
+        matches = await repo.search_by_name("Topic", limit=2)
+
+    assert len(matches) == 2
