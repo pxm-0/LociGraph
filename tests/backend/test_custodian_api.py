@@ -139,36 +139,39 @@ async def test_send_message_409s_once_message_cap_is_hit(  # type: ignore[no-unt
 
 
 @pytest.mark.asyncio
-async def test_reply_still_persists_after_client_disconnects_mid_stream(  # type: ignore[no-untyped-def]
-    client, seeded_user, monkeypatch
+async def test_generate_and_persist_completes_even_when_nothing_drains_the_queue(  # type: ignore[no-untyped-def]
+    seeded_user, monkeypatch
 ):
+    # _generate_and_persist is a detached asyncio.Task (see _spawn in
+    # backend/app/api/custodian.py) — in production, a client disconnecting
+    # mid-stream means nothing ever reads from its output queue again. This
+    # test reproduces exactly that: it calls _generate_and_persist directly
+    # and never touches the queue it writes to, proving completion doesn't
+    # depend on a consumer. (An httpx.ASGITransport-based HTTP-layer version
+    # of this test cannot work — that transport fully drains the SSE
+    # response before the client sees any bytes, so it can never simulate a
+    # partial read; verified empirically during this task's review.)
+    from backend.app.api.custodian import _generate_and_persist
+
     fake = FakeCustodian(CustodianReply(content="Hello there.", tool_calls=[]))
     monkeypatch.setattr("backend.app.api.custodian.get_custodian", lambda: fake)
 
-    await _login(client)
-    created = await client.post("/custodian/sessions", json={})
-    session_id = created.json()["id"]
+    async with session(seeded_user) as conn:
+        custodian_session = await CustodianRepository(conn).create_session(
+            user_id=seeded_user, model="gpt-4o-mini", provider="openai"
+        )
+        await CustodianRepository(conn).add_message(
+            session_id=custodian_session.id, user_id=seeded_user, role="user", content="Hi"
+        )
 
-    # Simulate a disconnect: open the stream, read only the first chunk, then
-    # abandon it without draining the rest — the background task in
-    # _generate_and_persist is a detached asyncio.Task, not awaited by this
-    # request, so dropping the response here must not stop it from finishing.
-    async with client.stream(
-        "POST", f"/custodian/sessions/{session_id}/messages", json={"content": "Hi"}
-    ) as response:
-        async for _chunk in response.aiter_text():
-            break  # read exactly one chunk, then exit the `async with` early
+    queue: asyncio.Queue = asyncio.Queue()
+    task = asyncio.create_task(
+        _generate_and_persist(custodian_session.id, seeded_user, queue)
+    )
+    await asyncio.wait_for(task, timeout=5.0)
 
-    # Poll for the background task to finish persisting — it runs
-    # independently of the request/response lifecycle we just abandoned.
-    deadline = asyncio.get_event_loop().time() + 5.0
-    messages: list[object] = []
-    while asyncio.get_event_loop().time() < deadline:
-        async with session(seeded_user) as conn:
-            messages = await CustodianRepository(conn).list_messages(session_id)
-        if any(m.role == "assistant" for m in messages):
-            break
-        await asyncio.sleep(0.1)
+    async with session(seeded_user) as conn:
+        messages = await CustodianRepository(conn).list_messages(custodian_session.id)
 
     assert any(m.role == "assistant" and m.content == "Hello there." for m in messages)
 
