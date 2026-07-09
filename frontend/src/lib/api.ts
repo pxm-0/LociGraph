@@ -3,6 +3,8 @@ import type {
   Concept,
   ConceptCandidate,
   Contradiction,
+  CustodianMessage,
+  CustodianSession,
   DashboardSummary,
   Job,
   Observation,
@@ -467,4 +469,103 @@ export async function classifyContradiction(
   })
   if (!r.ok) throw await readError(r, "classifyContradiction failed")
   return toContradiction(await r.json())
+}
+
+function toCustodianSession(d: Record<string, unknown>): CustodianSession {
+  return {
+    id: String(d.id),
+    title: (d.title as string | null) ?? null,
+    startedAt: String(d.started_at),
+    endedAt: (d.ended_at as string | null) ?? null,
+    model: String(d.model),
+    provider: String(d.provider),
+  }
+}
+
+function toCustodianMessage(d: Record<string, unknown>): CustodianMessage {
+  return {
+    id: String(d.id),
+    sessionId: String(d.session_id),
+    role: d.role as CustodianMessage["role"],
+    content: String(d.content),
+    toolName: (d.tool_name as string | null) ?? null,
+    toolInput: (d.tool_input as string | null) ?? null,
+    toolOutput: (d.tool_output as string | null) ?? null,
+    createdAt: String(d.created_at),
+  }
+}
+
+export async function createCustodianSession(title: string | null = null): Promise<CustodianSession> {
+  const r = await req("/custodian/sessions", {
+    method: "POST",
+    headers: JSON_HEADERS,
+    body: JSON.stringify({ title }),
+  })
+  if (!r.ok) throw await readError(r, "createCustodianSession failed")
+  return toCustodianSession(await r.json())
+}
+
+export async function listCustodianSessions(): Promise<CustodianSession[]> {
+  const r = await req("/custodian/sessions")
+  if (!r.ok) throw await readError(r, "listCustodianSessions failed")
+  return (await r.json()).map(toCustodianSession)
+}
+
+export async function getCustodianMessages(sessionId: string): Promise<CustodianMessage[]> {
+  const r = await req(`/custodian/sessions/${sessionId}/messages`)
+  if (!r.ok) throw await readError(r, "getCustodianMessages failed")
+  return (await r.json()).map(toCustodianMessage)
+}
+
+export async function endCustodianSession(sessionId: string): Promise<CustodianSession> {
+  const r = await req(`/custodian/sessions/${sessionId}/end`, { method: "POST" })
+  if (!r.ok) throw await readError(r, "endCustodianSession failed")
+  return toCustodianSession(await r.json())
+}
+
+export interface CustodianStreamHandlers {
+  onToken(delta: string): void
+  onToolCall(toolName: string, query: string): void
+  onDone(): void
+  onError(message: string): void
+}
+
+export async function streamCustodianMessage(
+  sessionId: string,
+  content: string,
+  handlers: CustodianStreamHandlers
+): Promise<void> {
+  const r = await fetch(base(`/custodian/sessions/${sessionId}/messages`), {
+    method: "POST",
+    credentials: "include",
+    headers: JSON_HEADERS,
+    body: JSON.stringify({ content }),
+  })
+  if (!r.ok || !r.body) {
+    const err = await readError(r, "streamCustodianMessage failed")
+    handlers.onError(err.message)
+    return
+  }
+  const reader = r.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ""
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    const events = buffer.split("\n\n")
+    buffer = events.pop() ?? ""
+    for (const raw of events) {
+      const lines = raw.split("\n")
+      const eventLine = lines.find((l) => l.startsWith("event: "))
+      const dataLine = lines.find((l) => l.startsWith("data: "))
+      if (!eventLine || !dataLine) continue
+      const eventName = eventLine.slice("event: ".length)
+      const data = JSON.parse(dataLine.slice("data: ".length))
+      if (eventName === "token") handlers.onToken(data.delta)
+      else if (eventName === "tool_call") handlers.onToolCall(data.tool_name, data.query)
+      else if (eventName === "done") handlers.onDone()
+      else if (eventName === "error") handlers.onError(data.message)
+    }
+  }
 }

@@ -112,6 +112,28 @@ export interface Revision {
   createdAt: string
 }
 
+export interface CustodianSession {
+  id: string
+  title: string | null
+  startedAt: string
+  endedAt: string | null
+  model: string
+  provider: string
+}
+
+export type CustodianMessageRole = "user" | "assistant" | "tool" | "system"
+
+export interface CustodianMessage {
+  id: string
+  sessionId: string
+  role: CustodianMessageRole
+  content: string
+  toolName: string | null
+  toolInput: string | null
+  toolOutput: string | null
+  createdAt: string
+}
+
 export interface DashboardSummary {
   sourceCount: number
   observationCount: number
