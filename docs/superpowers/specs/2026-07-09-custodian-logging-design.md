@@ -38,9 +38,13 @@ Three new tables, RLS-scoped exactly like every other table, in
   DEFAULT 'proposed'` — `proposed`, `accepted`, `rejected`, `superseded`
   (validated in Python, matching `classification`/`assertion_type`
   elsewhere — no DB `CHECK`). `resolved_at TIMESTAMPTZ` (nullable, set when
-  status moves off `proposed`). `message_id` references the
-  `custodian_messages` tool-call row that proposed it — nullable is not
-  needed since every proposal comes from a tool call.
+  status moves off `proposed`). `message_id UUID REFERENCES
+  custodian_messages(id)` (nullable) traces back to the tool-call row that
+  proposed it — nullable because of a real ordering constraint: the tool
+  executes (creating this row) *before* its own `custodian_messages` row is
+  persisted (Custodian Core persists tool-call messages only after the full
+  reply completes), so `message_id` starts `NULL` at proposal time and is
+  backfilled by the API layer once that message row exists.
 - `notes`: `id, user_id, content, created_at` — backs the `note` item type.
   No update/delete in v1, matching this codebase's existing preference for
   append-only records (`revisions`).
