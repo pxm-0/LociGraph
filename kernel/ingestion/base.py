@@ -13,6 +13,7 @@ class SourceType:
     PDF = "pdf"
     CHATGPT = "chatgpt"
     META = "meta"
+    CUSTODIAN = "custodian"
     ALL: tuple[str, ...] = (JSON, MARKDOWN, HTML, PDF, CHATGPT, META)
 
 

@@ -49,6 +49,9 @@ async def make_user(reset_engine):
     engine = get_engine()
     for uid in created:
         async with session(uid) as conn:
+            await conn.execute(text("DELETE FROM custodian_logged_items"))
+            await conn.execute(text("DELETE FROM notes"))
+            await conn.execute(text("DELETE FROM importance_signals"))
             await conn.execute(text("DELETE FROM custodian_messages"))
             await conn.execute(text("DELETE FROM custodian_sessions"))
             await conn.execute(text("DELETE FROM claim_concept_edges"))

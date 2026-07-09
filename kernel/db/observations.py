@@ -22,7 +22,7 @@ def _as_mapping(row: RowMapping) -> Mapping[str, Any]:
 
 class ObservationRepository(BaseRepository):
     async def bulk_insert(
-        self, rows: list[dict[str, Any]], source_id: str | UUID, user_id: str | UUID
+        self, rows: list[dict[str, Any]], source_id: str | UUID | None, user_id: str | UUID
     ) -> list[UUID]:
         ids: list[UUID] = []
         for row in rows:
@@ -40,7 +40,7 @@ class ObservationRepository(BaseRepository):
                     ),
                     {
                         "user_id": str(user_id),
-                        "source_id": str(source_id),
+                        "source_id": str(source_id) if source_id is not None else None,
                         "fragment_id": row.get("fragment_id"),
                         "observed_at": row.get("observed_at"),
                         "speaker": row.get("speaker"),

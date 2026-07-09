@@ -237,3 +237,23 @@ async def test_list_and_count_filter_by_assertion_type(make_user):
     assert reality_claim.assertion_type == "reality"
     assert [c.id for c in filtered] == [reality_claim.id]
     assert count == 1
+
+
+@pytest.mark.asyncio
+async def test_set_assertion_type_updates_the_claim(make_user):
+    user_id = await make_user()
+    async with session(user_id) as conn:
+        source = await SourceRepository(conn).create(user_id, "json", "set-assertion-type-1")
+        [obs_id] = await ObservationRepository(conn).bulk_insert(
+            [{"content": "It rained."}], source.id, user_id
+        )
+        claim = await ClaimRepository(conn).create(
+            user_id=user_id, source_id=source.id, observation_id=obs_id,
+            claim_text="It rained.", claim_type="fact", assertion_type="interpretation",
+            confidence=0.9, extraction_method="test", model_name="fake", prompt_version="v1",
+        )
+        assert claim is not None
+        updated = await ClaimRepository(conn).set_assertion_type(claim.id, "perception")
+
+    assert updated is not None
+    assert updated.assertion_type == "perception"

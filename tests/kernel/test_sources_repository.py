@@ -91,3 +91,16 @@ async def test_purge_returns_false_for_nonexistent_id(make_user):
         repo = SourceRepository(conn)
         purged = await repo.purge(uuid.uuid4())
     assert purged is False
+
+
+@pytest.mark.asyncio
+async def test_get_by_type_finds_a_matching_source(make_user):
+    user_id = await make_user()
+    async with session(user_id) as conn:
+        repo = SourceRepository(conn)
+        await repo.create(user_id, "json", "get-by-type-1")
+        custodian_source = await repo.create(user_id, "custodian", "get-by-type-2")
+        found = await repo.get_by_type("custodian")
+
+    assert found is not None
+    assert found.id == custodian_source.id
