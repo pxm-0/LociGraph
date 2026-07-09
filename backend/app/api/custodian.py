@@ -132,6 +132,7 @@ _RESOLVE_STATUS_CODES = {
     # not the caller's fault, so 500 rather than a 4xx; mapped explicitly so
     # it's a clean response instead of an uncaught KeyError on this dict.
     "unknown_item_type": 500,
+    "invalid_classification": 422,
 }
 
 

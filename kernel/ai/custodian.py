@@ -65,7 +65,10 @@ SEARCH_CONCEPTS_TOOL: dict[str, Any] = {
     },
 }
 
-_RESOLVABLE_CLASSIFICATIONS = sorted(CLASSIFICATIONS - {"unresolved"})
+# CLASSIFICATIONS never contains "unresolved" (that's only the DB column's
+# default value, not a value you classify *into* — see ADR-005), so this is
+# already the full set of values you can classify a contradiction as.
+_RESOLVABLE_CLASSIFICATIONS = sorted(CLASSIFICATIONS)
 
 SEARCH_CONTRADICTIONS_TOOL: dict[str, Any] = {
     "type": "function",

@@ -344,6 +344,50 @@ async def test_accept_contradiction_classification_classifies_it(make_user):
 
 
 @pytest.mark.asyncio
+async def test_accept_contradiction_classification_rejects_invalid_classification(make_user):
+    # contradictions.classification has no DB CHECK constraint (validated in
+    # Python only, same as everywhere else in this codebase) — this proves
+    # the accept path validates it itself rather than trusting the tool's
+    # strict-mode enum (which only constrains the model, not a malformed row
+    # created some other way) or writing an arbitrary string to the row.
+    user_id = await make_user()
+    async with session(user_id) as conn:
+        source = await SourceRepository(conn).create(user_id, "json", "logging-classify-invalid")
+        concept = await ConceptRepository(conn).find_or_create(
+            user_id=user_id, concept_type="idea", concept_name="Weather", description=None
+        )
+        [obs_a, obs_b] = await ObservationRepository(conn).bulk_insert(
+            [{"content": "It rained."}, {"content": "It was sunny."}], source.id, user_id
+        )
+        claim_a = await ClaimRepository(conn).create(
+            user_id=user_id, source_id=source.id, observation_id=obs_a,
+            claim_text="It rained.", claim_type="fact", assertion_type="reality",
+            confidence=0.9, extraction_method="test", model_name="fake", prompt_version="v1",
+        )
+        claim_b = await ClaimRepository(conn).create(
+            user_id=user_id, source_id=source.id, observation_id=obs_b,
+            claim_text="It was sunny.", claim_type="fact", assertion_type="reality",
+            confidence=0.9, extraction_method="test", model_name="fake", prompt_version="v1",
+        )
+        assert claim_a is not None and claim_b is not None
+        contradiction = await ContradictionRepository(conn).create(
+            user_id=user_id, concept_id=concept.id, claim_a_id=claim_a.id,
+            claim_b_id=claim_b.id, similarity=0.8, rationale="They disagree.",
+        )
+        assert contradiction is not None
+        custodian_session = await _make_session(conn, user_id)
+        item = await _propose(
+            conn, user_id, custodian_session.id, "contradiction_classification",
+            {"classification": "not_a_real_classification"}, target_id=contradiction.id,
+        )
+
+        with pytest.raises(LoggedItemNotResolvable) as exc_info:
+            await accept_logged_item(conn, item.id)
+
+    assert exc_info.value.reason == "invalid_classification"
+
+
+@pytest.mark.asyncio
 async def test_accept_contradiction_classification_raises_not_found_for_bad_target(make_user):
     user_id = await make_user()
     async with session(user_id) as conn:
