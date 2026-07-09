@@ -11,6 +11,7 @@ from kernel.ai.custodian import (
     _run_search_archive,
     _run_search_concepts,
 )
+from kernel.db.claims import ClaimRepository
 from kernel.db.concepts import ConceptRepository
 from kernel.db.revisions import RevisionRepository
 from kernel.db.session import session
@@ -323,6 +324,133 @@ async def test_reply_executes_propose_reality_assertion_tool_with_target_id(make
     assert item.item_type == "reality_assertion"
     assert item.target_id == claim_id
     assert item.content == {}
+
+
+@pytest.mark.asyncio
+async def test_reply_executes_search_contradictions_tool(make_user):
+    from kernel.db.claim_concept_edges import ClaimConceptEdgeRepository
+    from kernel.db.concept_candidates import ConceptCandidateRepository
+    from kernel.db.contradictions import ContradictionRepository
+    from kernel.db.observations import ObservationRepository
+    from kernel.db.sources import SourceRepository
+
+    user_id = await make_user()
+    async with session(user_id) as conn:
+        source = await SourceRepository(conn).create(user_id, "json", "engine-contra-1")
+        concept = await ConceptRepository(conn).create(
+            user_id=user_id, concept_name="Weather", concept_type="idea"
+        )
+        [obs_a, obs_b] = await ObservationRepository(conn).bulk_insert(
+            [{"content": "It rained."}, {"content": "It was sunny."}], source.id, user_id
+        )
+        claim_repo = ClaimRepository(conn)
+        claim_a = await claim_repo.create(
+            user_id=user_id, source_id=source.id, observation_id=obs_a,
+            claim_text="It rained.", claim_type="fact", assertion_type="reality",
+            confidence=0.9, extraction_method="test", model_name="fake", prompt_version="v1",
+        )
+        claim_b = await claim_repo.create(
+            user_id=user_id, source_id=source.id, observation_id=obs_b,
+            claim_text="It was sunny.", claim_type="fact", assertion_type="reality",
+            confidence=0.9, extraction_method="test", model_name="fake", prompt_version="v1",
+        )
+        assert claim_a is not None and claim_b is not None
+        candidate_repo = ConceptCandidateRepository(conn)
+        edge_repo = ClaimConceptEdgeRepository(conn)
+        for claim in (claim_a, claim_b):
+            candidate = await candidate_repo.create(
+                user_id=user_id, source_id=source.id, claim_id=claim.id,
+                candidate_name="Weather", concept_type="idea", rationale=None,
+                confidence=0.9, extraction_method="test", model_name="fake", prompt_version="v1",
+            )
+            await edge_repo.create(
+                user_id=user_id, claim_id=claim.id, concept_id=concept.id,
+                concept_candidate_id=candidate.id, confidence=0.9,
+            )
+        await ContradictionRepository(conn).create(
+            user_id=user_id, concept_id=concept.id, claim_a_id=claim_a.id,
+            claim_b_id=claim_b.id, similarity=0.8, rationale="They disagree.",
+        )
+
+    call_args = json.dumps({"concept_id": None, "limit": 5})
+    fake_client = FakeOpenAIClient(
+        [
+            (
+                [],
+                _FakeResponse(
+                    "resp_1",
+                    [_FunctionCall("call_1", "search_contradictions", call_args)],
+                ),
+            ),
+            ([_Delta("Found one.")], _FakeResponse("resp_2", [])),
+        ]
+    )
+    custodian = OpenAICustodian(api_key="x", model="gpt-4o-mini", client=fake_client)
+
+    async with session(user_id) as conn:
+        reply, tokens, tool_calls = await _collect_reply(
+            custodian, conn, user_id, [{"role": "user", "content": "any contradictions?"}]
+        )
+
+    assert reply.content == "Found one."
+    output = json.loads(tool_calls[0].tool_output)
+    # ContradictionRepository.create sorts claim_a_id/claim_b_id by UUID
+    # string, so which claim lands in which slot is nondeterministic here.
+    assert {output[0]["claim_a_text"], output[0]["claim_b_text"]} == {
+        "It rained.",
+        "It was sunny.",
+    }
+
+
+@pytest.mark.asyncio
+async def test_reply_executes_propose_classify_contradiction_tool(make_user):
+    from uuid import uuid4
+
+    user_id = await make_user()
+    contradiction_id = uuid4()
+    call_args = json.dumps(
+        {"contradiction_id": str(contradiction_id), "classification": "evolution"}
+    )
+    fake_client = FakeOpenAIClient(
+        [
+            (
+                [],
+                _FakeResponse(
+                    "resp_1",
+                    [_FunctionCall("call_1", "propose_classify_contradiction", call_args)],
+                ),
+            ),
+            ([], _FakeResponse("resp_2", [])),
+        ]
+    )
+    custodian = OpenAICustodian(api_key="x", model="gpt-4o-mini", client=fake_client)
+
+    async with session(user_id) as conn:
+        from kernel.db.custodian import CustodianRepository
+        from kernel.db.custodian_logged_items import CustodianLoggedItemRepository
+
+        custodian_session = await CustodianRepository(conn).create_session(
+            user_id=user_id, model="gpt-4o-mini", provider="openai"
+        )
+        tool_calls: list[ToolCallRecord] = []
+
+        async def on_token(delta: str) -> None:
+            pass
+
+        async def on_tool_call(record: ToolCallRecord) -> None:
+            tool_calls.append(record)
+
+        await custodian.reply(
+            conn, user_id, custodian_session.id, [{"role": "user", "content": "classify it"}],
+            on_token, on_tool_call,
+        )
+        proposal_id = json.loads(tool_calls[0].tool_output)["proposal_id"]
+        item = await CustodianLoggedItemRepository(conn).get(proposal_id)
+
+    assert item is not None
+    assert item.item_type == "contradiction_classification"
+    assert item.target_id == contradiction_id
+    assert item.content == {"classification": "evolution"}
 
 
 def test_settings_from_env_defaults(monkeypatch):

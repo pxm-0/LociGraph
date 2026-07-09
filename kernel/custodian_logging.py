@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 from kernel.db.claim_concept_edges import ClaimConceptEdgeRepository
 from kernel.db.claims import ClaimRepository
 from kernel.db.concept_candidates import ConceptCandidateRepository
-from kernel.db.contradictions import ContradictionRepository
+from kernel.db.contradictions import CLASSIFICATIONS, ContradictionRepository
 from kernel.db.custodian_logged_items import CustodianLoggedItemRepository
 from kernel.db.importance_signals import ImportanceSignalRepository
 from kernel.db.notes import NoteRepository
@@ -26,7 +26,7 @@ class LoggedItemNotResolvable(Exception):
     yet. The API layer catches this to decide the HTTP status."""
 
     message: str
-    reason: str  # "not_found" | "invalid_status" | "concept_mismatch" | "duplicate" | "unknown_item_type"
+    reason: str  # "not_found" | "invalid_status" | "concept_mismatch" | "duplicate" | "unknown_item_type" | "invalid_classification"
 
 
 async def get_or_create_custodian_source(conn: AsyncConnection, user_id: str | UUID) -> Source:
@@ -174,6 +174,24 @@ async def accept_logged_item(conn: AsyncConnection, item_id: str | UUID) -> Cust
             target_id=item.target_id,
         )
         new_target_id = signal.id
+
+    elif item.item_type == "contradiction_classification":
+        assert item.target_id is not None, "contradiction_classification proposals must set target_id"
+        classification = item.content.get("classification")
+        # The manual /contradictions classify endpoint validates classification
+        # against CLASSIFICATIONS before writing (backend/app/api/contradictions.py) —
+        # the contradictions.classification column has no DB CHECK, so this path
+        # needs the same check rather than trusting the tool's strict-mode enum alone.
+        if classification not in CLASSIFICATIONS:
+            raise LoggedItemNotResolvable(
+                message=f"classification must be one of {sorted(CLASSIFICATIONS)}",
+                reason="invalid_classification",
+            )
+        classified = await ContradictionRepository(conn).classify(item.target_id, classification)
+        if classified is None:
+            raise LoggedItemNotResolvable(
+                message="target contradiction not found", reason="not_found"
+            )
 
     else:
         raise LoggedItemNotResolvable(

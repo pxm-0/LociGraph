@@ -9,7 +9,9 @@ from uuid import UUID
 
 from kernel.ai.claim_extraction import ASSERTION_TYPES, CLAIM_TYPES, CONCEPT_TYPES
 from kernel.ai.embeddings import EmbeddingSettings, get_embedder
+from kernel.db.claims import ClaimRepository
 from kernel.db.concepts import ConceptRepository
+from kernel.db.contradictions import CLASSIFICATIONS, ContradictionRepository
 from kernel.db.custodian_logged_items import CustodianLoggedItemRepository
 from kernel.db.importance_signals import IMPORTANCE_TARGET_TYPES
 from kernel.db.revisions import RevisionRepository
@@ -59,6 +61,53 @@ SEARCH_CONCEPTS_TOOL: dict[str, Any] = {
         "properties": {
             "query": {"type": "string", "description": "Concept name or part of it."},
             "limit": {"type": "integer", "description": "Max results, 1-20."},
+        },
+    },
+}
+
+# CLASSIFICATIONS never contains "unresolved" (that's only the DB column's
+# default value, not a value you classify *into* — see ADR-005), so this is
+# already the full set of values you can classify a contradiction as.
+_RESOLVABLE_CLASSIFICATIONS = sorted(CLASSIFICATIONS)
+
+SEARCH_CONTRADICTIONS_TOOL: dict[str, Any] = {
+    "type": "function",
+    "name": "search_contradictions",
+    "description": (
+        "List unresolved contradictions — pairs of claims linked to the "
+        "same concept that conflict. Returns both claims' text and the "
+        "original detection rationale."
+    ),
+    "strict": True,
+    "parameters": {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["concept_id", "limit"],
+        "properties": {
+            "concept_id": {
+                "type": ["string", "null"],
+                "description": "Restrict to one concept's contradictions, or null for all.",
+            },
+            "limit": {"type": "integer", "description": "Max results, 1-20."},
+        },
+    },
+}
+
+PROPOSE_CLASSIFY_CONTRADICTION_TOOL: dict[str, Any] = {
+    "type": "function",
+    "name": "propose_classify_contradiction",
+    "description": (
+        "Propose a classification for an existing unresolved contradiction "
+        "(found via search_contradictions). Requires user acceptance."
+    ),
+    "strict": True,
+    "parameters": {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["contradiction_id", "classification"],
+        "properties": {
+            "contradiction_id": {"type": "string"},
+            "classification": {"type": "string", "enum": _RESOLVABLE_CLASSIFICATIONS},
         },
     },
 }
@@ -239,6 +288,7 @@ _PROPOSE_TOOLS = (
     PROPOSE_PERCEPTION_ASSERTION_TOOL,
     PROPOSE_CONTRADICTION_TOOL,
     PROPOSE_IMPORTANCE_SIGNAL_TOOL,
+    PROPOSE_CLASSIFY_CONTRADICTION_TOOL,
 )
 
 # Maps a propose_* tool name to (item_type, target_field | None). target_field
@@ -254,7 +304,15 @@ _PROPOSE_TOOL_ITEM_TYPES: dict[str, tuple[str, str | None]] = {
     "propose_perception_assertion": ("perception_assertion", "claim_id"),
     "propose_contradiction": ("contradiction", "claim_a_id"),
     "propose_importance_signal": ("importance_signal", "target_id"),
+    "propose_classify_contradiction": ("contradiction_classification", "contradiction_id"),
 }
+
+_TOOLS: tuple[dict[str, Any], ...] = (
+    SEARCH_ARCHIVE_TOOL,
+    SEARCH_CONCEPTS_TOOL,
+    SEARCH_CONTRADICTIONS_TOOL,
+    *_PROPOSE_TOOLS,
+)
 
 # ponytail: bounded to 5 tool-call rounds — comfortably above any real chat
 # turn (each round can batch multiple parallel tool calls); raise if a real
@@ -342,6 +400,31 @@ async def _run_search_concepts(conn: Any, query: str, limit: int) -> str:
     return json.dumps(payload)
 
 
+async def _run_search_contradictions(
+    conn: Any, concept_id: str | None, limit: int
+) -> str:
+    contradictions = await ContradictionRepository(conn).list(
+        concept_id=concept_id, classification="unresolved", limit=max(1, min(limit, 20))
+    )
+    claims = ClaimRepository(conn)
+    payload = []
+    for c in contradictions:
+        claim_a = await claims.get(c.claim_a_id)
+        claim_b = await claims.get(c.claim_b_id)
+        if claim_a is None or claim_b is None:
+            continue
+        payload.append(
+            {
+                "contradiction_id": str(c.id),
+                "concept_id": str(c.concept_id),
+                "claim_a_text": claim_a.claim_text,
+                "claim_b_text": claim_b.claim_text,
+                "rationale": c.rationale,
+            }
+        )
+    return json.dumps(payload)
+
+
 async def _run_propose_tool(
     conn: Any, user_id: str | UUID, session_id: str | UUID, tool_name: str, args: dict[str, Any]
 ) -> str:
@@ -399,7 +482,7 @@ class OpenAICustodian:
             async with client.responses.stream(
                 model=self.model,
                 input=input_items,  # type: ignore[arg-type]
-                tools=[SEARCH_ARCHIVE_TOOL, SEARCH_CONCEPTS_TOOL, *_PROPOSE_TOOLS],  # type: ignore[list-item]
+                tools=_TOOLS,  # type: ignore[arg-type]
                 previous_response_id=previous_response_id,
             ) as stream:
                 async for event in stream:
@@ -425,6 +508,10 @@ class OpenAICustodian:
                     output = await _run_search_archive(conn, args["query"], args["limit"])
                 elif call.name == "search_concepts":
                     output = await _run_search_concepts(conn, args["query"], args["limit"])
+                elif call.name == "search_contradictions":
+                    output = await _run_search_contradictions(
+                        conn, args["concept_id"], args["limit"]
+                    )
                 elif call.name in _PROPOSE_TOOL_ITEM_TYPES:
                     output = await _run_propose_tool(conn, user_id, session_id, call.name, args)
                 else:

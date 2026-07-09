@@ -25,6 +25,8 @@ function summarize(item: CustodianLoggedItem): string {
       return "Flag these two claims as contradicting each other"
     case "importance_signal":
       return `Pin this ${c.target_type} as important`
+    case "contradiction_classification":
+      return `Classify contradiction as ${c.classification}`
     default:
       return item.itemType
   }

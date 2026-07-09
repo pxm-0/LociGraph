@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from backend.app.api.contradictions import maybe_enqueue_revision_synthesis
 from backend.app.auth.dependencies import get_current_user
 from kernel.ai.custodian import CustodianSettings, ToolCallRecord, get_custodian
 from kernel.custodian_logging import (
@@ -131,6 +132,7 @@ _RESOLVE_STATUS_CODES = {
     # not the caller's fault, so 500 rather than a 4xx; mapped explicitly so
     # it's a clean response instead of an uncaught KeyError on this dict.
     "unknown_item_type": 500,
+    "invalid_classification": 422,
 }
 
 
@@ -157,6 +159,10 @@ async def accept_logged_item_endpoint(
             raise HTTPException(
                 status_code=_RESOLVE_STATUS_CODES[exc.reason], detail=exc.message
             ) from None
+    if item.item_type == "contradiction_classification":
+        await maybe_enqueue_revision_synthesis(
+            user_id, str(item.target_id), item.content["classification"]
+        )
     return _serialize_logged_item(item)
 
 

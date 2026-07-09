@@ -8,9 +8,11 @@ import pytest
 from sqlalchemy import text
 
 from kernel.ai.custodian import CustodianReply, ToolCallRecord
+from kernel.db.claims import ClaimRepository
 from kernel.db.custodian import CustodianRepository
 from kernel.db.custodian_logged_items import CustodianLoggedItemRepository
 from kernel.db.session import session
+from kernel.db.sources import SourceRepository
 
 
 async def _login(client):  # type: ignore[no-untyped-def]
@@ -186,6 +188,121 @@ async def test_message_id_is_backfilled_onto_the_logged_item(  # type: ignore[no
     async with session(seeded_user) as conn:
         await conn.execute(text("DELETE FROM custodian_logged_items"))
         await conn.execute(text("DELETE FROM custodian_messages"))
+        await conn.execute(text("DELETE FROM custodian_sessions"))
+
+
+@pytest.mark.asyncio
+async def test_accepting_evolution_classification_enqueues_revision_creation(  # type: ignore[no-untyped-def]
+    client, seeded_user, monkeypatch
+):
+    from kernel.db.claim_concept_edges import ClaimConceptEdgeRepository
+    from kernel.db.concept_candidates import ConceptCandidateRepository
+    from kernel.db.concepts import ConceptRepository
+    from kernel.db.contradictions import ContradictionRepository
+    from kernel.db.custodian import CustodianRepository
+    from kernel.db.observations import ObservationRepository
+
+    sent: list[tuple[object, ...]] = []
+    monkeypatch.setattr(
+        "backend.app.api.contradictions.create_revision.send",
+        lambda *args: sent.append(args),
+    )
+
+    async with session(seeded_user) as conn:
+        source = await SourceRepository(conn).create(seeded_user, "json", "custodian-classify-1")
+        concept = await ConceptRepository(conn).find_or_create(
+            user_id=seeded_user, concept_type="idea", concept_name="Weather", description=None
+        )
+        [obs_a, obs_b] = await ObservationRepository(conn).bulk_insert(
+            [{"content": "It rained."}, {"content": "It was sunny."}], source.id, seeded_user
+        )
+        claim_repo = ClaimRepository(conn)
+        claim_a = await claim_repo.create(
+            user_id=seeded_user, source_id=source.id, observation_id=obs_a,
+            claim_text="It rained.", claim_type="fact", assertion_type="reality",
+            confidence=0.9, extraction_method="test", model_name="fake", prompt_version="v1",
+        )
+        claim_b = await claim_repo.create(
+            user_id=seeded_user, source_id=source.id, observation_id=obs_b,
+            claim_text="It was sunny.", claim_type="fact", assertion_type="reality",
+            confidence=0.9, extraction_method="test", model_name="fake", prompt_version="v1",
+        )
+        assert claim_a is not None and claim_b is not None
+        candidate_repo = ConceptCandidateRepository(conn)
+        edge_repo = ClaimConceptEdgeRepository(conn)
+        for claim in (claim_a, claim_b):
+            candidate = await candidate_repo.create(
+                user_id=seeded_user, source_id=source.id, claim_id=claim.id,
+                candidate_name="Weather", concept_type="idea", rationale=None,
+                confidence=0.9, extraction_method="test", model_name="fake", prompt_version="v1",
+            )
+            await edge_repo.create(
+                user_id=seeded_user, claim_id=claim.id, concept_id=concept.id,
+                concept_candidate_id=candidate.id, confidence=0.9,
+            )
+        contradiction = await ContradictionRepository(conn).create(
+            user_id=seeded_user, concept_id=concept.id, claim_a_id=claim_a.id,
+            claim_b_id=claim_b.id, similarity=0.8, rationale="They disagree.",
+        )
+        assert contradiction is not None
+        custodian_session = await CustodianRepository(conn).create_session(
+            user_id=seeded_user, model="gpt-4o-mini", provider="openai"
+        )
+        item = await CustodianLoggedItemRepository(conn).create(
+            user_id=seeded_user, session_id=custodian_session.id,
+            item_type="contradiction_classification", content={"classification": "evolution"},
+            target_id=contradiction.id,
+        )
+
+    await _login(client)
+    r = await client.post(f"/custodian/logged-items/{item.id}/accept")
+
+    assert r.status_code == 200
+    assert len(sent) == 1
+
+    async with session(seeded_user) as conn:
+        await conn.execute(text("DELETE FROM custodian_logged_items"))
+        await conn.execute(text("DELETE FROM custodian_sessions"))
+        await conn.execute(text("DELETE FROM contradictions"))
+        await conn.execute(text("DELETE FROM claim_concept_edges"))
+        await conn.execute(text("DELETE FROM concepts"))
+        await conn.execute(text("DELETE FROM concept_candidates"))
+        await conn.execute(text("DELETE FROM claims"))
+        await conn.execute(text("DELETE FROM observations"))
+        await conn.execute(text("DELETE FROM sources"))
+
+
+@pytest.mark.asyncio
+async def test_accepting_non_evolution_classification_does_not_enqueue(  # type: ignore[no-untyped-def]
+    client, seeded_user, monkeypatch
+):
+    from kernel.db.custodian import CustodianRepository
+
+    sent: list[tuple[object, ...]] = []
+    monkeypatch.setattr(
+        "backend.app.api.contradictions.create_revision.send",
+        lambda *args: sent.append(args),
+    )
+
+    async with session(seeded_user) as conn:
+        custodian_session = await CustodianRepository(conn).create_session(
+            user_id=seeded_user, model="gpt-4o-mini", provider="openai"
+        )
+        item = await CustodianLoggedItemRepository(conn).create(
+            user_id=seeded_user, session_id=custodian_session.id,
+            item_type="contradiction_classification",
+            content={"classification": "true_conflict"},
+            target_id="00000000-0000-0000-0000-000000000000",
+        )
+
+    await _login(client)
+    r = await client.post(f"/custodian/logged-items/{item.id}/accept")
+
+    assert r.status_code == 404
+    assert sent == []
+
+    async with session(seeded_user) as conn:
+        await conn.execute(text("DELETE FROM custodian_logged_items"))
         await conn.execute(text("DELETE FROM custodian_sessions"))
 
 

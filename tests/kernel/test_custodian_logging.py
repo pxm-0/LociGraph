@@ -12,6 +12,7 @@ from kernel.db.claim_concept_edges import ClaimConceptEdgeRepository
 from kernel.db.claims import ClaimRepository
 from kernel.db.concept_candidates import ConceptCandidateRepository
 from kernel.db.concepts import ConceptRepository
+from kernel.db.contradictions import ContradictionRepository
 from kernel.db.custodian import CustodianRepository
 from kernel.db.custodian_logged_items import CustodianLoggedItemRepository
 from kernel.db.importance_signals import ImportanceSignalRepository
@@ -300,6 +301,107 @@ async def test_reject_sets_status_and_is_not_re_resolvable(make_user):
 
     assert rejected.status == "rejected"
     assert exc_info.value.reason == "invalid_status"
+
+
+@pytest.mark.asyncio
+async def test_accept_contradiction_classification_classifies_it(make_user):
+    user_id = await make_user()
+    async with session(user_id) as conn:
+        source = await SourceRepository(conn).create(user_id, "json", "logging-classify-1")
+        concept = await ConceptRepository(conn).find_or_create(
+            user_id=user_id, concept_type="idea", concept_name="Weather", description=None
+        )
+        [obs_a, obs_b] = await ObservationRepository(conn).bulk_insert(
+            [{"content": "It rained."}, {"content": "It was sunny."}], source.id, user_id
+        )
+        claim_a = await ClaimRepository(conn).create(
+            user_id=user_id, source_id=source.id, observation_id=obs_a,
+            claim_text="It rained.", claim_type="fact", assertion_type="reality",
+            confidence=0.9, extraction_method="test", model_name="fake", prompt_version="v1",
+        )
+        claim_b = await ClaimRepository(conn).create(
+            user_id=user_id, source_id=source.id, observation_id=obs_b,
+            claim_text="It was sunny.", claim_type="fact", assertion_type="reality",
+            confidence=0.9, extraction_method="test", model_name="fake", prompt_version="v1",
+        )
+        assert claim_a is not None and claim_b is not None
+        contradiction = await ContradictionRepository(conn).create(
+            user_id=user_id, concept_id=concept.id, claim_a_id=claim_a.id,
+            claim_b_id=claim_b.id, similarity=0.8, rationale="They disagree.",
+        )
+        assert contradiction is not None
+        custodian_session = await _make_session(conn, user_id)
+        item = await _propose(
+            conn, user_id, custodian_session.id, "contradiction_classification",
+            {"classification": "evolution"}, target_id=contradiction.id,
+        )
+        accepted = await accept_logged_item(conn, item.id)
+        classified = await ContradictionRepository(conn).get(contradiction.id)
+
+    assert accepted.status == "accepted"
+    assert classified is not None
+    assert classified.classification == "evolution"
+
+
+@pytest.mark.asyncio
+async def test_accept_contradiction_classification_rejects_invalid_classification(make_user):
+    # contradictions.classification has no DB CHECK constraint (validated in
+    # Python only, same as everywhere else in this codebase) — this proves
+    # the accept path validates it itself rather than trusting the tool's
+    # strict-mode enum (which only constrains the model, not a malformed row
+    # created some other way) or writing an arbitrary string to the row.
+    user_id = await make_user()
+    async with session(user_id) as conn:
+        source = await SourceRepository(conn).create(user_id, "json", "logging-classify-invalid")
+        concept = await ConceptRepository(conn).find_or_create(
+            user_id=user_id, concept_type="idea", concept_name="Weather", description=None
+        )
+        [obs_a, obs_b] = await ObservationRepository(conn).bulk_insert(
+            [{"content": "It rained."}, {"content": "It was sunny."}], source.id, user_id
+        )
+        claim_a = await ClaimRepository(conn).create(
+            user_id=user_id, source_id=source.id, observation_id=obs_a,
+            claim_text="It rained.", claim_type="fact", assertion_type="reality",
+            confidence=0.9, extraction_method="test", model_name="fake", prompt_version="v1",
+        )
+        claim_b = await ClaimRepository(conn).create(
+            user_id=user_id, source_id=source.id, observation_id=obs_b,
+            claim_text="It was sunny.", claim_type="fact", assertion_type="reality",
+            confidence=0.9, extraction_method="test", model_name="fake", prompt_version="v1",
+        )
+        assert claim_a is not None and claim_b is not None
+        contradiction = await ContradictionRepository(conn).create(
+            user_id=user_id, concept_id=concept.id, claim_a_id=claim_a.id,
+            claim_b_id=claim_b.id, similarity=0.8, rationale="They disagree.",
+        )
+        assert contradiction is not None
+        custodian_session = await _make_session(conn, user_id)
+        item = await _propose(
+            conn, user_id, custodian_session.id, "contradiction_classification",
+            {"classification": "not_a_real_classification"}, target_id=contradiction.id,
+        )
+
+        with pytest.raises(LoggedItemNotResolvable) as exc_info:
+            await accept_logged_item(conn, item.id)
+
+    assert exc_info.value.reason == "invalid_classification"
+
+
+@pytest.mark.asyncio
+async def test_accept_contradiction_classification_raises_not_found_for_bad_target(make_user):
+    user_id = await make_user()
+    async with session(user_id) as conn:
+        custodian_session = await _make_session(conn, user_id)
+        item = await _propose(
+            conn, user_id, custodian_session.id, "contradiction_classification",
+            {"classification": "evolution"},
+            target_id="00000000-0000-0000-0000-000000000000",
+        )
+
+        with pytest.raises(LoggedItemNotResolvable) as exc_info:
+            await accept_logged_item(conn, item.id)
+
+    assert exc_info.value.reason == "not_found"
 
 
 @pytest.mark.asyncio

@@ -138,4 +138,38 @@ describe("Orb", () => {
       expect(screen.queryByText(/Searched the archive for/)).not.toBeInTheDocument()
     })
   })
+
+  it("summarizes a contradiction_classification proposal", async () => {
+    mockCreate.mockResolvedValueOnce({
+      id: "s1",
+      title: null,
+      startedAt: "2024-05-12T14:32:01Z",
+      endedAt: null,
+      model: "gpt-4o-mini",
+      provider: "openai",
+    })
+    const proposal = {
+      id: "p1",
+      sessionId: "s1",
+      itemType: "contradiction_classification",
+      targetId: "c1",
+      content: { classification: "evolution" },
+      status: "proposed" as const,
+      createdAt: "2024-05-12T14:32:01Z",
+      resolvedAt: null,
+    }
+    vi.mocked(listLoggedItems).mockResolvedValueOnce([]).mockResolvedValueOnce([proposal])
+    mockStream.mockImplementationOnce(async (_id, _content, handlers) => {
+      handlers.onDone()
+    })
+
+    renderOrb()
+    await userEvent.click(screen.getByLabelText("Open the Custodian"))
+    await userEvent.type(screen.getByPlaceholderText("Ask the Custodian..."), "classify it")
+    await userEvent.keyboard("{Enter}")
+
+    await waitFor(() => {
+      expect(screen.getByText("Classify contradiction as evolution")).toBeInTheDocument()
+    })
+  })
 })

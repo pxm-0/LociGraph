@@ -46,6 +46,34 @@ async def _serialize_contradiction(
     }
 
 
+async def maybe_enqueue_revision_synthesis(
+    user_id: str, contradiction_id: str, classification: str
+) -> None:
+    """Auto-enqueue revision synthesis when a contradiction is classified
+    'evolution'. Must be called AFTER the classify transaction commits, never
+    from inside the same session() block that performed the classify —
+    sending the dramatiq message before commit risks create_revision reading
+    a contradiction row that isn't visible yet under READ COMMITTED
+    isolation (the bug Phase 2 Plan 2's auto-enqueue wiring already fixed
+    once). Called from both this module's classify endpoint and the
+    Custodian Logging accept endpoint, so both classify paths behave
+    identically."""
+    if classification != "evolution":
+        return
+    try:
+        async with session(user_id) as conn:
+            revision_job = await JobRepository(conn).create(
+                user_id, "create_revision", payload={"contradiction_id": contradiction_id}
+            )
+        create_revision.send(contradiction_id, user_id, str(revision_job.id))
+    except Exception as exc:
+        logger.warning(
+            "failed to auto-enqueue create_revision for contradiction %s: %s",
+            contradiction_id,
+            exc,
+        )
+
+
 @router.get("/contradictions")
 async def list_contradictions(
     concept_id: str | None = None,
@@ -103,24 +131,5 @@ async def classify_contradiction(
         claims = ClaimRepository(conn)
         serialized = await _serialize_contradiction(contradiction, claims)
     assert serialized is not None
-    # Auto-enqueue revision synthesis AFTER the classify transaction commits
-    # (deliberately outside the session block above): sending the dramatiq
-    # message before commit risks create_revision picking it up and reading
-    # a contradiction row that isn't visible yet under READ COMMITTED
-    # isolation — the exact bug fixed in Phase 2 Plan 2's auto-enqueue wiring.
-    if body.classification == "evolution":
-        try:
-            async with session(user_id) as conn:
-                revision_job = await JobRepository(conn).create(
-                    user_id,
-                    "create_revision",
-                    payload={"contradiction_id": contradiction_id},
-                )
-            create_revision.send(contradiction_id, user_id, str(revision_job.id))
-        except Exception as exc:
-            logger.warning(
-                "failed to auto-enqueue create_revision for contradiction %s: %s",
-                contradiction_id,
-                exc,
-            )
+    await maybe_enqueue_revision_synthesis(user_id, contradiction_id, body.classification)
     return serialized
