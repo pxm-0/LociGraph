@@ -6,6 +6,7 @@ import { useMode } from "@/lib/theme"
 import { Sidebar } from "@/components/layout/Sidebar"
 import { NAV_ITEMS } from "@/components/layout/Sidebar"
 import { ModeToggle } from "@/components/layout/ModeToggle"
+import { Orb } from "@/components/custodian/Orb"
 
 function currentPageTitle(pathname: string): string {
   const item = NAV_ITEMS.find((i) => pathname === i.href || pathname.startsWith(i.href + "/"))
@@ -53,8 +54,6 @@ export function AppChrome({ children }: { children: ReactNode }) {
 
           {/* Right: mode toggle + orb slot */}
           <div className="flex items-center gap-4">
-            {/* Orb/Core companion — deferred (Plan 4 scope: dual-mode, Orb later) */}
-            <div data-orb-slot className="hidden" aria-hidden="true" />
             <ModeToggle />
           </div>
         </header>
@@ -69,6 +68,8 @@ export function AppChrome({ children }: { children: ReactNode }) {
           {children}
         </main>
       </div>
+
+      <Orb />
     </div>
   )
 }

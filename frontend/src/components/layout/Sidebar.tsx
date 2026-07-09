@@ -63,12 +63,6 @@ function HearthSidebar({ pathname }: { pathname: string }) {
         })}
       </nav>
 
-      {/* Orb placeholder */}
-      <div className="px-6 mt-auto mb-4">
-        {/* Orb/Core companion — deferred (Plan 4 scope: dual-mode, Orb later) */}
-        <div data-orb-slot className="hidden" aria-hidden="true" />
-      </div>
-
       {/* Footer utility links */}
       <div className="px-6 pb-4 border-t border-hairline pt-4 space-y-3">
         <span className="flex items-center text-xs text-muted hover:text-ink transition-colors cursor-default">
@@ -124,14 +118,8 @@ function MeridianSidebar({ pathname }: { pathname: string }) {
         })}
       </nav>
 
-      {/* Orb placeholder */}
-      <div className="mt-auto mb-2">
-        {/* Orb/Core companion — deferred (Plan 4 scope: dual-mode, Orb later) */}
-        <div data-orb-slot className="hidden" aria-hidden="true" />
-      </div>
-
       {/* Footer icon */}
-      <div className="flex flex-col gap-1 w-full px-2 pb-2">
+      <div className="mt-auto flex flex-col gap-1 w-full px-2 pb-2">
         <span
           className="w-12 h-12 flex items-center justify-center text-muted cursor-default"
           aria-label="System Status"
