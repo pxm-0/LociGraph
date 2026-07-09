@@ -7,8 +7,11 @@ from dataclasses import dataclass, field
 from typing import Any
 from uuid import UUID
 
+from kernel.ai.claim_extraction import ASSERTION_TYPES, CLAIM_TYPES, CONCEPT_TYPES
 from kernel.ai.embeddings import EmbeddingSettings, get_embedder
 from kernel.db.concepts import ConceptRepository
+from kernel.db.custodian_logged_items import CustodianLoggedItemRepository
+from kernel.db.importance_signals import IMPORTANCE_TARGET_TYPES
 from kernel.db.revisions import RevisionRepository
 from kernel.db.semantic_vectors import SemanticVectorRepository
 
@@ -58,6 +61,199 @@ SEARCH_CONCEPTS_TOOL: dict[str, Any] = {
             "limit": {"type": "integer", "description": "Max results, 1-20."},
         },
     },
+}
+
+_PROPOSABLE_CLAIM_TYPES = sorted(CLAIM_TYPES - {"task"})
+
+PROPOSE_OBSERVATION_TOOL: dict[str, Any] = {
+    "type": "function",
+    "name": "propose_observation",
+    "description": (
+        "Propose logging this as a new observation in the archive. The user "
+        "must explicitly accept before it becomes real — this only suggests it."
+    ),
+    "strict": True,
+    "parameters": {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["content", "speaker", "observed_at"],
+        "properties": {
+            "content": {"type": "string"},
+            "speaker": {"type": ["string", "null"]},
+            "observed_at": {
+                "type": ["string", "null"],
+                "description": "ISO 8601 timestamp, or null if unknown.",
+            },
+        },
+    },
+}
+
+PROPOSE_NOTE_TOOL: dict[str, Any] = {
+    "type": "function",
+    "name": "propose_note",
+    "description": "Propose saving this as a freestanding note. Requires user acceptance.",
+    "strict": True,
+    "parameters": {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["content"],
+        "properties": {"content": {"type": "string"}},
+    },
+}
+
+PROPOSE_CLAIM_TOOL: dict[str, Any] = {
+    "type": "function",
+    "name": "propose_claim",
+    "description": (
+        "Propose logging this as a new claim (an atomic statement). Requires "
+        "user acceptance. Use propose_task instead if this is an action item."
+    ),
+    "strict": True,
+    "parameters": {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["claim_text", "claim_type", "assertion_type"],
+        "properties": {
+            "claim_text": {"type": "string"},
+            "claim_type": {"type": "string", "enum": _PROPOSABLE_CLAIM_TYPES},
+            "assertion_type": {"type": "string", "enum": sorted(ASSERTION_TYPES)},
+        },
+    },
+}
+
+PROPOSE_TASK_TOOL: dict[str, Any] = {
+    "type": "function",
+    "name": "propose_task",
+    "description": "Propose logging this as a task (an action item). Requires user acceptance.",
+    "strict": True,
+    "parameters": {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["claim_text"],
+        "properties": {"claim_text": {"type": "string"}},
+    },
+}
+
+PROPOSE_CONCEPT_CANDIDATE_TOOL: dict[str, Any] = {
+    "type": "function",
+    "name": "propose_concept_candidate",
+    "description": (
+        "Propose that an existing claim (found via search_archive, or one "
+        "just logged in this conversation) relates to a concept. Requires "
+        "user acceptance — this is the same review step as any other "
+        "concept candidate."
+    ),
+    "strict": True,
+    "parameters": {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["claim_id", "candidate_name", "concept_type", "rationale"],
+        "properties": {
+            "claim_id": {"type": "string"},
+            "candidate_name": {"type": "string"},
+            "concept_type": {"type": "string", "enum": sorted(CONCEPT_TYPES)},
+            "rationale": {"type": ["string", "null"]},
+        },
+    },
+}
+
+PROPOSE_REALITY_ASSERTION_TOOL: dict[str, Any] = {
+    "type": "function",
+    "name": "propose_reality_assertion",
+    "description": (
+        "Propose re-tagging an existing claim as describing objective reality, "
+        "not perception or interpretation. Requires user acceptance."
+    ),
+    "strict": True,
+    "parameters": {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["claim_id"],
+        "properties": {"claim_id": {"type": "string"}},
+    },
+}
+
+PROPOSE_PERCEPTION_ASSERTION_TOOL: dict[str, Any] = {
+    "type": "function",
+    "name": "propose_perception_assertion",
+    "description": (
+        "Propose re-tagging an existing claim as describing a perception, "
+        "not objective reality. Requires user acceptance."
+    ),
+    "strict": True,
+    "parameters": {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["claim_id"],
+        "properties": {"claim_id": {"type": "string"}},
+    },
+}
+
+PROPOSE_CONTRADICTION_TOOL: dict[str, Any] = {
+    "type": "function",
+    "name": "propose_contradiction",
+    "description": (
+        "Propose that two existing claims, both already linked to the same "
+        "concept, contradict each other. Requires user acceptance."
+    ),
+    "strict": True,
+    "parameters": {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["claim_a_id", "claim_b_id", "concept_id", "rationale"],
+        "properties": {
+            "claim_a_id": {"type": "string"},
+            "claim_b_id": {"type": "string"},
+            "concept_id": {"type": "string"},
+            "rationale": {"type": "string"},
+        },
+    },
+}
+
+PROPOSE_IMPORTANCE_SIGNAL_TOOL: dict[str, Any] = {
+    "type": "function",
+    "name": "propose_importance_signal",
+    "description": (
+        "Propose pinning an existing claim, concept, or observation as "
+        "important. Requires user acceptance."
+    ),
+    "strict": True,
+    "parameters": {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["target_type", "target_id"],
+        "properties": {
+            "target_type": {"type": "string", "enum": sorted(IMPORTANCE_TARGET_TYPES)},
+            "target_id": {"type": "string"},
+        },
+    },
+}
+
+_PROPOSE_TOOLS = (
+    PROPOSE_OBSERVATION_TOOL,
+    PROPOSE_NOTE_TOOL,
+    PROPOSE_CLAIM_TOOL,
+    PROPOSE_TASK_TOOL,
+    PROPOSE_CONCEPT_CANDIDATE_TOOL,
+    PROPOSE_REALITY_ASSERTION_TOOL,
+    PROPOSE_PERCEPTION_ASSERTION_TOOL,
+    PROPOSE_CONTRADICTION_TOOL,
+    PROPOSE_IMPORTANCE_SIGNAL_TOOL,
+)
+
+# Maps a propose_* tool name to (item_type, target_field | None). target_field
+# names the arg holding the existing row this proposal acts on — None for the
+# five freestanding-create types, whose target_id stays null until accepted.
+_PROPOSE_TOOL_ITEM_TYPES: dict[str, tuple[str, str | None]] = {
+    "propose_observation": ("observation", None),
+    "propose_note": ("note", None),
+    "propose_claim": ("claim", None),
+    "propose_task": ("task", None),
+    "propose_concept_candidate": ("concept_candidate", "claim_id"),
+    "propose_reality_assertion": ("reality_assertion", "claim_id"),
+    "propose_perception_assertion": ("perception_assertion", "claim_id"),
+    "propose_contradiction": ("contradiction", "claim_a_id"),
+    "propose_importance_signal": ("importance_signal", "target_id"),
 }
 
 # ponytail: bounded to 5 tool-call rounds — comfortably above any real chat
@@ -146,6 +342,18 @@ async def _run_search_concepts(conn: Any, query: str, limit: int) -> str:
     return json.dumps(payload)
 
 
+async def _run_propose_tool(
+    conn: Any, user_id: str | UUID, session_id: str | UUID, tool_name: str, args: dict[str, Any]
+) -> str:
+    item_type, target_field = _PROPOSE_TOOL_ITEM_TYPES[tool_name]
+    target_id = args.pop(target_field) if target_field else None
+    item = await CustodianLoggedItemRepository(conn).create(
+        user_id=user_id, session_id=session_id, item_type=item_type, content=args,
+        target_id=target_id,
+    )
+    return json.dumps({"proposal_id": str(item.id), "status": "proposed"})
+
+
 class OpenAICustodian:
     def __init__(self, api_key: str, model: str, *, client: Any | None = None) -> None:
         self.api_key = api_key
@@ -191,7 +399,7 @@ class OpenAICustodian:
             async with client.responses.stream(
                 model=self.model,
                 input=input_items,  # type: ignore[arg-type]
-                tools=[SEARCH_ARCHIVE_TOOL, SEARCH_CONCEPTS_TOOL],  # type: ignore[list-item]
+                tools=[SEARCH_ARCHIVE_TOOL, SEARCH_CONCEPTS_TOOL, *_PROPOSE_TOOLS],  # type: ignore[list-item]
                 previous_response_id=previous_response_id,
             ) as stream:
                 async for event in stream:
@@ -217,6 +425,8 @@ class OpenAICustodian:
                     output = await _run_search_archive(conn, args["query"], args["limit"])
                 elif call.name == "search_concepts":
                     output = await _run_search_concepts(conn, args["query"], args["limit"])
+                elif call.name in _PROPOSE_TOOL_ITEM_TYPES:
+                    output = await _run_propose_tool(conn, user_id, session_id, call.name, args)
                 else:
                     output = json.dumps({"error": f"unknown tool {call.name}"})
                 record = ToolCallRecord(
