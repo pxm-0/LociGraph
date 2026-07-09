@@ -144,6 +144,18 @@ class ConceptRepository(BaseRepository):
         ).scalar_one()
         return result
 
+    async def search_by_name(self, query: str, limit: int = 5) -> list[Concept]:
+        rows = (
+            await self.conn.execute(
+                text(
+                    f"SELECT {_COLUMNS} FROM concepts WHERE concept_name ILIKE :pattern "
+                    "ORDER BY created_at DESC LIMIT :limit"
+                ),
+                {"pattern": f"%{query}%", "limit": limit},
+            )
+        ).mappings().all()
+        return [Concept.from_row(_as_mapping(r)) for r in rows]
+
     async def list(
         self,
         *,
@@ -168,18 +180,6 @@ class ConceptRepository(BaseRepository):
                     "ORDER BY created_at DESC LIMIT :limit OFFSET :offset"
                 ),
                 params,
-            )
-        ).mappings().all()
-        return [Concept.from_row(_as_mapping(r)) for r in rows]
-
-    async def search_by_name(self, query: str, limit: int = 5) -> list[Concept]:
-        rows = (
-            await self.conn.execute(
-                text(
-                    f"SELECT {_COLUMNS} FROM concepts WHERE concept_name ILIKE :pattern "
-                    "ORDER BY created_at DESC LIMIT :limit"
-                ),
-                {"pattern": f"%{query}%", "limit": limit},
             )
         ).mappings().all()
         return [Concept.from_row(_as_mapping(r)) for r in rows]

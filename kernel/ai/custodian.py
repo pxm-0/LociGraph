@@ -125,7 +125,7 @@ async def _run_search_concepts(conn: Any, query: str, limit: int) -> str:
     concepts = await ConceptRepository(conn).search_by_name(query, limit=max(1, min(limit, 20)))
     revisions = RevisionRepository(conn)
     payload = []
-    for concept in concepts:  # type: ignore[attr-defined]  # see kernel/db/concepts.py:175
+    for concept in concepts:
         recent = await revisions.list(concept_id=concept.id, limit=5)
         payload.append(
             {
