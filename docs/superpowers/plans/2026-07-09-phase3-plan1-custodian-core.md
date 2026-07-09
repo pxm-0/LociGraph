@@ -1753,38 +1753,46 @@ export async function streamCustodianMessage(
   content: string,
   handlers: CustodianStreamHandlers
 ): Promise<void> {
-  const r = await fetch(base(`/custodian/sessions/${sessionId}/messages`), {
-    method: "POST",
-    credentials: "include",
-    headers: JSON_HEADERS,
-    body: JSON.stringify({ content }),
-  })
-  if (!r.ok || !r.body) {
-    const err = await readError(r, "streamCustodianMessage failed")
-    handlers.onError(err.message)
-    return
-  }
-  const reader = r.body.getReader()
-  const decoder = new TextDecoder()
-  let buffer = ""
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    buffer += decoder.decode(value, { stream: true })
-    const events = buffer.split("\n\n")
-    buffer = events.pop() ?? ""
-    for (const raw of events) {
-      const lines = raw.split("\n")
-      const eventLine = lines.find((l) => l.startsWith("event: "))
-      const dataLine = lines.find((l) => l.startsWith("data: "))
-      if (!eventLine || !dataLine) continue
-      const eventName = eventLine.slice("event: ".length)
-      const data = JSON.parse(dataLine.slice("data: ".length))
-      if (eventName === "token") handlers.onToken(data.delta)
-      else if (eventName === "tool_call") handlers.onToolCall(data.tool_name, data.query)
-      else if (eventName === "done") handlers.onDone()
-      else if (eventName === "error") handlers.onError(data.message)
+  // The whole body is wrapped in try/catch so every failure mode — fetch()
+  // itself rejecting (network/DNS/abort), reader.read() rejecting mid-stream,
+  // or a malformed `data:` line throwing in JSON.parse — reaches
+  // handlers.onError instead of becoming an unhandled promise rejection.
+  try {
+    const r = await fetch(base(`/custodian/sessions/${sessionId}/messages`), {
+      method: "POST",
+      credentials: "include",
+      headers: JSON_HEADERS,
+      body: JSON.stringify({ content }),
+    })
+    if (!r.ok || !r.body) {
+      const err = await readError(r, "streamCustodianMessage failed")
+      handlers.onError(err.message)
+      return
     }
+    const reader = r.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ""
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const events = buffer.split("\n\n")
+      buffer = events.pop() ?? ""
+      for (const raw of events) {
+        const lines = raw.split("\n")
+        const eventLine = lines.find((l) => l.startsWith("event: "))
+        const dataLine = lines.find((l) => l.startsWith("data: "))
+        if (!eventLine || !dataLine) continue
+        const eventName = eventLine.slice("event: ".length)
+        const data = JSON.parse(dataLine.slice("data: ".length))
+        if (eventName === "token") handlers.onToken(data.delta)
+        else if (eventName === "tool_call") handlers.onToolCall(data.tool_name, data.query)
+        else if (eventName === "done") handlers.onDone()
+        else if (eventName === "error") handlers.onError(data.message)
+      }
+    }
+  } catch (err) {
+    handlers.onError(err instanceof Error ? err.message : "stream failed")
   }
 }
 ```
