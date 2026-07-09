@@ -175,6 +175,16 @@ async def accept_logged_item(conn: AsyncConnection, item_id: str | UUID) -> Cust
         )
         new_target_id = signal.id
 
+    elif item.item_type == "contradiction_classification":
+        assert item.target_id is not None, "contradiction_classification proposals must set target_id"
+        classified = await ContradictionRepository(conn).classify(
+            item.target_id, item.content["classification"]
+        )
+        if classified is None:
+            raise LoggedItemNotResolvable(
+                message="target contradiction not found", reason="not_found"
+            )
+
     else:
         raise LoggedItemNotResolvable(
             message=f"unrecognized item_type {item.item_type!r}",
