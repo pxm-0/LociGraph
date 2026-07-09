@@ -287,6 +287,25 @@ assistance are separate follow-up plans; see
 
 ---
 
+## Phase 3 Custodian Logging
+
+During chat, the Custodian can propose new archive memory — nine kinds,
+from freestanding creates (`observation`, `note`, `claim`, `task`,
+`concept_candidate`) to actions on an existing claim/concept/observation
+(`reality_assertion`, `perception_assertion`, `contradiction`,
+`importance_signal`). Every proposal lands as a `proposed`
+`custodian_logged_items` row and renders as a card in the chat panel with
+Accept/Reject buttons — nothing is canonical until accepted.
+`GET /api/custodian/sessions/{id}/logged-items`,
+`POST /api/custodian/logged-items/{id}/accept`, and
+`POST /api/custodian/logged-items/{id}/reject` drive this. Custodian-created
+claims attach to a lazily-created `custodian`-type `Source` (never uploaded,
+excluded from the normal ingestion type list) so they satisfy the same
+`NOT NULL` source FK every other claim has. See
+[docs/superpowers/specs/2026-07-09-custodian-logging-design.md](docs/superpowers/specs/2026-07-09-custodian-logging-design.md).
+
+---
+
 ## Project Layout
 
 ```
