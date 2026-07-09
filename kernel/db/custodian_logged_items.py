@@ -21,6 +21,7 @@ ITEM_TYPES = {
     "perception_assertion",
     "contradiction",
     "importance_signal",
+    "contradiction_classification",
 }
 STATUSES = {"proposed", "accepted", "rejected", "superseded"}
 
