@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useEffect, useState } from "react"
 import { getConceptsCount, listConcepts } from "@/lib/api"
 import type { Concept } from "@/lib/types"
@@ -140,7 +141,11 @@ export default function ConceptsPage() {
           ) : (
             filtered.map((concept) => (
               <tr className="border-t border-hairline transition-colors hover:bg-surface-hover" key={concept.id}>
-                <td className="px-5 py-3 font-heading text-ink">{concept.conceptName}</td>
+                <td className="px-5 py-3 font-heading text-ink">
+                  <Link className="hover:underline" href={`/concepts/${concept.id}`}>
+                    {concept.conceptName}
+                  </Link>
+                </td>
                 <td className="px-5 py-3">
                   <Badge className="font-mono text-xs uppercase">{concept.conceptType}</Badge>
                 </td>

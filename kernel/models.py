@@ -288,6 +288,33 @@ class Contradiction:
 
 
 @dataclass(frozen=True, slots=True)
+class Revision:
+    id: UUID
+    user_id: UUID
+    concept_id: UUID
+    contradiction_id: UUID | None
+    source: str
+    previous_description: str | None
+    new_description: str
+    rationale: str | None
+    created_at: datetime
+
+    @classmethod
+    def from_row(cls, row: Mapping[str, Any]) -> Revision:
+        return cls(
+            id=row["id"],
+            user_id=row["user_id"],
+            concept_id=row["concept_id"],
+            contradiction_id=row.get("contradiction_id"),
+            source=row["source"],
+            previous_description=row.get("previous_description"),
+            new_description=row["new_description"],
+            rationale=row.get("rationale"),
+            created_at=row["created_at"],
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class Job:
     id: UUID
     user_id: UUID

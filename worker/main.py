@@ -4,6 +4,7 @@ from worker.broker import get_broker
 get_broker()
 
 from worker.tasks import (  # noqa: E402,F401
+    create_revision,
     detect_contradictions,
     embed_claims,
     extract_claims,

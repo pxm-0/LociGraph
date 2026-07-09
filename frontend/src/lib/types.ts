@@ -101,6 +101,17 @@ export interface Concept {
   claimCount: number
 }
 
+export interface Revision {
+  id: string
+  conceptId: string
+  contradictionId: string | null
+  source: string
+  previousDescription: string | null
+  newDescription: string
+  rationale: string | null
+  createdAt: string
+}
+
 export interface DashboardSummary {
   sourceCount: number
   observationCount: number

@@ -190,3 +190,71 @@ async def test_classify_contradiction_404s_when_not_found(client, seeded_user): 
         json={"classification": "evolution"},
     )
     assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_classify_evolution_auto_enqueues_revision_creation(  # type: ignore[no-untyped-def]
+    client, seeded_user, monkeypatch
+):
+    sent: list[tuple[object, ...]] = []
+    monkeypatch.setattr(
+        "backend.app.api.contradictions.create_revision.send",
+        lambda *args: sent.append(args),
+    )
+    async with session(seeded_user) as conn:
+        source = await SourceRepository(conn).create(
+            seeded_user, "json", "classify-evolution-autorun"
+        )
+        _concept, _claims, contradiction = await _seed_contradiction(conn, seeded_user, source.id)
+
+    await _login(client)
+    r = await client.post(
+        f"/contradictions/{contradiction.id}/classify", json={"classification": "evolution"}
+    )
+
+    assert r.status_code == 200
+    assert len(sent) == 1
+    sent_contradiction_id, sent_user_id, _sent_job_id = sent[0]
+    assert sent_contradiction_id == str(contradiction.id)
+    assert sent_user_id == str(seeded_user)
+
+    async with session(seeded_user) as conn:
+        await conn.execute(text("DELETE FROM revisions"))
+        await conn.execute(text("DELETE FROM contradictions"))
+        await conn.execute(text("DELETE FROM claim_concept_edges"))
+        await conn.execute(text("DELETE FROM concepts"))
+        await conn.execute(text("DELETE FROM concept_candidates"))
+        await conn.execute(text("DELETE FROM claims"))
+        await conn.execute(text("DELETE FROM observations"))
+        await conn.execute(text("DELETE FROM sources"))
+
+
+@pytest.mark.asyncio
+async def test_classify_non_evolution_does_not_enqueue_revision_creation(  # type: ignore[no-untyped-def]
+    client, seeded_user, monkeypatch
+):
+    sent: list[tuple[object, ...]] = []
+    monkeypatch.setattr(
+        "backend.app.api.contradictions.create_revision.send",
+        lambda *args: sent.append(args),
+    )
+    async with session(seeded_user) as conn:
+        source = await SourceRepository(conn).create(seeded_user, "json", "classify-non-evolution")
+        _concept, _claims, contradiction = await _seed_contradiction(conn, seeded_user, source.id)
+
+    await _login(client)
+    r = await client.post(
+        f"/contradictions/{contradiction.id}/classify", json={"classification": "true_conflict"}
+    )
+
+    assert r.status_code == 200
+    assert sent == []
+
+    async with session(seeded_user) as conn:
+        await conn.execute(text("DELETE FROM contradictions"))
+        await conn.execute(text("DELETE FROM claim_concept_edges"))
+        await conn.execute(text("DELETE FROM concepts"))
+        await conn.execute(text("DELETE FROM concept_candidates"))
+        await conn.execute(text("DELETE FROM claims"))
+        await conn.execute(text("DELETE FROM observations"))
+        await conn.execute(text("DELETE FROM sources"))
