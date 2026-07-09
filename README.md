@@ -306,6 +306,23 @@ excluded from the normal ingestion type list) so they satisfy the same
 
 ---
 
+## Phase 3 Custodian-Assisted Contradiction Classification
+
+Per ADR-005 ("the user, assisted by the Custodian, can classify [contradictions]
+later"), the Custodian can find unresolved contradictions
+(`search_contradictions`) and propose a classification for one
+(`propose_classify_contradiction`) — the tenth `custodian_logged_items` item
+type, going through the same accept/reject review as everything else
+Custodian Logging proposes. Accepting one calls the same
+`ContradictionRepository.classify` the `/contradictions` page's button
+calls, including the `evolution` → auto-enqueued revision synthesis, via a
+`maybe_enqueue_revision_synthesis` helper shared between both classify
+paths so they behave identically regardless of which one a user takes. This
+completes Phase 3 (Custodian). See
+[docs/superpowers/specs/2026-07-09-custodian-contradiction-assist-design.md](docs/superpowers/specs/2026-07-09-custodian-contradiction-assist-design.md).
+
+---
+
 ## Project Layout
 
 ```
