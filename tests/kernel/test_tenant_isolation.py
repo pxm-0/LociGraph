@@ -340,3 +340,27 @@ async def test_custodian_isolated_between_tenants(make_user):
     async with session(user_b) as conn:
         assert await CustodianRepository(conn).get_session(custodian_session.id) is None
         assert await CustodianRepository(conn).list_sessions() == []
+
+
+@pytest.mark.asyncio
+async def test_custodian_logged_items_isolated_between_tenants(make_user):
+    from kernel.db.custodian import CustodianRepository
+    from kernel.db.custodian_logged_items import CustodianLoggedItemRepository
+
+    user_a = await make_user()
+    user_b = await make_user()
+
+    async with session(user_a) as conn:
+        custodian_session = await CustodianRepository(conn).create_session(
+            user_id=user_a, model="gpt-4o-mini", provider="openai"
+        )
+        item = await CustodianLoggedItemRepository(conn).create(
+            user_id=user_a, session_id=custodian_session.id, item_type="note",
+            content={"content": "Secret note."},
+        )
+
+    async with session(user_b) as conn:
+        assert await CustodianLoggedItemRepository(conn).get(item.id) is None
+        assert await CustodianLoggedItemRepository(conn).list_for_session(
+            custodian_session.id
+        ) == []

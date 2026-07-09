@@ -3,6 +3,7 @@ import type {
   Concept,
   ConceptCandidate,
   Contradiction,
+  CustodianLoggedItem,
   CustodianMessage,
   CustodianSession,
   DashboardSummary,
@@ -576,4 +577,35 @@ export async function streamCustodianMessage(
   } catch (err) {
     handlers.onError(err instanceof Error ? err.message : "stream failed")
   }
+}
+
+function toCustodianLoggedItem(d: Record<string, unknown>): CustodianLoggedItem {
+  return {
+    id: String(d.id),
+    sessionId: String(d.session_id),
+    itemType: String(d.item_type),
+    targetId: (d.target_id as string | null) ?? null,
+    content: (d.content as Record<string, unknown>) ?? {},
+    status: d.status as CustodianLoggedItem["status"],
+    createdAt: String(d.created_at),
+    resolvedAt: (d.resolved_at as string | null) ?? null,
+  }
+}
+
+export async function listLoggedItems(sessionId: string): Promise<CustodianLoggedItem[]> {
+  const r = await req(`/custodian/sessions/${sessionId}/logged-items`)
+  if (!r.ok) throw await readError(r, "listLoggedItems failed")
+  return (await r.json()).map(toCustodianLoggedItem)
+}
+
+export async function acceptLoggedItem(itemId: string): Promise<CustodianLoggedItem> {
+  const r = await req(`/custodian/logged-items/${itemId}/accept`, { method: "POST" })
+  if (!r.ok) throw await readError(r, "acceptLoggedItem failed")
+  return toCustodianLoggedItem(await r.json())
+}
+
+export async function rejectLoggedItem(itemId: string): Promise<CustodianLoggedItem> {
+  const r = await req(`/custodian/logged-items/${itemId}/reject`, { method: "POST" })
+  if (!r.ok) throw await readError(r, "rejectLoggedItem failed")
+  return toCustodianLoggedItem(await r.json())
 }

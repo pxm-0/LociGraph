@@ -118,3 +118,12 @@ class SourceRepository(BaseRepository):
     async def count(self) -> int:
         result: int = (await self.conn.execute(text("SELECT count(*) FROM sources"))).scalar_one()
         return result
+
+    async def get_by_type(self, source_type: str) -> Source | None:
+        row = (
+            await self.conn.execute(
+                text(f"SELECT {_COLUMNS} FROM sources WHERE source_type = :t LIMIT 1"),
+                {"t": source_type},
+            )
+        ).mappings().first()
+        return Source.from_row(_as_mapping(row)) if row else None

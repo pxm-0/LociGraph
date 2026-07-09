@@ -9,6 +9,7 @@ from sqlalchemy import text
 
 from kernel.ai.custodian import CustodianReply, ToolCallRecord
 from kernel.db.custodian import CustodianRepository
+from kernel.db.custodian_logged_items import CustodianLoggedItemRepository
 from kernel.db.session import session
 
 
@@ -135,6 +136,121 @@ async def test_send_message_409s_once_message_cap_is_hit(  # type: ignore[no-unt
 
     async with session(seeded_user) as conn:
         await conn.execute(text("DELETE FROM custodian_messages"))
+        await conn.execute(text("DELETE FROM custodian_sessions"))
+
+
+class FakeCustodianWithProposal:
+    def __init__(self, proposal_tool_output: str) -> None:
+        self._proposal_tool_output = proposal_tool_output
+
+    async def reply(self, conn, user_id, session_id, history, on_token, on_tool_call):  # type: ignore[no-untyped-def]
+        await on_token("Sure, I've proposed that.")
+        record = ToolCallRecord(
+            tool_name="propose_note",
+            tool_input=json.dumps({"content": "Remember this."}),
+            tool_output=self._proposal_tool_output,
+        )
+        await on_tool_call(record)
+        return CustodianReply(content="Sure, I've proposed that.", tool_calls=[record])
+
+
+@pytest.mark.asyncio
+async def test_message_id_is_backfilled_onto_the_logged_item(  # type: ignore[no-untyped-def]
+    client, seeded_user, monkeypatch
+):
+    async with session(seeded_user) as conn:
+        from kernel.db.custodian import CustodianRepository
+
+        custodian_session = await CustodianRepository(conn).create_session(
+            user_id=seeded_user, model="gpt-4o-mini", provider="openai"
+        )
+        item = await CustodianLoggedItemRepository(conn).create(
+            user_id=seeded_user, session_id=custodian_session.id, item_type="note",
+            content={"content": "Remember this."},
+        )
+    fake = FakeCustodianWithProposal(json.dumps({"proposal_id": str(item.id), "status": "proposed"}))
+    monkeypatch.setattr("backend.app.api.custodian.get_custodian", lambda: fake)
+
+    await _login(client)
+    async with client.stream(
+        "POST", f"/custodian/sessions/{custodian_session.id}/messages", json={"content": "log it"}
+    ) as response:
+        await _drain_sse(response)
+
+    async with session(seeded_user) as conn:
+        backfilled = await CustodianLoggedItemRepository(conn).get(item.id)
+
+    assert backfilled is not None
+    assert backfilled.message_id is not None
+
+    async with session(seeded_user) as conn:
+        await conn.execute(text("DELETE FROM custodian_logged_items"))
+        await conn.execute(text("DELETE FROM custodian_messages"))
+        await conn.execute(text("DELETE FROM custodian_sessions"))
+
+
+@pytest.mark.asyncio
+async def test_accept_and_reject_endpoints(client, seeded_user):  # type: ignore[no-untyped-def]
+    async with session(seeded_user) as conn:
+        from kernel.db.custodian import CustodianRepository
+
+        custodian_session = await CustodianRepository(conn).create_session(
+            user_id=seeded_user, model="gpt-4o-mini", provider="openai"
+        )
+        note_item = await CustodianLoggedItemRepository(conn).create(
+            user_id=seeded_user, session_id=custodian_session.id, item_type="note",
+            content={"content": "Accept me."},
+        )
+        reject_item = await CustodianLoggedItemRepository(conn).create(
+            user_id=seeded_user, session_id=custodian_session.id, item_type="note",
+            content={"content": "Reject me."},
+        )
+
+    await _login(client)
+    listed = await client.get(f"/custodian/sessions/{custodian_session.id}/logged-items")
+    accepted = await client.post(f"/custodian/logged-items/{note_item.id}/accept")
+    rejected = await client.post(f"/custodian/logged-items/{reject_item.id}/reject")
+    accept_again = await client.post(f"/custodian/logged-items/{note_item.id}/accept")
+
+    assert len(listed.json()) == 2
+    assert accepted.status_code == 200
+    assert accepted.json()["status"] == "accepted"
+    assert rejected.status_code == 200
+    assert rejected.json()["status"] == "rejected"
+    assert accept_again.status_code == 409
+
+    async with session(seeded_user) as conn:
+        await conn.execute(text("DELETE FROM notes"))
+        await conn.execute(text("DELETE FROM custodian_logged_items"))
+        await conn.execute(text("DELETE FROM custodian_sessions"))
+
+
+@pytest.mark.asyncio
+async def test_accept_unrecognized_item_type_returns_500_not_a_crash(  # type: ignore[no-untyped-def]
+    client, seeded_user
+):
+    # item_type has no DB CHECK constraint, so a malformed row (never
+    # produced by any real propose_* tool, but not impossible either) must
+    # still get a clean, deliberate 500 rather than an uncaught KeyError on
+    # _RESOLVE_STATUS_CODES.
+    async with session(seeded_user) as conn:
+        from kernel.db.custodian import CustodianRepository
+
+        custodian_session = await CustodianRepository(conn).create_session(
+            user_id=seeded_user, model="gpt-4o-mini", provider="openai"
+        )
+        item = await CustodianLoggedItemRepository(conn).create(
+            user_id=seeded_user, session_id=custodian_session.id,
+            item_type="not_a_real_type", content={},
+        )
+
+    await _login(client)
+    r = await client.post(f"/custodian/logged-items/{item.id}/accept")
+
+    assert r.status_code == 500
+
+    async with session(seeded_user) as conn:
+        await conn.execute(text("DELETE FROM custodian_logged_items"))
         await conn.execute(text("DELETE FROM custodian_sessions"))
 
 

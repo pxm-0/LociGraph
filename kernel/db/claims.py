@@ -209,3 +209,17 @@ class ClaimRepository(BaseRepository):
             text("DELETE FROM claims WHERE source_id = :source_id AND status = 'proposed'"),
             {"source_id": str(source_id)},
         )
+
+    async def set_assertion_type(
+        self, claim_id: str | UUID, assertion_type: str
+    ) -> Claim | None:
+        row = (
+            await self.conn.execute(
+                text(
+                    f"UPDATE claims SET assertion_type = :assertion_type WHERE id = :id "
+                    f"RETURNING {_COLUMNS}"
+                ),
+                {"id": str(claim_id), "assertion_type": assertion_type},
+            )
+        ).mappings().first()
+        return Claim.from_row(_as_mapping(row)) if row else None

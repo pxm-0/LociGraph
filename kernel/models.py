@@ -399,3 +399,63 @@ class Job:
             result=row.get("result"),
             source_id=row.get("source_id"),
         )
+
+
+@dataclass(frozen=True, slots=True)
+class CustodianLoggedItem:
+    id: UUID
+    user_id: UUID
+    session_id: UUID
+    item_type: str
+    content: Mapping[str, Any]
+    status: str
+    created_at: datetime
+    message_id: UUID | None = None
+    target_id: UUID | None = None
+    resolved_at: datetime | None = None
+
+    @classmethod
+    def from_row(cls, row: Mapping[str, Any]) -> CustodianLoggedItem:
+        return cls(
+            id=row["id"],
+            user_id=row["user_id"],
+            session_id=row["session_id"],
+            item_type=row["item_type"],
+            content=row["content"],
+            status=row["status"],
+            created_at=row["created_at"],
+            message_id=row.get("message_id"),
+            target_id=row.get("target_id"),
+            resolved_at=row.get("resolved_at"),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class Note:
+    id: UUID
+    user_id: UUID
+    content: str
+    created_at: datetime
+
+    @classmethod
+    def from_row(cls, row: Mapping[str, Any]) -> Note:
+        return cls(
+            id=row["id"], user_id=row["user_id"], content=row["content"],
+            created_at=row["created_at"],
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class ImportanceSignal:
+    id: UUID
+    user_id: UUID
+    target_type: str
+    target_id: UUID
+    created_at: datetime
+
+    @classmethod
+    def from_row(cls, row: Mapping[str, Any]) -> ImportanceSignal:
+        return cls(
+            id=row["id"], user_id=row["user_id"], target_type=row["target_type"],
+            target_id=row["target_id"], created_at=row["created_at"],
+        )

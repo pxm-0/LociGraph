@@ -230,6 +230,101 @@ async def test_run_search_concepts_includes_revision_history(make_user):
     assert output[0]["recent_revisions"][0]["new_description"] == "Self-determination, updated."
 
 
+@pytest.mark.asyncio
+async def test_reply_executes_propose_note_tool(make_user):
+    user_id = await make_user()
+    call_args = json.dumps({"content": "Remember this."})
+    fake_client = FakeOpenAIClient(
+        [
+            (
+                [],
+                _FakeResponse("resp_1", [_FunctionCall("call_1", "propose_note", call_args)]),
+            ),
+            ([_Delta("Noted, want me to save it?")], _FakeResponse("resp_2", [])),
+        ]
+    )
+    custodian = OpenAICustodian(api_key="x", model="gpt-4o-mini", client=fake_client)
+
+    async with session(user_id) as conn:
+        from kernel.db.custodian import CustodianRepository
+
+        custodian_session = await CustodianRepository(conn).create_session(
+            user_id=user_id, model="gpt-4o-mini", provider="openai"
+        )
+        tool_calls: list[ToolCallRecord] = []
+
+        async def on_token(delta: str) -> None:
+            pass
+
+        async def on_tool_call(record: ToolCallRecord) -> None:
+            tool_calls.append(record)
+
+        reply = await custodian.reply(
+            conn, user_id, custodian_session.id, [{"role": "user", "content": "log this"}],
+            on_token, on_tool_call,
+        )
+        proposal_id = json.loads(tool_calls[0].tool_output)["proposal_id"]
+
+        from kernel.db.custodian_logged_items import CustodianLoggedItemRepository
+
+        item = await CustodianLoggedItemRepository(conn).get(proposal_id)
+
+    assert reply.content == "Noted, want me to save it?"
+    assert item is not None
+    assert item.item_type == "note"
+    assert item.status == "proposed"
+    assert item.content == {"content": "Remember this."}
+
+
+@pytest.mark.asyncio
+async def test_reply_executes_propose_reality_assertion_tool_with_target_id(make_user):
+    user_id = await make_user()
+    from uuid import uuid4
+
+    claim_id = uuid4()
+    call_args = json.dumps({"claim_id": str(claim_id)})
+    fake_client = FakeOpenAIClient(
+        [
+            (
+                [],
+                _FakeResponse(
+                    "resp_1",
+                    [_FunctionCall("call_1", "propose_reality_assertion", call_args)],
+                ),
+            ),
+            ([], _FakeResponse("resp_2", [])),
+        ]
+    )
+    custodian = OpenAICustodian(api_key="x", model="gpt-4o-mini", client=fake_client)
+
+    async with session(user_id) as conn:
+        from kernel.db.custodian import CustodianRepository
+        from kernel.db.custodian_logged_items import CustodianLoggedItemRepository
+
+        custodian_session = await CustodianRepository(conn).create_session(
+            user_id=user_id, model="gpt-4o-mini", provider="openai"
+        )
+        tool_calls: list[ToolCallRecord] = []
+
+        async def on_token(delta: str) -> None:
+            pass
+
+        async def on_tool_call(record: ToolCallRecord) -> None:
+            tool_calls.append(record)
+
+        await custodian.reply(
+            conn, user_id, custodian_session.id, [{"role": "user", "content": "mark it"}],
+            on_token, on_tool_call,
+        )
+        proposal_id = json.loads(tool_calls[0].tool_output)["proposal_id"]
+        item = await CustodianLoggedItemRepository(conn).get(proposal_id)
+
+    assert item is not None
+    assert item.item_type == "reality_assertion"
+    assert item.target_id == claim_id
+    assert item.content == {}
+
+
 def test_settings_from_env_defaults(monkeypatch):
     monkeypatch.delenv("OPENAI_CUSTODIAN_MODEL", raising=False)
     monkeypatch.delenv("CUSTODIAN_MAX_MESSAGES_PER_SESSION", raising=False)

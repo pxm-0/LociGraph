@@ -13,9 +13,15 @@ from pydantic import BaseModel
 
 from backend.app.auth.dependencies import get_current_user
 from kernel.ai.custodian import CustodianSettings, ToolCallRecord, get_custodian
+from kernel.custodian_logging import (
+    LoggedItemNotResolvable,
+    accept_logged_item,
+    reject_logged_item,
+)
 from kernel.db.custodian import CustodianRepository
+from kernel.db.custodian_logged_items import CustodianLoggedItemRepository
 from kernel.db.session import session
-from kernel.models import CustodianMessage, CustodianSession
+from kernel.models import CustodianLoggedItem, CustodianMessage, CustodianSession
 
 logger = logging.getLogger(__name__)
 
@@ -103,6 +109,71 @@ async def get_custodian_messages(
     return [_serialize_message(m) for m in messages]
 
 
+def _serialize_logged_item(item: CustodianLoggedItem) -> dict[str, Any]:
+    return {
+        "id": str(item.id),
+        "session_id": str(item.session_id),
+        "item_type": item.item_type,
+        "target_id": str(item.target_id) if item.target_id else None,
+        "content": item.content,
+        "status": item.status,
+        "created_at": item.created_at.isoformat(),
+        "resolved_at": item.resolved_at.isoformat() if item.resolved_at else None,
+    }
+
+
+_RESOLVE_STATUS_CODES = {
+    "not_found": 404,
+    "invalid_status": 409,
+    "concept_mismatch": 422,
+    "duplicate": 409,
+    # Malformed internal state (a logged item with no recognized item_type) —
+    # not the caller's fault, so 500 rather than a 4xx; mapped explicitly so
+    # it's a clean response instead of an uncaught KeyError on this dict.
+    "unknown_item_type": 500,
+}
+
+
+@router.get("/custodian/sessions/{session_id}/logged-items")
+async def list_logged_items(
+    session_id: str, user_id: str = Depends(get_current_user)
+) -> list[dict[str, Any]]:
+    async with session(user_id) as conn:
+        repo = CustodianRepository(conn)
+        if await repo.get_session(session_id) is None:
+            raise HTTPException(status_code=404, detail="not found")
+        items = await CustodianLoggedItemRepository(conn).list_for_session(session_id)
+    return [_serialize_logged_item(i) for i in items]
+
+
+@router.post("/custodian/logged-items/{item_id}/accept")
+async def accept_logged_item_endpoint(
+    item_id: str, user_id: str = Depends(get_current_user)
+) -> dict[str, Any]:
+    async with session(user_id) as conn:
+        try:
+            item = await accept_logged_item(conn, item_id)
+        except LoggedItemNotResolvable as exc:
+            raise HTTPException(
+                status_code=_RESOLVE_STATUS_CODES[exc.reason], detail=exc.message
+            ) from None
+    return _serialize_logged_item(item)
+
+
+@router.post("/custodian/logged-items/{item_id}/reject")
+async def reject_logged_item_endpoint(
+    item_id: str, user_id: str = Depends(get_current_user)
+) -> dict[str, Any]:
+    async with session(user_id) as conn:
+        try:
+            item = await reject_logged_item(conn, item_id)
+        except LoggedItemNotResolvable as exc:
+            raise HTTPException(
+                status_code=_RESOLVE_STATUS_CODES[exc.reason], detail=exc.message
+            ) from None
+    return _serialize_logged_item(item)
+
+
 @router.post("/custodian/sessions/{session_id}/end")
 async def end_custodian_session(
     session_id: str, user_id: str = Depends(get_current_user)
@@ -147,7 +218,7 @@ async def _generate_and_persist(
             )
 
             for call in reply.tool_calls:
-                await repo.add_message(
+                message = await repo.add_message(
                     session_id=session_id,
                     user_id=user_id,
                     role="tool",
@@ -156,6 +227,15 @@ async def _generate_and_persist(
                     tool_input=call.tool_input,
                     tool_output=call.tool_output,
                 )
+                try:
+                    output = json.loads(call.tool_output)
+                except json.JSONDecodeError:
+                    output = {}
+                proposal_id = output.get("proposal_id") if isinstance(output, dict) else None
+                if proposal_id:
+                    await CustodianLoggedItemRepository(conn).set_message_id(
+                        proposal_id, message.id
+                    )
             await repo.add_message(
                 session_id=session_id, user_id=user_id, role="assistant", content=reply.content
             )
