@@ -6,9 +6,11 @@ import {
   endCustodianSession,
   getCustodianMessages,
   listCustodianSessions,
+  listLoggedItems,
   streamCustodianMessage,
 } from "@/lib/api"
-import type { CustodianMessage, CustodianSession } from "@/lib/types"
+import { ProposalCard } from "@/components/custodian/ProposalCard"
+import type { CustodianLoggedItem, CustodianMessage, CustodianSession } from "@/lib/types"
 
 interface DisplayMessage {
   role: CustodianMessage["role"]
@@ -37,10 +39,15 @@ export function CustodianPanel({ onClose }: { onClose: () => void }) {
   const [sessions, setSessions] = useState<CustodianSession[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
   const [messages, setMessages] = useState<DisplayMessage[]>([])
+  const [proposals, setProposals] = useState<CustodianLoggedItem[]>([])
   const [input, setInput] = useState("")
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
+
+  async function refreshProposals(sessionId: string) {
+    setProposals(await listLoggedItems(sessionId))
+  }
 
   useEffect(() => {
     listCustodianSessions().then(setSessions).catch(() => setSessions([]))
@@ -49,6 +56,18 @@ export function CustodianPanel({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
+
+  // Unlike messages (fetched explicitly in switchTo/send to avoid racing
+  // optimistic updates), proposals have no optimistic local state to clobber,
+  // so a plain activeId-keyed effect covers every place activeId changes
+  // (switchTo, startNewConversation, send's lazy session creation, endActive).
+  useEffect(() => {
+    if (!activeId) {
+      setProposals([])
+      return
+    }
+    refreshProposals(activeId)
+  }, [activeId])
 
   // ponytail: history is fetched explicitly (switchTo) rather than via an
   // activeId-keyed effect — an effect would also fire when send()/
@@ -113,6 +132,10 @@ export function CustodianPanel({ onClose }: { onClose: () => void }) {
       },
       onDone() {
         setSending(false)
+        // ponytail: refresh via the local `sessionId` (not the `activeId` state
+        // closed over at render time) — for a brand-new session, setActiveId()
+        // above only schedules an update; `activeId` here would still read null.
+        refreshProposals(sessionId)
       },
       onError(message) {
         setSending(false)
@@ -177,6 +200,19 @@ export function CustodianPanel({ onClose }: { onClose: () => void }) {
         ))}
         <div ref={bottomRef} />
       </div>
+      {proposals.length > 0 && (
+        <div className="px-4 py-2 space-y-2 border-t border-hairline">
+          {proposals.map((p) => (
+            <ProposalCard
+              key={p.id}
+              item={p}
+              onResolved={(resolved) =>
+                setProposals((prev) => prev.map((x) => (x.id === resolved.id ? resolved : x)))
+              }
+            />
+          ))}
+        </div>
+      )}
       {error && <div className="px-4 py-1 text-xs text-status-failed">{error}</div>}
       <div className="flex items-center gap-2 px-4 py-3 border-t border-hairline">
         <input
