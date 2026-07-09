@@ -135,6 +135,8 @@ Copy `.env.example` to `.env` and fill in real values for production.
 | `OPENAI_EXTRACTION_MODEL` | no | OpenAI model used by claim extraction (default: `gpt-4o-mini`) |
 | `CLAIM_EXTRACTION_AUTORUN` | no | Enqueue claim extraction after successful ingestion (`false` by default) |
 | `CLAIM_EXTRACTION_BATCH_SIZE` | no | Observations per extraction request (default: `12`) |
+| `OPENAI_CUSTODIAN_MODEL` | no | OpenAI model used by the Custodian chat (default: `gpt-4o-mini`) |
+| `CUSTODIAN_MAX_MESSAGES_PER_SESSION` | no | Messages allowed per chat session before it auto-ends (default: `100`) |
 | `COOKIE_SECURE` | no | Set `true` in production (HTTPS only cookies) |
 
 ---
@@ -262,6 +264,26 @@ author a manual revision. This completes Phase 2 — Contradictions and
 Revisions are two of the three original scope items with Reality/Perception
 Separation; see
 [docs/superpowers/specs/2026-07-09-revisions-design.md](docs/superpowers/specs/2026-07-09-revisions-design.md).
+
+---
+
+## Phase 3 Custodian Core
+
+The Custodian is a conversational guide to the archive — a chat interface,
+not a background job. `POST /api/custodian/sessions` starts a session;
+`POST /api/custodian/sessions/{id}/messages` streams the reply back over
+`text/event-stream` as the model generates it. The model has two read-only
+tools: `search_archive` (semantic search over claim embeddings, reusing
+Phase 1 Plan 3's embedding index) and `search_concepts` (name-substring
+lookup returning a concept's description and revision history). Generation
+runs in a detached background task, so closing the chat mid-reply doesn't
+truncate what gets saved.
+
+A floating Orb — pulsing in the bottom-right corner on every authenticated
+page — opens the chat panel. Custodian Logging (letting the model propose
+new observations/claims/concepts from chat) and contradiction-classification
+assistance are separate follow-up plans; see
+[docs/superpowers/specs/2026-07-09-custodian-core-design.md](docs/superpowers/specs/2026-07-09-custodian-core-design.md).
 
 ---
 

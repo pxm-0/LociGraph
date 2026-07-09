@@ -259,6 +259,56 @@ class ClaimConceptEdge:
 
 
 @dataclass(frozen=True, slots=True)
+class CustodianSession:
+    id: UUID
+    user_id: UUID
+    title: str | None
+    started_at: datetime
+    ended_at: datetime | None
+    model: str
+    provider: str
+
+    @classmethod
+    def from_row(cls, row: Mapping[str, Any]) -> CustodianSession:
+        return cls(
+            id=row["id"],
+            user_id=row["user_id"],
+            title=row.get("title"),
+            started_at=row["started_at"],
+            ended_at=row.get("ended_at"),
+            model=row["model"],
+            provider=row["provider"],
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class CustodianMessage:
+    id: UUID
+    session_id: UUID
+    user_id: UUID
+    role: str
+    content: str
+    tool_name: str | None
+    tool_input: str | None
+    tool_output: str | None
+    created_at: datetime
+
+    @classmethod
+    def from_row(cls, row: Mapping[str, Any]) -> CustodianMessage:
+        return cls(
+            id=row["id"],
+            session_id=row["session_id"],
+            user_id=row["user_id"],
+            role=row["role"],
+            content=row["content"],
+            tool_name=row.get("tool_name"),
+            tool_input=row.get("tool_input"),
+            tool_output=row.get("tool_output"),
+            created_at=row["created_at"],
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class Contradiction:
     id: UUID
     user_id: UUID

@@ -1,5 +1,11 @@
 import "@testing-library/jest-dom/vitest"
 
+// jsdom doesn't implement scrollIntoView at all (not even a no-op) — polyfill
+// it so components that auto-scroll (e.g. chat threads) don't crash in tests.
+if (!Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = () => {}
+}
+
 // Node 25 ships a built-in (but incomplete) `localStorage`/`sessionStorage`
 // global that prevents jsdom's full Storage implementation from being used.
 // vitest's populateGlobal skips keys that already exist on the global and are

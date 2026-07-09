@@ -7,6 +7,7 @@ from backend.app.api import (
     claims,
     concepts,
     contradictions,
+    custodian,
     dashboard,
     jobs,
     observations,
@@ -25,6 +26,7 @@ def create_app() -> FastAPI:
     app.include_router(claims.router)
     app.include_router(concepts.router)
     app.include_router(contradictions.router)
+    app.include_router(custodian.router)
     app.include_router(search.router)
     return app
 
