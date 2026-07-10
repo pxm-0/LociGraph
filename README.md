@@ -351,6 +351,20 @@ frontend yet — see the Phase 4 roadmap for Plan 3.
 
 ---
 
+## Phase 4 Planetarium Visualization
+
+`/planetarium` renders each concept as a low-poly faceted sphere
+(React Three Fiber + `@react-three/drei`), positioned by the Planetarium
+Engine's UMAP projection and colored/sized by its computed
+mass/visual_class. Orbit the scene with the mouse
+(`OrbitControls`), click a node to jump to its concept detail page, or hit
+Rebuild to trigger a fresh projection and watch it complete (same
+job-polling pattern used elsewhere in the app). This is the first
+full-bleed page in the app — `AppChrome` skips its usual content padding
+for this one route.
+
+---
+
 ## Project Layout
 
 ```

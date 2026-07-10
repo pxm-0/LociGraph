@@ -8,9 +8,11 @@ import {
   getSource,
   listJobs,
   listObservations,
+  listPlanetariumNodes,
   listSources,
   login,
   me,
+  rebuildPlanetarium,
   search,
   uploadSource,
 } from "./api"
@@ -143,5 +145,59 @@ test("embedClaims posts to /sources/:id/embed-claims and returns jobId/status", 
   expect(result).toEqual({ jobId: "j1", status: "pending" })
   const [url, init] = f.mock.calls[0]
   expect(url).toBe("/api/sources/s1/embed-claims")
+  expect(init.method).toBe("POST")
+})
+
+test("listPlanetariumNodes maps snake_case fields to camelCase", async () => {
+  const f = mockFetch(200, [
+    {
+      id: "n1",
+      concept_id: "c1",
+      x: 1,
+      y: 2,
+      z: 3,
+      theta: 0.1,
+      phi: 0.2,
+      radius: 2,
+      mass: 0.5,
+      brightness: 0.9,
+      color: "#4a90d9",
+      visual_class: "planet",
+      projection_version: "v1/v1",
+      projection_algorithm: "umap",
+      created_at: "2024-01-01T00:00:00Z",
+    },
+  ])
+  vi.stubGlobal("fetch", f)
+  const result = await listPlanetariumNodes()
+  expect(result).toEqual([
+    {
+      id: "n1",
+      conceptId: "c1",
+      x: 1,
+      y: 2,
+      z: 3,
+      theta: 0.1,
+      phi: 0.2,
+      radius: 2,
+      mass: 0.5,
+      brightness: 0.9,
+      color: "#4a90d9",
+      visualClass: "planet",
+      projectionVersion: "v1/v1",
+      projectionAlgorithm: "umap",
+      createdAt: "2024-01-01T00:00:00Z",
+    },
+  ])
+  expect(f.mock.calls[0][0]).toBe("/api/planetarium/nodes")
+})
+
+test("rebuildPlanetarium posts to /planetarium/rebuild and returns jobId/status", async () => {
+  const f = mockFetch(202, { job_id: "j1", status: "pending" })
+  vi.stubGlobal("fetch", f)
+  const result = await rebuildPlanetarium()
+  expect(result).toEqual({ jobId: "j1", status: "pending" })
+  const [url, init] = f.mock.calls[0]
+  expect(url).toBe("/api/planetarium/rebuild")
   expect(init.method).toBe("POST")
 })
