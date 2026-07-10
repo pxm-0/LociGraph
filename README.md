@@ -340,6 +340,17 @@ and the Phase 4 roadmap for Plans 2-4.
 
 ---
 
+## Phase 4 Planetarium API
+
+`POST /planetarium/rebuild` triggers a projection rebuild (creates a `Job`,
+enqueues the existing `project_planetarium` worker task, returns
+`{"job_id", "status": "pending"}` — poll `GET /jobs/{job_id}` for
+completion, same as any other background job in this app). `GET
+/planetarium/nodes` returns the user's current `planetary_nodes` rows. No
+frontend yet — see the Phase 4 roadmap for Plan 3.
+
+---
+
 ## Project Layout
 
 ```
