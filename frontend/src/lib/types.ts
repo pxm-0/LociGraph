@@ -48,6 +48,24 @@ export interface Job {
   sourceId: string | null
 }
 
+export interface PlanetariumNode {
+  id: string
+  conceptId: string
+  x: number
+  y: number
+  z: number
+  theta: number
+  phi: number
+  radius: number
+  mass: number
+  brightness: number
+  color: string
+  visualClass: string
+  projectionVersion: string
+  projectionAlgorithm: string
+  createdAt: string | null
+}
+
 export interface Claim {
   id: string
   sourceId: string

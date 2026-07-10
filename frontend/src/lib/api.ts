@@ -9,6 +9,7 @@ import type {
   DashboardSummary,
   Job,
   Observation,
+  PlanetariumNode,
   Revision,
   SearchResult,
   Source,
@@ -412,6 +413,39 @@ export async function search(query: string, limit = 20): Promise<SearchResult[]>
 export async function embedClaims(sourceId: string): Promise<{ jobId: string; status: string }> {
   const r = await req(`/sources/${sourceId}/embed-claims`, { method: "POST" })
   if (!r.ok) throw await readError(r, "embedClaims failed")
+  const d = await r.json()
+  return { jobId: d.job_id, status: d.status }
+}
+
+function toPlanetariumNode(d: Record<string, unknown>): PlanetariumNode {
+  return {
+    id: String(d.id),
+    conceptId: String(d.concept_id),
+    x: Number(d.x),
+    y: Number(d.y),
+    z: Number(d.z),
+    theta: Number(d.theta),
+    phi: Number(d.phi),
+    radius: Number(d.radius),
+    mass: Number(d.mass),
+    brightness: Number(d.brightness),
+    color: String(d.color),
+    visualClass: String(d.visual_class),
+    projectionVersion: String(d.projection_version),
+    projectionAlgorithm: String(d.projection_algorithm),
+    createdAt: (d.created_at as string | null) ?? null,
+  }
+}
+
+export async function listPlanetariumNodes(): Promise<PlanetariumNode[]> {
+  const r = await req("/planetarium/nodes")
+  if (!r.ok) throw await readError(r, "listPlanetariumNodes failed")
+  return (await r.json()).map(toPlanetariumNode)
+}
+
+export async function rebuildPlanetarium(): Promise<{ jobId: string; status: string }> {
+  const r = await req("/planetarium/rebuild", { method: "POST" })
+  if (!r.ok) throw await readError(r, "rebuildPlanetarium failed")
   const d = await r.json()
   return { jobId: d.job_id, status: d.status }
 }
