@@ -395,4 +395,4 @@ async def test_planetary_nodes_isolated_between_tenants(make_user):
         await PlanetaryNodeRepository(conn).replace_all_for_user(user_a, [node])
 
     async with session(user_b) as conn:
-        assert await PlanetaryNodeRepository(conn).list_for_user(user_b) == []
+        assert await PlanetaryNodeRepository(conn).list_for_user(user_a) == []
