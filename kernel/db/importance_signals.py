@@ -42,16 +42,16 @@ class ImportanceSignalRepository(BaseRepository):
         return ImportanceSignal.from_row(_as_mapping(row))
 
     async def list_for_target(
-        self, target_type: str, target_id: str | UUID
+        self, target_type: str, target_id: str | UUID, limit: int = 50
     ) -> list[ImportanceSignal]:
         rows = (
             await self.conn.execute(
                 text(
                     f"SELECT {_COLUMNS} FROM importance_signals "
                     "WHERE target_type = :target_type AND target_id = :target_id "
-                    "ORDER BY created_at DESC"
+                    "ORDER BY created_at DESC LIMIT :limit"
                 ),
-                {"target_type": target_type, "target_id": str(target_id)},
+                {"target_type": target_type, "target_id": str(target_id), "limit": limit},
             )
         ).mappings().all()
         return [ImportanceSignal.from_row(_as_mapping(r)) for r in rows]

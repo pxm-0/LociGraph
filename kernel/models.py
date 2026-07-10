@@ -459,3 +459,44 @@ class ImportanceSignal:
             id=row["id"], user_id=row["user_id"], target_type=row["target_type"],
             target_id=row["target_id"], created_at=row["created_at"],
         )
+
+
+@dataclass(frozen=True, slots=True)
+class PlanetaryNode:
+    id: UUID
+    user_id: UUID
+    concept_id: UUID
+    x: float
+    y: float
+    z: float
+    theta: float
+    phi: float
+    radius: float
+    mass: float
+    brightness: float
+    color: str
+    visual_class: str
+    projection_version: str
+    projection_algorithm: str
+    created_at: datetime
+
+    @classmethod
+    def from_row(cls, row: Mapping[str, Any]) -> PlanetaryNode:
+        return cls(
+            id=row["id"],
+            user_id=row["user_id"],
+            concept_id=row["concept_id"],
+            x=float(row["x"]),
+            y=float(row["y"]),
+            z=float(row["z"]),
+            theta=float(row["theta"]),
+            phi=float(row["phi"]),
+            radius=float(row["radius"]),
+            mass=float(row["mass"]),
+            brightness=float(row["brightness"]),
+            color=row["color"],
+            visual_class=row["visual_class"],
+            projection_version=row["projection_version"],
+            projection_algorithm=row["projection_algorithm"],
+            created_at=row["created_at"],
+        )

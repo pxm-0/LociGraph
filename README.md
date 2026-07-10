@@ -323,6 +323,23 @@ completes Phase 3 (Custodian). See
 
 ---
 
+## Phase 4 Planetarium Engine
+
+The Planetarium projects each concept into a 3D scene: a spatial position
+from UMAP over its claims' embeddings, a "mass" from a versioned weighted
+sum over four real signals (revision count, claim-concept edge count,
+contradiction count, importance-signal pin count), and a visual
+classification (`planet` by default, `black_hole` for the top decile by
+mass). `kernel.planetarium.rebuild_planetarium(conn, user_id)` computes and
+replaces a user's `planetary_nodes` rows in one transaction — it's a
+disposable cache, never a source of truth. Runs as a `project_planetarium`
+dramatiq job, same `Job`/healing pattern as every other worker task. No API
+endpoint or frontend yet — see
+[docs/superpowers/specs/2026-07-10-planetarium-engine-design.md](docs/superpowers/specs/2026-07-10-planetarium-engine-design.md)
+and the Phase 4 roadmap for Plans 2-4.
+
+---
+
 ## Project Layout
 
 ```

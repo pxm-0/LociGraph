@@ -364,3 +364,35 @@ async def test_custodian_logged_items_isolated_between_tenants(make_user):
         assert await CustodianLoggedItemRepository(conn).list_for_session(
             custodian_session.id
         ) == []
+
+
+@pytest.mark.asyncio
+async def test_planetary_nodes_isolated_between_tenants(make_user):
+    from kernel.db.planetary_nodes import PlanetaryNodeRepository
+
+    user_a = await make_user()
+    user_b = await make_user()
+
+    async with session(user_a) as conn:
+        concept = await ConceptRepository(conn).create(
+            user_id=user_a, concept_name="Secret Concept", concept_type="idea"
+        )
+        node = {
+            "concept_id": concept.id,
+            "x": 1.0,
+            "y": 2.0,
+            "z": 3.0,
+            "theta": 0.1,
+            "phi": 0.2,
+            "radius": 2.0,
+            "mass": 0.5,
+            "brightness": 0.9,
+            "color": "#4a90d9",
+            "visual_class": "planet",
+            "projection_version": "v1/v1",
+            "projection_algorithm": "umap",
+        }
+        await PlanetaryNodeRepository(conn).replace_all_for_user(user_a, [node])
+
+    async with session(user_b) as conn:
+        assert await PlanetaryNodeRepository(conn).list_for_user(user_a) == []
