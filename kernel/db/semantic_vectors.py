@@ -69,7 +69,7 @@ class SemanticVectorRepository(BaseRepository):
         rows = (
             await self.conn.execute(
                 text(
-                    f"""
+                    """
                     SELECT sv.id, sv.user_id, sv.claim_id, sv.model_name, sv.created_at,
                            sv.embedding::text AS embedding
                     FROM semantic_vectors sv
