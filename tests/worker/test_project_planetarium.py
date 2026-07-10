@@ -12,7 +12,7 @@ from kernel.db.semantic_vectors import SemanticVectorRepository
 from kernel.db.session import session
 from kernel.db.sources import SourceRepository
 from worker.tasks.healing import MAX_HEAL_GENERATIONS
-from worker.tasks.project_planetarium import _heal_project_planetarium, _project_planetarium
+from worker.tasks.project_planetarium import _heal_project_planetarium, _project_planetarium, project_planetarium
 
 
 def _pad(v: list[float]) -> list[float]:
@@ -128,13 +128,23 @@ async def test_heal_project_planetarium_creates_fresh_job_and_resends(make_user,
 
 
 @pytest.mark.asyncio
-async def test_heal_project_planetarium_stops_at_generation_cap(make_user):
+async def test_heal_project_planetarium_stops_at_generation_cap(make_user, monkeypatch):
     user_id = await make_user()
     job = await _seed_one_concept(user_id)
+    calls = []
+    monkeypatch.setattr(
+        "worker.tasks.project_planetarium.project_planetarium.send_with_options",
+        lambda **kwargs: calls.append(kwargs),
+    )
+
     original_message = {
         "args": (str(user_id), str(job.id)),
         "options": {"heal_generation": MAX_HEAL_GENERATIONS},
     }
-    # No monkeypatch on send_with_options — if the cap isn't respected, this
-    # call would try to actually enqueue via the real broker and fail loudly.
     await _heal_project_planetarium(original_message, {})
+
+    assert calls == []
+
+
+def test_project_planetarium_wired_to_heal_on_retry_exhausted():
+    assert project_planetarium.options.get("on_retry_exhausted") == "heal_project_planetarium"
