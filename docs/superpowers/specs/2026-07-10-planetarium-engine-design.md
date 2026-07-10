@@ -202,15 +202,22 @@ async def _project_planetarium(user_id: str, job_id: str) -> None:
         await job_repo.mark_completed(job_id, result={"node_count": len(nodes)})
 ```
 
-wrapped in `@dramatiq.actor(queue_name="extraction", max_retries=3, ...)` +
-`run_actor(...)`, with `record_attempt` on exception — identical error
-handling to the existing embedding job. `job_type = "project_planetarium"`
-(new constant, no job-type enum/registry exists to update — job_type is a
-free-text column already). No healing/retry-with-fresh-job-row wrapper is
-needed for this job (unlike `embed_claims`'s `heal_embed_claims`) — a
-planetarium rebuild is idempotent and safe to just retry via dramatiq's own
-`max_retries`, since it fully replaces the output rather than incrementally
-appending.
+wrapped in `@dramatiq.actor(queue_name="extraction", max_retries=3,
+on_retry_exhausted="heal_project_planetarium", ...)` + `run_actor(...)`,
+with `record_attempt` on exception — identical error handling to the
+existing embedding job. `job_type = "project_planetarium"` (new constant, no
+job-type enum/registry exists to update — job_type is a free-text column
+already).
+
+Every existing worker task (`embed_claims`, `extract_claims`,
+`detect_contradictions`, `create_revision`, `ingest_source`) wires an
+`on_retry_exhausted` healer via `worker/tasks/healing.py`'s shared
+`next_heal_generation`/`HEAL_DELAY_MS` — this plan follows that
+established pattern rather than deviating from it. `heal_project_planetarium`
+mirrors `heal_embed_claims` exactly: creates a fresh `Job` row
+(`job_type="project_planetarium"`, no payload needed — the actor only takes
+`user_id`/`job_id`) and re-enqueues via `.send_with_options(delay=HEAL_DELAY_MS,
+heal_generation=generation)`.
 
 The job row itself is created by Plan 2's API endpoint (`POST
 /planetarium/rebuild`), not by this plan — Plan 1 only implements the actor
