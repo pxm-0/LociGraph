@@ -9,4 +9,5 @@ from worker.tasks import (  # noqa: E402,F401
     embed_claims,
     extract_claims,
     ingest_source,
+    project_planetarium,
 )
