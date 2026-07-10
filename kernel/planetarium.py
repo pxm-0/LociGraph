@@ -60,12 +60,14 @@ async def rebuild_planetarium(conn: AsyncConnection, user_id: str | UUID) -> lis
     for concept in concepts:
         cid = str(concept.id)
         revisions = await revision_repo.list(concept_id=concept.id, limit=MAX_ROWS_PER_CONCEPT)
-        concept_edges = await edge_repo.list_for_concept(concept.id)
+        concept_edges = await edge_repo.list_for_concept(concept.id, limit=MAX_ROWS_PER_CONCEPT)
         contradictions = await contradiction_repo.list(
             concept_id=concept.id, limit=MAX_ROWS_PER_CONCEPT
         )
-        pins = await signal_repo.list_for_target("concept", concept.id)
-        vectors = await vector_repo.list_for_concept(concept.id)
+        pins = await signal_repo.list_for_target(
+            "concept", concept.id, limit=MAX_ROWS_PER_CONCEPT
+        )
+        vectors = await vector_repo.list_for_concept(concept.id, limit=MAX_ROWS_PER_CONCEPT)
 
         revision_counts[cid] = float(len(revisions))
         edge_counts[cid] = float(len(concept_edges))

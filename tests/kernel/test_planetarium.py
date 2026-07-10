@@ -134,3 +134,21 @@ async def test_rebuild_planetarium_replaces_rather_than_duplicates(make_user):
 
     assert len(second) == 1
     assert len(stored) == 1
+
+
+@pytest.mark.asyncio
+async def test_rebuild_planetarium_places_concept_with_no_embeddings_at_origin(make_user):
+    user_id = await make_user()
+    async with session(user_id) as conn:
+        bare_concept = await ConceptRepository(conn).create(
+            user_id=user_id, concept_name="Bare", concept_type="entity"
+        )
+
+        nodes = await rebuild_planetarium(conn, user_id)
+        node_by_concept = {n.concept_id: n for n in nodes}
+
+    assert len(nodes) == 1
+    node = node_by_concept[bare_concept.id]
+    assert node.x == 0.0
+    assert node.y == 0.0
+    assert node.z == 0.0

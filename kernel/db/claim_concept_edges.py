@@ -73,14 +73,16 @@ class ClaimConceptEdgeRepository(BaseRepository):
         ).mappings().all()
         return [ClaimConceptEdge.from_row(_as_mapping(r)) for r in rows]
 
-    async def list_for_concept(self, concept_id: str | UUID) -> list[ClaimConceptEdge]:
+    async def list_for_concept(
+        self, concept_id: str | UUID, limit: int = 50
+    ) -> list[ClaimConceptEdge]:
         rows = (
             await self.conn.execute(
                 text(
                     f"SELECT {_COLUMNS} FROM claim_concept_edges "
-                    "WHERE concept_id = :concept_id ORDER BY created_at DESC"
+                    "WHERE concept_id = :concept_id ORDER BY created_at DESC LIMIT :limit"
                 ),
-                {"concept_id": str(concept_id)},
+                {"concept_id": str(concept_id), "limit": limit},
             )
         ).mappings().all()
         return [ClaimConceptEdge.from_row(_as_mapping(r)) for r in rows]

@@ -65,7 +65,9 @@ class SemanticVectorRepository(BaseRepository):
         ).mappings().first()
         return SemanticVector.from_row(_as_mapping(row)) if row else None
 
-    async def list_for_concept(self, concept_id: str | UUID) -> list[SemanticVector]:
+    async def list_for_concept(
+        self, concept_id: str | UUID, limit: int = 50
+    ) -> list[SemanticVector]:
         rows = (
             await self.conn.execute(
                 text(
@@ -75,9 +77,11 @@ class SemanticVectorRepository(BaseRepository):
                     FROM semantic_vectors sv
                     JOIN claim_concept_edges cce ON cce.claim_id = sv.claim_id
                     WHERE cce.concept_id = :concept_id
+                    ORDER BY sv.created_at DESC
+                    LIMIT :limit
                     """
                 ),
-                {"concept_id": str(concept_id)},
+                {"concept_id": str(concept_id), "limit": limit},
             )
         ).mappings().all()
         return [SemanticVector.from_row(_as_mapping(r)) for r in rows]
