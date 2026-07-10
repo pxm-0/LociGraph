@@ -17,6 +17,7 @@ export type IconName =
   | "balance"
   | "search"
   | "orbit"
+  | "planet"
   | "toggle_off"
   | "toggle_on"
 
@@ -93,6 +94,12 @@ const ICONS: Record<IconName, ReactNode> = {
       <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" />
       <ellipse cx="12" cy="12" rx="10" ry="4.5" />
       <circle cx="20.5" cy="12" r="1.5" fill="currentColor" stroke="none" />
+    </svg>
+  ),
+  planet: (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="6" />
+      <ellipse cx="12" cy="12" rx="10" ry="3" transform="rotate(-15 12 12)" />
     </svg>
   ),
   toggle_off: (

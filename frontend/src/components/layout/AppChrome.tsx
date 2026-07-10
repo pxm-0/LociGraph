@@ -13,12 +13,15 @@ function currentPageTitle(pathname: string): string {
   return item?.pageTitle ?? item?.label ?? "LociGraph"
 }
 
+const FULL_BLEED_ROUTES = ["/planetarium"]
+
 // AppChrome reads mode after ThemeProvider mounts — must be a client component
 export function AppChrome({ children }: { children: ReactNode }) {
   const { mode } = useMode()
   const pathname = usePathname()
 
   const isHearth = mode === "hearth"
+  const isFullBleed = FULL_BLEED_ROUTES.includes(pathname)
 
   return (
     <div className="min-h-screen bg-canvas">
@@ -60,10 +63,11 @@ export function AppChrome({ children }: { children: ReactNode }) {
 
         {/* Page canvas */}
         <main
-          className={[
-            "w-full",
-            isHearth ? "p-8 max-w-[1400px] mx-auto" : "p-3",
-          ].join(" ")}
+          className={
+            isFullBleed
+              ? "w-full"
+              : ["w-full", isHearth ? "p-8 max-w-[1400px] mx-auto" : "p-3"].join(" ")
+          }
         >
           {children}
         </main>
