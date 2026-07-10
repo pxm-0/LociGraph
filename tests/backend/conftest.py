@@ -75,6 +75,13 @@ async def seeded_user(reset_engine):
             )
             await conn.execute(
                 text(
+                    "DELETE FROM planetary_nodes WHERE user_id IN "
+                    "(SELECT id FROM users WHERE email = :e)"
+                ),
+                {"e": email},
+            )
+            await conn.execute(
+                text(
                     "DELETE FROM concepts WHERE user_id IN "
                     "(SELECT id FROM users WHERE email = :e)"
                 ),
@@ -149,6 +156,7 @@ async def seeded_user(reset_engine):
         await conn.execute(text("DELETE FROM custodian_sessions"))
         await conn.execute(text("DELETE FROM claim_concept_edges"))
         await conn.execute(text("DELETE FROM contradictions"))
+        await conn.execute(text("DELETE FROM planetary_nodes"))
         await conn.execute(text("DELETE FROM concepts"))
         await conn.execute(text("DELETE FROM concept_candidates"))
         await conn.execute(text("DELETE FROM semantic_vectors"))
