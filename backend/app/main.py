@@ -11,6 +11,7 @@ from backend.app.api import (
     dashboard,
     jobs,
     observations,
+    planetarium,
     search,
     sources,
 )
@@ -27,6 +28,7 @@ def create_app() -> FastAPI:
     app.include_router(concepts.router)
     app.include_router(contradictions.router)
     app.include_router(custodian.router)
+    app.include_router(planetarium.router)
     app.include_router(search.router)
     return app
 
