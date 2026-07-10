@@ -28,8 +28,12 @@ function makeJob(overrides: Partial<Job> = {}): Job {
   }
 }
 
-beforeEach(() => vi.clearAllMocks())
-afterEach(() => vi.useRealTimers())
+beforeEach(() => {
+  vi.clearAllMocks()
+})
+afterEach(() => {
+  vi.useRealTimers()
+})
 
 test("triggers a rebuild and calls onRebuildComplete once the job completes", async () => {
   vi.useFakeTimers({ shouldAdvanceTime: true })

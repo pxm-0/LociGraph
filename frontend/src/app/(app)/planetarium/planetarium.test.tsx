@@ -17,7 +17,9 @@ import PlanetariumPage from "./page"
 
 const mockListPlanetariumNodes = vi.mocked(listPlanetariumNodes)
 
-beforeEach(() => vi.clearAllMocks())
+beforeEach(() => {
+  vi.clearAllMocks()
+})
 
 test("shows an empty-state message when there are no nodes yet", async () => {
   mockListPlanetariumNodes.mockResolvedValue([])
