@@ -28,9 +28,9 @@ from kernel.planetarium_physics import (
 from kernel.planetarium_projection import (
     PROJECTION_ALGORITHM,
     PROJECTION_VERSION,
-    SCENE_RADIUS,
     fibonacci_sphere,
     project_concepts,
+    scene_radius_for,
 )
 
 # Generous cap on rows fetched per concept per related table — a personal
@@ -104,16 +104,19 @@ async def rebuild_planetarium(conn: AsyncConnection, user_id: str | UUID) -> lis
     }
     normalized_mass = normalize(masses)
     percentiles = mass_percentiles(masses)
-    positions = project_concepts(embeddings)
+    # Radius scales with node count so the layout keeps a constant breathing
+    # room between planets rather than getting denser as the archive grows.
+    scene_radius = scene_radius_for(len(concepts))
+    positions = project_concepts(embeddings, radius=scene_radius)
 
     # Concepts without an embedding get no UMAP position; spread them on a shell
     # instead of collapsing every one onto (0,0,0) (which piled all planets into
     # a single overlapping blob).
-    # ponytail: embedded cluster and this shell share SCENE_RADIUS, so in the
+    # ponytail: embedded cluster and this shell share scene_radius, so in the
     # rare mixed case they can touch at the boundary; widen the shell radius if
     # that ever looks crowded.
     unplaced = [concept.id for concept in concepts if concept.id not in positions]
-    fallback = dict(zip(unplaced, fibonacci_sphere(len(unplaced), SCENE_RADIUS), strict=True))
+    fallback = dict(zip(unplaced, fibonacci_sphere(len(unplaced), scene_radius), strict=True))
 
     nodes = []
     for concept in concepts:

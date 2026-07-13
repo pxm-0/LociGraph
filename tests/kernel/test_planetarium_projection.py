@@ -6,8 +6,10 @@ from uuid import uuid4
 from kernel.planetarium_projection import (
     MIN_CONCEPTS_FOR_UMAP,
     SCENE_RADIUS,
+    SCENE_RADIUS_FLOOR,
     fibonacci_sphere,
     project_concepts,
+    scene_radius_for,
 )
 
 
@@ -30,6 +32,15 @@ def test_fibonacci_sphere_places_points_on_the_requested_radius():
 
 def test_fibonacci_sphere_single_point():
     assert fibonacci_sphere(1, SCENE_RADIUS) == [(0.0, 0.0, SCENE_RADIUS)]
+
+
+def test_scene_radius_grows_with_count_and_has_a_floor():
+    assert scene_radius_for(0) == SCENE_RADIUS_FLOOR
+    assert scene_radius_for(1) == SCENE_RADIUS_FLOOR
+    # sqrt scaling past the floor: 4x the count -> 2x the radius
+    big, bigger = scene_radius_for(100), scene_radius_for(400)
+    assert bigger > big
+    assert abs(bigger - 2 * big) < 1e-6
 
 
 def test_project_concepts_empty_returns_empty():

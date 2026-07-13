@@ -10,18 +10,31 @@ UMAP_RANDOM_STATE = 42
 UMAP_N_NEIGHBORS_DEFAULT = 15
 MIN_CONCEPTS_FOR_UMAP = 3
 
-# Target extent of the layout, in the same world units the scene camera and
-# node radii use (node radii run 1-5, camera sits at z=30). UMAP output has an
+# Layout extent in world units (node radii run ~0.8-3). UMAP output has an
 # arbitrary scale, so we normalize it to fill this radius; sphere fallbacks use
-# it directly. Tune here if planets look too sparse or too crowded.
+# it directly. Default used by project_concepts when no radius is passed.
 SCENE_RADIUS = 12.0
 
+# The layout radius grows with node count so on-sphere spacing stays roughly
+# constant as the archive grows (a fixed radius gets denser and denser). Tune
+# SCENE_RADIUS_BASE for more/less breathing room between planets.
+SCENE_RADIUS_BASE = 3.5
+SCENE_RADIUS_FLOOR = 8.0
+
 PROJECTION_ALGORITHM = "umap"
-PROJECTION_VERSION = "v2"
+PROJECTION_VERSION = "v3"
 
 # Golden angle — the increment that spreads successive points evenly, avoiding
 # the seams a naive lat/long grid produces.
 _GOLDEN_ANGLE = math.pi * (3.0 - math.sqrt(5.0))
+
+
+def scene_radius_for(count: int) -> float:
+    """Layout radius for `count` nodes. Grows with sqrt(count) so surface
+    density on the sphere — and thus the gap between neighbouring planets —
+    stays roughly constant instead of getting more crowded as the archive
+    grows. Floored so a tiny archive isn't microscopic."""
+    return max(SCENE_RADIUS_FLOOR, SCENE_RADIUS_BASE * math.sqrt(max(count, 1)))
 
 
 def fibonacci_sphere(count: int, radius: float) -> list[tuple[float, float, float]]:
@@ -45,9 +58,10 @@ def fibonacci_sphere(count: int, radius: float) -> list[tuple[float, float, floa
 
 def project_concepts(
     embeddings: dict[UUID, list[float]],
+    radius: float = SCENE_RADIUS,
 ) -> dict[UUID, tuple[float, float, float]]:
     """Maps each embeddable concept_id to (x, y, z) filling a sphere of
-    SCENE_RADIUS. Runs UMAP when there are enough concepts and their embeddings
+    `radius`. Runs UMAP when there are enough concepts and their embeddings
     actually differ; otherwise (too few, or embeddings that collapse to a point)
     falls back to an even spread on the sphere so nodes never pile up."""
     if not embeddings:
@@ -64,7 +78,7 @@ def project_concepts(
         centered = coords - coords.mean(axis=0)
         max_dist = float(np.max(np.linalg.norm(centered, axis=1)))
         if max_dist > 0:
-            scaled = centered * (SCENE_RADIUS / max_dist)
+            scaled = centered * (radius / max_dist)
             return {
                 cid: (float(scaled[i][0]), float(scaled[i][1]), float(scaled[i][2]))
                 for i, cid in enumerate(concept_ids)
@@ -73,5 +87,5 @@ def project_concepts(
         # embeddings) — fall through to an even sphere spread.
 
     return dict(
-        zip(concept_ids, fibonacci_sphere(len(concept_ids), SCENE_RADIUS), strict=True)
+        zip(concept_ids, fibonacci_sphere(len(concept_ids), radius), strict=True)
     )
