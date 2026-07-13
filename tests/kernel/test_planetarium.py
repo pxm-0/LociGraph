@@ -137,18 +137,24 @@ async def test_rebuild_planetarium_replaces_rather_than_duplicates(make_user):
 
 
 @pytest.mark.asyncio
-async def test_rebuild_planetarium_places_concept_with_no_embeddings_at_origin(make_user):
+async def test_rebuild_planetarium_spreads_concepts_with_no_embeddings(make_user):
+    # Concepts without an embedding used to all collapse onto (0,0,0), piling
+    # every planet into one overlapping blob. They must instead spread out.
     user_id = await make_user()
     async with session(user_id) as conn:
-        bare_concept = await ConceptRepository(conn).create(
-            user_id=user_id, concept_name="Bare", concept_type="entity"
+        bare_a = await ConceptRepository(conn).create(
+            user_id=user_id, concept_name="BareA", concept_type="entity"
+        )
+        bare_b = await ConceptRepository(conn).create(
+            user_id=user_id, concept_name="BareB", concept_type="entity"
         )
 
         nodes = await rebuild_planetarium(conn, user_id)
         node_by_concept = {n.concept_id: n for n in nodes}
 
-    assert len(nodes) == 1
-    node = node_by_concept[bare_concept.id]
-    assert node.x == 0.0
-    assert node.y == 0.0
-    assert node.z == 0.0
+    assert len(nodes) == 2
+    for concept in (bare_a, bare_b):
+        node = node_by_concept[concept.id]
+        assert (node.x, node.y, node.z) != (0.0, 0.0, 0.0)
+    a, b = node_by_concept[bare_a.id], node_by_concept[bare_b.id]
+    assert (a.x, a.y, a.z) != (b.x, b.y, b.z)

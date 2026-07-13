@@ -28,6 +28,8 @@ from kernel.planetarium_physics import (
 from kernel.planetarium_projection import (
     PROJECTION_ALGORITHM,
     PROJECTION_VERSION,
+    SCENE_RADIUS,
+    fibonacci_sphere,
     project_concepts,
 )
 
@@ -104,10 +106,21 @@ async def rebuild_planetarium(conn: AsyncConnection, user_id: str | UUID) -> lis
     percentiles = mass_percentiles(masses)
     positions = project_concepts(embeddings)
 
+    # Concepts without an embedding get no UMAP position; spread them on a shell
+    # instead of collapsing every one onto (0,0,0) (which piled all planets into
+    # a single overlapping blob).
+    # ponytail: embedded cluster and this shell share SCENE_RADIUS, so in the
+    # rare mixed case they can touch at the boundary; widen the shell radius if
+    # that ever looks crowded.
+    unplaced = [concept.id for concept in concepts if concept.id not in positions]
+    fallback = dict(zip(unplaced, fibonacci_sphere(len(unplaced), SCENE_RADIUS), strict=True))
+
     nodes = []
     for concept in concepts:
         cid = str(concept.id)
-        x, y, z = positions.get(concept.id, (0.0, 0.0, 0.0))
+        x, y, z = (
+            positions[concept.id] if concept.id in positions else fallback[concept.id]
+        )
         theta, phi = spherical_from_cartesian(x, y, z)
         visual_class = classify_visual_class(
             mass=masses[cid], mass_percentile=percentiles[cid], concept_count=len(concepts)
