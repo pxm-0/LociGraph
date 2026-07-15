@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -13,7 +14,14 @@ from kernel.db.importance_signals import ImportanceSignalRepository
 from kernel.db.planetary_nodes import PlanetaryNodeRepository
 from kernel.db.revisions import RevisionRepository
 from kernel.db.semantic_vectors import SemanticVectorRepository
-from kernel.models import PlanetaryNode
+from kernel.models import (
+    ClaimConceptEdge,
+    Contradiction,
+    ImportanceSignal,
+    PlanetaryNode,
+    Revision,
+    SemanticVector,
+)
 from kernel.planetarium_physics import (
     MASS_FORMULA_VERSION,
     classify_visual_class,
@@ -33,10 +41,10 @@ from kernel.planetarium_projection import (
     scene_radius_for,
 )
 
-# Generous cap on rows fetched per concept per related table — a personal
-# archive's per-concept revision/edge/contradiction/pin counts are expected
-# to stay far below this; it exists so the query has an explicit LIMIT
-# rather than none, matching every other paginated repository method here.
+# Generous cap on concepts fetched per rebuild — a personal archive's concept
+# count is expected to stay far below this; it exists so the query has an
+# explicit LIMIT rather than none, matching every other paginated repository
+# method here.
 MAX_ROWS_PER_CONCEPT = 10_000
 
 
@@ -45,11 +53,31 @@ async def rebuild_planetarium(conn: AsyncConnection, user_id: str | UUID) -> lis
     if not concepts:
         return await PlanetaryNodeRepository(conn).replace_all_for_user(user_id, [])
 
+    concept_ids = [concept.id for concept in concepts]
     revision_repo = RevisionRepository(conn)
     edge_repo = ClaimConceptEdgeRepository(conn)
     contradiction_repo = ContradictionRepository(conn)
     signal_repo = ImportanceSignalRepository(conn)
     vector_repo = SemanticVectorRepository(conn)
+
+    # One bulk query per related table instead of one per concept — with N
+    # concepts the old per-concept loop issued 5*N sequential round trips,
+    # which is what made rebuilds slow as an archive grew.
+    revisions_by_concept: dict[UUID, list[Revision]] = defaultdict(list)
+    for revision in await revision_repo.list_for_concepts(concept_ids):
+        revisions_by_concept[revision.concept_id].append(revision)
+    edges_by_concept: dict[UUID, list[ClaimConceptEdge]] = defaultdict(list)
+    for edge in await edge_repo.list_for_concepts(concept_ids):
+        edges_by_concept[edge.concept_id].append(edge)
+    contradictions_by_concept: dict[UUID, list[Contradiction]] = defaultdict(list)
+    for contradiction in await contradiction_repo.list_for_concepts(concept_ids):
+        contradictions_by_concept[contradiction.concept_id].append(contradiction)
+    pins_by_concept: dict[UUID, list[ImportanceSignal]] = defaultdict(list)
+    for pin in await signal_repo.list_for_targets("concept", concept_ids):
+        pins_by_concept[pin.target_id].append(pin)
+    vectors_by_concept: dict[UUID, list[SemanticVector]] = defaultdict(list)
+    for vector_concept_id, vector in await vector_repo.list_for_concepts(concept_ids):
+        vectors_by_concept[vector_concept_id].append(vector)
 
     revision_counts: dict[str, float] = {}
     edge_counts: dict[str, float] = {}
@@ -61,15 +89,11 @@ async def rebuild_planetarium(conn: AsyncConnection, user_id: str | UUID) -> lis
 
     for concept in concepts:
         cid = str(concept.id)
-        revisions = await revision_repo.list(concept_id=concept.id, limit=MAX_ROWS_PER_CONCEPT)
-        concept_edges = await edge_repo.list_for_concept(concept.id, limit=MAX_ROWS_PER_CONCEPT)
-        contradictions = await contradiction_repo.list(
-            concept_id=concept.id, limit=MAX_ROWS_PER_CONCEPT
-        )
-        pins = await signal_repo.list_for_target(
-            "concept", concept.id, limit=MAX_ROWS_PER_CONCEPT
-        )
-        vectors = await vector_repo.list_for_concept(concept.id, limit=MAX_ROWS_PER_CONCEPT)
+        revisions = revisions_by_concept[concept.id]
+        concept_edges = edges_by_concept[concept.id]
+        contradictions = contradictions_by_concept[concept.id]
+        pins = pins_by_concept[concept.id]
+        vectors = vectors_by_concept[concept.id]
 
         revision_counts[cid] = float(len(revisions))
         edge_counts[cid] = float(len(concept_edges))

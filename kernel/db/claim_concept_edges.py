@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any
 from uuid import UUID
 
@@ -69,6 +69,22 @@ class ClaimConceptEdgeRepository(BaseRepository):
                     "WHERE claim_id = :claim_id ORDER BY created_at DESC"
                 ),
                 {"claim_id": str(claim_id)},
+            )
+        ).mappings().all()
+        return [ClaimConceptEdge.from_row(_as_mapping(r)) for r in rows]
+
+    async def list_for_concepts(
+        self, concept_ids: Sequence[str | UUID]
+    ) -> list[ClaimConceptEdge]:
+        if not concept_ids:
+            return []
+        rows = (
+            await self.conn.execute(
+                text(
+                    f"SELECT {_COLUMNS} FROM claim_concept_edges "
+                    "WHERE concept_id = ANY(:concept_ids) ORDER BY created_at DESC"
+                ),
+                {"concept_ids": [str(c) for c in concept_ids]},
             )
         ).mappings().all()
         return [ClaimConceptEdge.from_row(_as_mapping(r)) for r in rows]

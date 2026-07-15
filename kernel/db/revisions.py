@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+import builtins
+from collections.abc import Mapping, Sequence
 from typing import Any
 from uuid import UUID
 
@@ -77,6 +78,22 @@ class RevisionRepository(BaseRepository):
                     "ORDER BY created_at DESC LIMIT :limit OFFSET :offset"
                 ),
                 {"concept_id": str(concept_id), "limit": limit, "offset": offset},
+            )
+        ).mappings().all()
+        return [Revision.from_row(_as_mapping(r)) for r in rows]
+
+    async def list_for_concepts(
+        self, concept_ids: Sequence[str | UUID]
+    ) -> builtins.list[Revision]:
+        if not concept_ids:
+            return []
+        rows = (
+            await self.conn.execute(
+                text(
+                    f"SELECT {_COLUMNS} FROM revisions WHERE concept_id = ANY(:concept_ids) "
+                    "ORDER BY created_at DESC"
+                ),
+                {"concept_ids": [str(c) for c in concept_ids]},
             )
         ).mappings().all()
         return [Revision.from_row(_as_mapping(r)) for r in rows]

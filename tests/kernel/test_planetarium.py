@@ -158,3 +158,38 @@ async def test_rebuild_planetarium_spreads_concepts_with_no_embeddings(make_user
         assert (node.x, node.y, node.z) != (0.0, 0.0, 0.0)
     a, b = node_by_concept[bare_a.id], node_by_concept[bare_b.id]
     assert (a.x, a.y, a.z) != (b.x, b.y, b.z)
+
+
+@pytest.mark.asyncio
+async def test_rebuild_planetarium_query_count_does_not_scale_with_concept_count(make_user):
+    # Regression test: rebuild_planetarium used to fetch revisions/edges/
+    # contradictions/pins/vectors with one query PER CONCEPT (5*N round
+    # trips) and insert nodes with one INSERT per node. Both are now bulk
+    # operations, so the query count must stay flat as concept count grows
+    # rather than scaling linearly with it.
+    from sqlalchemy import event
+
+    from kernel.db.engine import get_engine
+
+    user_id = await make_user()
+    async with session(user_id) as conn:
+        for i in range(8):
+            await _seed_concept(conn, user_id, f"Concept{i}", float(i))
+
+        query_count = 0
+
+        def _count(*_args: object, **_kwargs: object) -> None:
+            nonlocal query_count
+            query_count += 1
+
+        engine = get_engine()
+        event.listen(engine.sync_engine, "before_cursor_execute", _count)
+        try:
+            nodes = await rebuild_planetarium(conn, user_id)
+        finally:
+            event.remove(engine.sync_engine, "before_cursor_execute", _count)
+
+    assert len(nodes) == 8
+    # 1 concept list + 5 bulk fetches + 1 delete + 1 insert batch = 8. The old
+    # per-concept loop would have hit 5*8 + 8 + 2 = 50 for this fixture.
+    assert query_count <= 12

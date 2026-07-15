@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any
 from uuid import UUID
 
@@ -85,6 +85,29 @@ class SemanticVectorRepository(BaseRepository):
             )
         ).mappings().all()
         return [SemanticVector.from_row(_as_mapping(r)) for r in rows]
+
+    async def list_for_concepts(
+        self, concept_ids: Sequence[str | UUID]
+    ) -> list[tuple[UUID, SemanticVector]]:
+        if not concept_ids:
+            return []
+        rows = (
+            await self.conn.execute(
+                text(
+                    """
+                    SELECT cce.concept_id AS concept_id,
+                           sv.id, sv.user_id, sv.claim_id, sv.model_name, sv.created_at,
+                           sv.embedding::text AS embedding
+                    FROM semantic_vectors sv
+                    JOIN claim_concept_edges cce ON cce.claim_id = sv.claim_id
+                    WHERE cce.concept_id = ANY(:concept_ids)
+                    ORDER BY sv.created_at DESC
+                    """
+                ),
+                {"concept_ids": [str(c) for c in concept_ids]},
+            )
+        ).mappings().all()
+        return [(r["concept_id"], SemanticVector.from_row(_as_mapping(r))) for r in rows]
 
     async def claim_ids_without_vector(self, source_id: str | UUID) -> set[UUID]:
         rows = (

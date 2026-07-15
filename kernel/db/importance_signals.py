@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any
 from uuid import UUID
 
@@ -40,6 +40,23 @@ class ImportanceSignalRepository(BaseRepository):
             )
         ).mappings().one()
         return ImportanceSignal.from_row(_as_mapping(row))
+
+    async def list_for_targets(
+        self, target_type: str, target_ids: Sequence[str | UUID]
+    ) -> list[ImportanceSignal]:
+        if not target_ids:
+            return []
+        rows = (
+            await self.conn.execute(
+                text(
+                    f"SELECT {_COLUMNS} FROM importance_signals "
+                    "WHERE target_type = :target_type AND target_id = ANY(:target_ids) "
+                    "ORDER BY created_at DESC"
+                ),
+                {"target_type": target_type, "target_ids": [str(t) for t in target_ids]},
+            )
+        ).mappings().all()
+        return [ImportanceSignal.from_row(_as_mapping(r)) for r in rows]
 
     async def list_for_target(
         self, target_type: str, target_id: str | UUID, limit: int = 50

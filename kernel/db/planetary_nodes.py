@@ -15,6 +15,15 @@ _COLUMNS = (
     "color, visual_class, projection_version, projection_algorithm, created_at"
 )
 
+_NODE_FIELDS = (
+    "concept_id", "x", "y", "z", "theta", "phi", "radius", "mass",
+    "brightness", "color", "visual_class", "projection_version", "projection_algorithm",
+)
+# Rows per INSERT — keeps bind-parameter count (batch size * len(_NODE_FIELDS))
+# well under Postgres's ~65535 parameter limit while still turning what used
+# to be one round trip per node into a handful of round trips per rebuild.
+_INSERT_BATCH_SIZE = 500
+
 
 def _as_mapping(row: RowMapping) -> Mapping[str, Any]:
     return row  # type: ignore[return-value]
@@ -32,26 +41,30 @@ class PlanetaryNodeRepository(BaseRepository):
             {"user_id": str(user_id)},
         )
         created: list[PlanetaryNode] = []
-        for node in nodes:
-            row = (
+        for start in range(0, len(nodes), _INSERT_BATCH_SIZE):
+            batch = nodes[start : start + _INSERT_BATCH_SIZE]
+            params: dict[str, Any] = {"user_id": str(user_id)}
+            row_placeholders = []
+            for i, node in enumerate(batch):
+                row_placeholders.append(
+                    "(:user_id, " + ", ".join(f":{field}_{i}" for field in _NODE_FIELDS) + ")"
+                )
+                for field in _NODE_FIELDS:
+                    value = node[field]
+                    params[f"{field}_{i}"] = str(value) if field == "concept_id" else value
+            rows = (
                 await self.conn.execute(
                     text(
                         f"""
-                        INSERT INTO planetary_nodes
-                            (user_id, concept_id, x, y, z, theta, phi, radius, mass,
-                             brightness, color, visual_class, projection_version,
-                             projection_algorithm)
-                        VALUES
-                            (:user_id, :concept_id, :x, :y, :z, :theta, :phi, :radius,
-                             :mass, :brightness, :color, :visual_class,
-                             :projection_version, :projection_algorithm)
+                        INSERT INTO planetary_nodes (user_id, {", ".join(_NODE_FIELDS)})
+                        VALUES {", ".join(row_placeholders)}
                         RETURNING {_COLUMNS}
                         """
                     ),
-                    {"user_id": str(user_id), **node, "concept_id": str(node["concept_id"])},
+                    params,
                 )
-            ).mappings().one()
-            created.append(PlanetaryNode.from_row(_as_mapping(row)))
+            ).mappings().all()
+            created.extend(PlanetaryNode.from_row(_as_mapping(r)) for r in rows)
         return created
 
     async def list_for_user(self, user_id: str | UUID) -> list[PlanetaryNode]:
