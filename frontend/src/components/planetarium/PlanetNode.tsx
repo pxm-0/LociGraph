@@ -3,10 +3,7 @@
 import { useRouter } from "next/navigation"
 import type { ThreeEvent } from "@react-three/fiber"
 import type { PlanetariumNode } from "@/lib/types"
-
-export function buildConceptHref(conceptId: string): string {
-  return `/concepts/${conceptId}`
-}
+import { buildConceptHref } from "./ConceptDetailPanel"
 
 interface PlanetNodeProps {
   node: PlanetariumNode
