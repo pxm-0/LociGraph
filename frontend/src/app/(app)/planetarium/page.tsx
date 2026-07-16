@@ -47,7 +47,9 @@ export default function PlanetariumPage() {
         </p>
       )}
 
-      {nodes !== null && nodes.length > 0 && <PlanetariumScene nodes={nodes} />}
+      {nodes !== null && nodes.length > 0 && (
+        <PlanetariumScene nodes={nodes} onSelect={() => {}} />
+      )}
     </div>
   )
 }
