@@ -129,3 +129,25 @@ async def test_list_nodes_isolated_between_tenants(client, seeded_user, make_use
 
     assert r.status_code == 200
     assert r.json() == []
+
+
+@pytest.mark.asyncio
+async def test_list_nodes_includes_concept_name_and_type(client, seeded_user):  # type: ignore[no-untyped-def]
+    from kernel.db.concepts import ConceptRepository
+
+    async with session(seeded_user) as conn:
+        concept = await ConceptRepository(conn).create(
+            user_id=seeded_user, concept_name="Epsilon", concept_type="entity"
+        )
+        assert concept is not None
+        await PlanetaryNodeRepository(conn).replace_all_for_user(
+            seeded_user, [_node(concept.id)]
+        )
+
+    await _login(client)
+    r = await client.get("/planetarium/nodes")
+
+    assert r.status_code == 200
+    body = r.json()
+    assert body[0]["concept_name"] == "Epsilon"
+    assert body[0]["concept_type"] == "entity"

@@ -5,19 +5,22 @@ from typing import Any
 from fastapi import APIRouter, Depends
 
 from backend.app.auth.dependencies import get_current_user
+from kernel.db.concepts import ConceptRepository
 from kernel.db.jobs import JobRepository
 from kernel.db.planetary_nodes import PlanetaryNodeRepository
 from kernel.db.session import session
-from kernel.models import PlanetaryNode
+from kernel.models import Concept, PlanetaryNode
 from worker.tasks.project_planetarium import project_planetarium
 
 router = APIRouter()
 
 
-def _serialize(node: PlanetaryNode) -> dict[str, Any]:
+def _serialize(node: PlanetaryNode, concept: Concept | None) -> dict[str, Any]:
     return {
         "id": str(node.id),
         "concept_id": str(node.concept_id),
+        "concept_name": concept.concept_name if concept else "Unknown",
+        "concept_type": concept.concept_type if concept else "unknown",
         "x": node.x,
         "y": node.y,
         "z": node.z,
@@ -50,4 +53,5 @@ async def list_planetary_nodes(
 ) -> list[dict[str, Any]]:
     async with session(user_id) as conn:
         nodes = await PlanetaryNodeRepository(conn).list_for_user(user_id)
-    return [_serialize(node) for node in nodes]
+        concepts_by_id = {c.id: c for c in await ConceptRepository(conn).list(limit=10_000)}
+    return [_serialize(node, concepts_by_id.get(node.concept_id)) for node in nodes]
