@@ -67,6 +67,20 @@ class PlanetaryNodeRepository(BaseRepository):
             created.extend(PlanetaryNode.from_row(_as_mapping(r)) for r in rows)
         return created
 
+    async def get_for_concept(
+        self, user_id: str | UUID, concept_id: str | UUID
+    ) -> PlanetaryNode | None:
+        row = (
+            await self.conn.execute(
+                text(
+                    f"SELECT {_COLUMNS} FROM planetary_nodes "
+                    "WHERE user_id = :user_id AND concept_id = :concept_id"
+                ),
+                {"user_id": str(user_id), "concept_id": str(concept_id)},
+            )
+        ).mappings().first()
+        return PlanetaryNode.from_row(_as_mapping(row)) if row else None
+
     async def list_for_user(self, user_id: str | UUID) -> list[PlanetaryNode]:
         rows = (
             await self.conn.execute(

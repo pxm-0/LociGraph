@@ -67,3 +67,33 @@ async def test_replace_all_for_user_can_clear_to_empty(make_user):
 
     assert cleared == []
     assert listed == []
+
+
+@pytest.mark.asyncio
+async def test_get_for_concept_returns_none_when_no_node_exists(make_user):
+    user_id = await make_user()
+    async with session(user_id) as conn:
+        concept = await ConceptRepository(conn).create(
+            user_id=user_id, concept_name="Gamma", concept_type="entity"
+        )
+        assert concept is not None
+        node = await PlanetaryNodeRepository(conn).get_for_concept(user_id, concept.id)
+    assert node is None
+
+
+@pytest.mark.asyncio
+async def test_get_for_concept_returns_the_matching_node(make_user):
+    user_id = await make_user()
+    async with session(user_id) as conn:
+        concept = await ConceptRepository(conn).create(
+            user_id=user_id, concept_name="Delta", concept_type="entity"
+        )
+        assert concept is not None
+        repo = PlanetaryNodeRepository(conn)
+        await repo.replace_all_for_user(user_id, [_node(concept.id, mass=0.42)])
+
+        node = await repo.get_for_concept(user_id, concept.id)
+
+    assert node is not None
+    assert node.concept_id == concept.id
+    assert node.mass == 0.42
