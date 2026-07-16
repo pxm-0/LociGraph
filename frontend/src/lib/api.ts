@@ -10,6 +10,7 @@ import type {
   Job,
   Observation,
   PlanetariumNode,
+  PlanetariumNodeDetail,
   Revision,
   SearchResult,
   Source,
@@ -421,6 +422,8 @@ function toPlanetariumNode(d: Record<string, unknown>): PlanetariumNode {
   return {
     id: String(d.id),
     conceptId: String(d.concept_id),
+    conceptName: String(d.concept_name),
+    conceptType: String(d.concept_type),
     x: Number(d.x),
     y: Number(d.y),
     z: Number(d.z),
@@ -441,6 +444,29 @@ export async function listPlanetariumNodes(): Promise<PlanetariumNode[]> {
   const r = await req("/planetarium/nodes")
   if (!r.ok) throw await readError(r, "listPlanetariumNodes failed")
   return (await r.json()).map(toPlanetariumNode)
+}
+
+function toPlanetariumNodeDetail(d: Record<string, unknown>): PlanetariumNodeDetail {
+  return {
+    conceptId: String(d.concept_id),
+    conceptName: String(d.concept_name),
+    conceptType: String(d.concept_type),
+    description: (d.description as string | null) ?? null,
+    mass: Number(d.mass),
+    brightness: Number(d.brightness),
+    visualClass: String(d.visual_class),
+    revisionCount: Number(d.revision_count),
+    edgeCount: Number(d.edge_count),
+    contradictionCount: Number(d.contradiction_count),
+    pinCount: Number(d.pin_count),
+    isEmbedded: Boolean(d.is_embedded),
+  }
+}
+
+export async function getPlanetariumNodeDetail(conceptId: string): Promise<PlanetariumNodeDetail> {
+  const r = await req(`/planetarium/nodes/${conceptId}/detail`)
+  if (!r.ok) throw await readError(r, "getPlanetariumNodeDetail failed")
+  return toPlanetariumNodeDetail(await r.json())
 }
 
 export async function rebuildPlanetarium(): Promise<{ jobId: string; status: string }> {

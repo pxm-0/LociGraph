@@ -51,6 +51,8 @@ export interface Job {
 export interface PlanetariumNode {
   id: string
   conceptId: string
+  conceptName: string
+  conceptType: string
   x: number
   y: number
   z: number
@@ -64,6 +66,21 @@ export interface PlanetariumNode {
   projectionVersion: string
   projectionAlgorithm: string
   createdAt: string | null
+}
+
+export interface PlanetariumNodeDetail {
+  conceptId: string
+  conceptName: string
+  conceptType: string
+  description: string | null
+  mass: number
+  brightness: number
+  visualClass: string
+  revisionCount: number
+  edgeCount: number
+  contradictionCount: number
+  pinCount: number
+  isEmbedded: boolean
 }
 
 export interface Claim {

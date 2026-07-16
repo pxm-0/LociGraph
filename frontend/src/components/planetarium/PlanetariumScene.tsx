@@ -17,9 +17,10 @@ const PALETTE = {
 
 interface PlanetariumSceneProps {
   nodes: PlanetariumNode[]
+  onSelect: (conceptId: string) => void
 }
 
-export function PlanetariumScene({ nodes }: PlanetariumSceneProps) {
+export function PlanetariumScene({ nodes, onSelect }: PlanetariumSceneProps) {
   const { mode } = useMode()
   const palette = PALETTE[mode]
 
@@ -35,6 +36,7 @@ export function PlanetariumScene({ nodes }: PlanetariumSceneProps) {
             key={node.id}
             node={node}
             color={node.visualClass === "black_hole" ? palette.blackHole : palette.planet}
+            onSelect={onSelect}
           />
         ))}
       </Bounds>
