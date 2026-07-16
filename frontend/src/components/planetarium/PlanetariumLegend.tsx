@@ -42,7 +42,7 @@ export function PlanetariumLegend() {
           pins.
         </li>
         <li>
-          <strong className="text-ink">Color</strong> — dark "black hole" nodes
+          <strong className="text-ink">Color</strong> — dark &quot;black hole&quot; nodes
           are the top 10% most active/connected concepts.
         </li>
         <li>
