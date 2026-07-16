@@ -5,6 +5,7 @@ import {
   getClaimsCount,
   getConceptsCount,
   getObservationsCount,
+  getPlanetariumNodeDetail,
   getSource,
   listJobs,
   listObservations,
@@ -153,6 +154,8 @@ test("listPlanetariumNodes maps snake_case fields to camelCase", async () => {
     {
       id: "n1",
       concept_id: "c1",
+      concept_name: "Alpha",
+      concept_type: "entity",
       x: 1,
       y: 2,
       z: 3,
@@ -174,6 +177,8 @@ test("listPlanetariumNodes maps snake_case fields to camelCase", async () => {
     {
       id: "n1",
       conceptId: "c1",
+      conceptName: "Alpha",
+      conceptType: "entity",
       x: 1,
       y: 2,
       z: 3,
@@ -190,6 +195,40 @@ test("listPlanetariumNodes maps snake_case fields to camelCase", async () => {
     },
   ])
   expect(f.mock.calls[0][0]).toBe("/api/planetarium/nodes")
+})
+
+test("getPlanetariumNodeDetail maps snake_case fields to camelCase", async () => {
+  const f = mockFetch(200, {
+    concept_id: "c1",
+    concept_name: "Alpha",
+    concept_type: "entity",
+    description: "A concept.",
+    mass: 0.7,
+    brightness: 0.8,
+    visual_class: "black_hole",
+    revision_count: 4,
+    edge_count: 7,
+    contradiction_count: 1,
+    pin_count: 2,
+    is_embedded: true,
+  })
+  vi.stubGlobal("fetch", f)
+  const result = await getPlanetariumNodeDetail("c1")
+  expect(result).toEqual({
+    conceptId: "c1",
+    conceptName: "Alpha",
+    conceptType: "entity",
+    description: "A concept.",
+    mass: 0.7,
+    brightness: 0.8,
+    visualClass: "black_hole",
+    revisionCount: 4,
+    edgeCount: 7,
+    contradictionCount: 1,
+    pinCount: 2,
+    isEmbedded: true,
+  })
+  expect(f.mock.calls[0][0]).toBe("/api/planetarium/nodes/c1/detail")
 })
 
 test("rebuildPlanetarium posts to /planetarium/rebuild and returns jobId/status", async () => {
