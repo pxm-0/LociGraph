@@ -19,13 +19,21 @@ export function ConceptDetailPanel({ conceptId, onClose }: ConceptDetailPanelPro
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    let stale = false
     setDetail(null)
     setError(null)
     getPlanetariumNodeDetail(conceptId)
-      .then(setDetail)
-      .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : "Failed to load concept detail")
+      .then((d) => {
+        if (!stale) setDetail(d)
       })
+      .catch((err: unknown) => {
+        if (!stale) {
+          setError(err instanceof Error ? err.message : "Failed to load concept detail")
+        }
+      })
+    return () => {
+      stale = true
+    }
   }, [conceptId])
 
   return (
