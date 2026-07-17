@@ -39,4 +39,4 @@ def test_settings_from_env_defaults(monkeypatch):
 
     settings = RevisionSynthesisSettings.from_env()
 
-    assert settings.openai_revision_model == "gpt-4o-mini"
+    assert settings.openai_revision_model == "gpt-5.4-mini"

@@ -459,5 +459,5 @@ def test_settings_from_env_defaults(monkeypatch):
 
     settings = CustodianSettings.from_env()
 
-    assert settings.openai_custodian_model == "gpt-4o-mini"
+    assert settings.openai_custodian_model == "gpt-5.6-terra"
     assert settings.custodian_max_messages_per_session == 100

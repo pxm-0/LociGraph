@@ -16,7 +16,7 @@ class RevisionSynthesisSettings:
         return cls(
             active_ai_provider=os.environ.get("ACTIVE_AI_PROVIDER", "openai"),
             openai_api_key=os.environ.get("OPENAI_API_KEY"),
-            openai_revision_model=os.environ.get("OPENAI_REVISION_MODEL", "gpt-4o-mini"),
+            openai_revision_model=os.environ.get("OPENAI_REVISION_MODEL", "gpt-5.4-mini"),
         )
 
 

@@ -97,7 +97,7 @@ export LOCIGRAPH_PASSWORD="changeme"
 export RAW_STORAGE_PATH="/tmp/locigraph-raw"
 export ACTIVE_AI_PROVIDER="openai"
 export OPENAI_API_KEY=""
-export OPENAI_EXTRACTION_MODEL="gpt-4o-mini"
+export OPENAI_EXTRACTION_MODEL="gpt-5.4-nano"
 export CLAIM_EXTRACTION_AUTORUN="false"
 export CLAIM_EXTRACTION_BATCH_SIZE="12"
 export COOKIE_SECURE="false"
@@ -132,10 +132,10 @@ Copy `.env.example` to `.env` and fill in real values for production.
 | `RAW_STORAGE_PATH` | yes | Path for uploaded raw files (Docker default: `/data/raw`) |
 | `ACTIVE_AI_PROVIDER` | no | AI provider for Phase 1 extraction (default: `openai`) |
 | `OPENAI_API_KEY` | no | OpenAI API key (required if provider is openai) |
-| `OPENAI_EXTRACTION_MODEL` | no | OpenAI model used by claim extraction (default: `gpt-4o-mini`) |
+| `OPENAI_EXTRACTION_MODEL` | no | OpenAI model used by claim extraction (default: `gpt-5.4-nano`) |
 | `CLAIM_EXTRACTION_AUTORUN` | no | Enqueue claim extraction after successful ingestion (`false` by default) |
 | `CLAIM_EXTRACTION_BATCH_SIZE` | no | Observations per extraction request (default: `12`) |
-| `OPENAI_CUSTODIAN_MODEL` | no | OpenAI model used by the Custodian chat (default: `gpt-4o-mini`) |
+| `OPENAI_CUSTODIAN_MODEL` | no | OpenAI model used by the Custodian chat (default: `gpt-5.6-terra`) |
 | `CUSTODIAN_MAX_MESSAGES_PER_SESSION` | no | Messages allowed per chat session before it auto-ends (default: `100`) |
 | `COOKIE_SECURE` | no | Set `true` in production (HTTPS only cookies) |
 

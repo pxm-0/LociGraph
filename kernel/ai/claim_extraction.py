@@ -71,7 +71,7 @@ class ClaimExtractionSettings:
             active_ai_provider=os.environ.get("ACTIVE_AI_PROVIDER", "openai"),
             openai_api_key=os.environ.get("OPENAI_API_KEY"),
             openai_extraction_model=os.environ.get(
-                "OPENAI_EXTRACTION_MODEL", "gpt-4o-mini"
+                "OPENAI_EXTRACTION_MODEL", "gpt-5.4-nano"
             ),
             claim_extraction_autorun=os.environ.get(
                 "CLAIM_EXTRACTION_AUTORUN", "false"

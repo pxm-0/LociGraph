@@ -19,8 +19,11 @@ class EmbeddingSettings:
         return cls(
             active_ai_provider=os.environ.get("ACTIVE_AI_PROVIDER", "openai"),
             openai_api_key=os.environ.get("OPENAI_API_KEY"),
+            # ponytail: 3-large @ 1536 dims beats 3-small @ 1536 (MTEB) with no
+            # schema change — the vector(1536) column + HNSW index stay valid.
+            # Peak recall needs dims=3072 → ALTER column + index rebuild + re-embed.
             openai_embedding_model=os.environ.get(
-                "OPENAI_EMBEDDING_MODEL", "text-embedding-3-small"
+                "OPENAI_EMBEDDING_MODEL", "text-embedding-3-large"
             ),
             embedding_dimensions=max(1, int(os.environ.get("EMBEDDING_DIMENSIONS", "1536"))),
             embedding_autorun=os.environ.get("EMBEDDING_AUTORUN", "false").lower() == "true",

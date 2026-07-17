@@ -20,7 +20,7 @@ class ContradictionSettings:
             active_ai_provider=os.environ.get("ACTIVE_AI_PROVIDER", "openai"),
             openai_api_key=os.environ.get("OPENAI_API_KEY"),
             openai_contradiction_model=os.environ.get(
-                "OPENAI_CONTRADICTION_MODEL", "gpt-4o-mini"
+                "OPENAI_CONTRADICTION_MODEL", "gpt-5.4-mini"
             ),
             contradiction_candidate_limit=max(
                 1, int(os.environ.get("CONTRADICTION_CANDIDATE_LIMIT", "5"))

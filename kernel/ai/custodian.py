@@ -332,7 +332,7 @@ class CustodianSettings:
         return cls(
             active_ai_provider=os.environ.get("ACTIVE_AI_PROVIDER", "openai"),
             openai_api_key=os.environ.get("OPENAI_API_KEY"),
-            openai_custodian_model=os.environ.get("OPENAI_CUSTODIAN_MODEL", "gpt-4o-mini"),
+            openai_custodian_model=os.environ.get("OPENAI_CUSTODIAN_MODEL", "gpt-5.6-terra"),
             custodian_max_messages_per_session=max(
                 1, int(os.environ.get("CUSTODIAN_MAX_MESSAGES_PER_SESSION", "100"))
             ),

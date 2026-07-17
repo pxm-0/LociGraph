@@ -45,7 +45,7 @@ def test_settings_from_env_defaults(monkeypatch):
 
     settings = ContradictionSettings.from_env()
 
-    assert settings.openai_contradiction_model == "gpt-4o-mini"
+    assert settings.openai_contradiction_model == "gpt-5.4-mini"
     assert settings.contradiction_candidate_limit == 5
     assert settings.contradiction_similarity_floor == 0.75
     assert settings.contradiction_autorun is False

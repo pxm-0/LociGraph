@@ -11,7 +11,7 @@ def test_embedding_settings_from_env_reads_defaults(monkeypatch):
 
     settings = EmbeddingSettings.from_env()
 
-    assert settings.openai_embedding_model == "text-embedding-3-small"
+    assert settings.openai_embedding_model == "text-embedding-3-large"
     assert settings.embedding_dimensions == 1536
     assert settings.embedding_autorun is False
     assert settings.embedding_batch_size == 100
