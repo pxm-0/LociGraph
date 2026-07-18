@@ -53,3 +53,37 @@ async def test_dashboard_summary_reports_real_totals(client, seeded_user):  # ty
 async def test_dashboard_summary_requires_auth(client):  # type: ignore[no-untyped-def]
     r = await client.get("/dashboard/summary")
     assert r.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_dashboard_trends_zero_filled_window(client, seeded_user):  # type: ignore[no-untyped-def]
+    async with session(seeded_user) as conn:
+        await SourceRepository(conn).create(seeded_user, "json", "trends-src")
+
+    await _login(client)
+    r = await client.get("/dashboard/trends?window=7")
+
+    assert r.status_code == 200
+    body = r.json()
+    assert body["window_days"] == 7
+    for entity in ("sources", "claims", "concepts", "contradictions"):
+        points = body["series"][entity]
+        assert len(points) == 7
+        dates = [p["date"] for p in points]
+        assert dates == sorted(dates)
+        assert all(isinstance(p["count"], int) for p in points)
+    assert body["series"]["sources"][-1]["count"] >= 1
+
+
+@pytest.mark.asyncio
+async def test_dashboard_trends_default_window(client, seeded_user):  # type: ignore[no-untyped-def]
+    await _login(client)
+    r = await client.get("/dashboard/trends")
+    assert r.status_code == 200
+    assert len(r.json()["series"]["claims"]) == 30
+
+
+@pytest.mark.asyncio
+async def test_dashboard_trends_requires_auth(client):  # type: ignore[no-untyped-def]
+    r = await client.get("/dashboard/trends")
+    assert r.status_code == 401
