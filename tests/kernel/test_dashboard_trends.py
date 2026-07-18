@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import text
@@ -12,7 +12,7 @@ from kernel.db.session import session
 @pytest.mark.asyncio
 async def test_counts_by_day_buckets_sources(make_user):  # type: ignore[no-untyped-def]
     uid = await make_user()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     today = now.date()
     yesterday = today - timedelta(days=1)
     async with session(uid) as conn:
@@ -33,7 +33,7 @@ async def test_counts_by_day_buckets_sources(make_user):  # type: ignore[no-unty
 @pytest.mark.asyncio
 async def test_counts_by_day_excludes_before_since(make_user):  # type: ignore[no-untyped-def]
     uid = await make_user()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     async with session(uid) as conn:
         await conn.execute(
             text(

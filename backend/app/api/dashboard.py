@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends
@@ -48,9 +48,9 @@ async def dashboard_trends(
     user_id: str = Depends(get_current_user),
 ) -> dict[str, Any]:
     window = max(1, min(window, 365))
-    start_day = (datetime.now(timezone.utc) - timedelta(days=window - 1)).date()
+    start_day = (datetime.now(UTC) - timedelta(days=window - 1)).date()
     days = [start_day + timedelta(days=i) for i in range(window)]
-    since = datetime(start_day.year, start_day.month, start_day.day, tzinfo=timezone.utc)
+    since = datetime(start_day.year, start_day.month, start_day.day, tzinfo=UTC)
     async with session(user_id) as conn:
         raw = await counts_by_day(conn, since)
     series = {
