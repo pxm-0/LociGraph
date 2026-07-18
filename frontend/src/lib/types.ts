@@ -180,6 +180,18 @@ export interface CustodianLoggedItem {
   resolvedAt: string | null
 }
 
+export interface TrendPoint {
+  date: string
+  count: number
+}
+
+export type TrendSeriesKey = "sources" | "claims" | "concepts" | "contradictions"
+
+export interface DashboardTrends {
+  window_days: number
+  series: Record<TrendSeriesKey, TrendPoint[]>
+}
+
 export interface DashboardSummary {
   sourceCount: number
   observationCount: number

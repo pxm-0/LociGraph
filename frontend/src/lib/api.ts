@@ -7,6 +7,8 @@ import type {
   CustodianMessage,
   CustodianSession,
   DashboardSummary,
+  DashboardTrends,
+  TrendSeriesKey,
   Job,
   Observation,
   PlanetariumNode,
@@ -158,6 +160,20 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
     pendingJobCount: Number(d.pending_job_count ?? 0),
     recentSources: ((d.recent_sources ?? []) as Record<string, unknown>[]).map(toSource),
   }
+}
+
+export async function getDashboardTrends(window?: number): Promise<DashboardTrends> {
+  const qs = window != null ? `?window=${window}` : ""
+  const r = await req(`/dashboard/trends${qs}`)
+  if (!r.ok) throw await readError(r, "dashboard trends failed")
+  const d = (await r.json()) as { window_days?: number; series?: Record<string, unknown> }
+  const rawSeries = (d.series ?? {}) as Record<string, { date: string; count: number }[]>
+  const keys: TrendSeriesKey[] = ["sources", "claims", "concepts", "contradictions"]
+  const series = {} as DashboardTrends["series"]
+  for (const key of keys) {
+    series[key] = (rawSeries[key] ?? []).map((p) => ({ date: String(p.date), count: Number(p.count ?? 0) }))
+  }
+  return { window_days: Number(d.window_days ?? 0), series }
 }
 
 export async function listSources(): Promise<Source[]> {
